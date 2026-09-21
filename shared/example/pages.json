@@ -1,0 +1,57 @@
+{
+  "home": {
+    "faq": {
+      "heading": "Questions people ask",
+      "items": [
+        {
+          "answer": "Yes. Every plan includes a two-week trial with no card required.",
+          "question": "Can I try it first?"
+        },
+        {
+          "answer": "Email us and a real person replies within one business day.",
+          "question": "How do I get help?"
+        }
+      ]
+    },
+    "hero": {
+      "body": "Acme helps small teams keep their website current without waiting on a developer.",
+      "cta": {
+        "href": "/contact/",
+        "label": "Talk to us"
+      },
+      "image": "/assets/hero.webp",
+      "image_alt": "Two people reviewing a website on a laptop",
+      "title": "Keep your site current",
+      "video": ""
+    },
+    "seo": {
+      "description": "Acme keeps small-business websites current, without a developer on call.",
+      "image": "",
+      "title": "Acme | Keep your site current"
+    }
+  },
+  "shared": {
+    "footer": {
+      "blurb": "Acme is a small studio in Sacramento, California.",
+      "copyright": "© 2026 Acme. All rights reserved.",
+      "privacy": {
+        "href": "/privacy/",
+        "label": "Privacy policy"
+      }
+    },
+    "header": {
+      "logo": "/assets/logo.svg",
+      "logo_alt": "Acme",
+      "nav": [
+        {
+          "href": "/",
+          "label": "Home"
+        },
+        {
+          "href": "/contact/",
+          "label": "Contact"
+        }
+      ]
+    }
+  }
+}
