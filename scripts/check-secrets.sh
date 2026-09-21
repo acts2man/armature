@@ -7,6 +7,7 @@ if [ ! -d "$DIST" ]; then
   echo "check-secrets: $DIST does not exist. Run npm run build first." >&2
   exit 1
 fi
+# Fixed strings that must never appear in the bundle.
 NEEDLES=(
   "GITHUB_APP_PRIVATE_KEY"
   "GITHUB_APP_ID"
@@ -16,7 +17,12 @@ NEEDLES=(
   "api.github.com"
   "SUPABASE_SERVICE_ROLE_KEY"
   "service_role"
-  "sb_secret_"
+)
+# Patterns for actual key material. (supabase-js itself contains the bare
+# prefix "sb_secret_" in a prefix check, so the prefix alone is not evidence.)
+PATTERNS=(
+  "sb_secret_[A-Za-z0-9_-]{8,}"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+"
 )
 status=0
 for needle in "${NEEDLES[@]}"; do
@@ -28,7 +34,16 @@ for needle in "${NEEDLES[@]}"; do
     echo "ok: \"$needle\" absent"
   fi
 done
+for pattern in "${PATTERNS[@]}"; do
+  if grep -R -q -E -- "$pattern" "$DIST"; then
+    echo "FAIL: found a match for /$pattern/ in $DIST" >&2
+    grep -R -l -E -- "$pattern" "$DIST" >&2
+    status=1
+  else
+    echo "ok: no match for /$pattern/"
+  fi
+done
 if [ "$status" -eq 0 ]; then
-  echo "check-secrets: all ${#NEEDLES[@]} strings absent from $DIST"
+  echo "check-secrets: all ${#NEEDLES[@]} strings and ${#PATTERNS[@]} patterns absent from $DIST"
 fi
 exit "$status"
