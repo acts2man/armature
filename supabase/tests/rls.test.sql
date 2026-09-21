@@ -68,7 +68,7 @@ end $$;
 -- ---------------------------------------------------------------------------
 -- 1. Client of site A ("ca")
 -- ---------------------------------------------------------------------------
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true);
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
 set local role authenticated;
 
 do $$ begin
@@ -144,7 +144,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 2. Agency X staff
 -- ---------------------------------------------------------------------------
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true);
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
 set local role authenticated;
 
 do $$ begin
@@ -206,7 +206,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 3. Agency X owner
 -- ---------------------------------------------------------------------------
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a001","role":"authenticated","email":"x-owner@example.com"}', true);
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a001","role":"authenticated","email":"x-owner@example.com"}', true); end $$;
 set local role authenticated;
 
 update public.agencies set portal_name = 'X Portal Renamed', accent_color = '#123456';
@@ -226,7 +226,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 4. Agency Y owner sees nothing of agency X
 -- ---------------------------------------------------------------------------
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000b001","role":"authenticated","email":"y-owner@example.com"}', true);
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000b001","role":"authenticated","email":"y-owner@example.com"}', true); end $$;
 set local role authenticated;
 
 do $$ begin
@@ -245,7 +245,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 5. Anonymous callers see nothing at all
 -- ---------------------------------------------------------------------------
-select set_config('request.jwt.claims', '', true);
+do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
 set local role anon;
 do $$ begin
   begin
@@ -259,7 +259,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 -- 6. Storage paths: the site id in the folder decides access
 -- ---------------------------------------------------------------------------
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true);
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
 set local role authenticated;
 insert into storage.objects (bucket_id, name, owner)
 values ('change-request-attachments', '00000000-0000-0000-0000-00000000000a/00000000-0000-0000-0000-00000000c00a/shot.webp', auth.uid());
