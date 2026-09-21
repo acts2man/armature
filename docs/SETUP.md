@@ -57,7 +57,7 @@ You will only know the dashboard's address after Part D. Come back and do this t
 2. **Site URL**: your Netlify address, for example `https://acme-portal.netlify.app`.
 3. **Redirect URLs**: press **Add URL** and enter your Netlify address followed by `/**`, for example `https://acme-portal.netlify.app/**`. Save.
 
-Also, under **Authentication**, open **Sign In / Providers** (or **Providers**) and check **Email** is enabled. Leave **Confirm email** switched on: people will receive an email to confirm their address the first time they create an account. This is how the dashboard's sign-in and invite links work.
+Also, under **Authentication**, open **Sign In / Providers** (or **Providers**) and check **Email** is enabled. You can leave **Confirm email** switched on: people then receive an email to confirm their address the first time they create an account, and the "Email me a sign-in link" and "Forgot your password?" options also send email through Supabase. Invite links do not use email; you copy and send those yourself (Part F4).
 
 ---
 
@@ -74,7 +74,7 @@ The GitHub App is what lets the dashboard write to client sites. It has exactly 
    - **GitHub App name**: a name like `Acme Portal Publisher`. GitHub turns this into the App's *slug*: the same words in lowercase with hyphens (`acme-portal-publisher`). Write the slug in your notes as `APP_SLUG`. You can confirm it later: the App's public page is `https://github.com/apps/<slug>`.
    - **Homepage URL**: your Netlify address if you already have it, otherwise the address of this repository on GitHub. You can change it later.
    - **Callback URL**: leave empty. The dashboard does not use it.
-   - **Setup URL**: your Netlify address followed by `/github/setup`, for example `https://acme-portal.netlify.app/github/setup`. If you do not have the Netlify address yet, leave it empty and come back after Part D (it is under the App's **General** settings). Tick **Redirect on update** if it is shown.
+   - **Setup URL**: your Netlify address followed by `/github/setup`, for example `https://acme-portal.netlify.app/github/setup`. If you do not have the Netlify address yet, leave it empty and come back after Part D (it is under the App's **General** settings). Tick **Redirect on update**. Without it, the "press Configure, then Save" recovery step in Part F1 does not bring you back to the dashboard.
    - **Webhook**: **untick Active**. The dashboard does not need webhooks.
    - **Permissions**, under **Repository permissions**: find **Contents** and choose **Read and write**. GitHub sets **Metadata** to **Read-only** on its own; that is required and cannot be turned off. Leave every other permission at **No access**.
    - **Where can this GitHub App be installed?**: choose **Any account**. This lets a client who keeps their site in their own GitHub organisation install the App there.
@@ -115,7 +115,7 @@ This repository includes a workflow called **Deploy edge functions**. It needs t
 4. Press **New repository secret** again. **Name** `SUPABASE_PROJECT_REF`, **Secret** the `PROJECT_REF` from A2. Add it.
 5. Press the repository's **Actions** tab. If GitHub asks you to enable workflows, press the green button to enable them.
 6. In the left list press **Deploy edge functions**, then the **Run workflow** button on the right, then the green **Run workflow**.
-7. A run appears in the list. Wait for a green tick (about two minutes). If it shows a red cross, open it, open the failed step, and read the last lines: they say what went wrong (most often a mistyped secret).
+7. A run appears in the list. Wait for it to finish (about two minutes). A green tick is not enough on its own: open the run and check that the step **Deploy every function** ran. If instead you see a yellow warning reading "Skipping the deploy: add the SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF repository secrets first", one of the two secret names in steps 3 and 4 is missing or mistyped; fix it and press **Run workflow** again. A red cross means the deploy itself failed: open the failed step and read the last lines (most often the token is wrong or expired).
 
 From now on, every change to the functions that lands on the `main` branch deploys automatically.
 
@@ -154,9 +154,9 @@ Now go back and finish the two places that needed this address:
 ## Part E — Create the first agency owner account
 
 1. Open `DASHBOARD_URL/signin`.
-2. Press **Create an account instead**, enter your email address and a password, and submit.
-3. Check your inbox for a confirmation email from Supabase and press the link in it. It brings you back to the dashboard.
-4. Sign in with the same email and password. The dashboard says your account does not have access to any site yet. That is expected: nobody has told the database that you are an agency owner.
+2. Press **Create an account instead**, enter your email address, type a password of at least 6 characters under **Choose a password**, and press **Create account**. You should see **Check your inbox to confirm your email address**.
+3. Open the confirmation email from Supabase and press the link in it. It brings you back to the dashboard, already signed in. (If you land on the sign-in page instead, sign in with the same email and password.)
+4. The dashboard says **Your account does not have access to any site yet**. That is expected: nobody has told the database that you are an agency owner.
 5. In Supabase press **SQL Editor**, then **New query**, and paste this line, replacing the three values with your own (keep the quotes):
 
    ```sql
@@ -168,7 +168,7 @@ Now go back and finish the two places that needed this address:
 6. Press **Run**. The result is one long id. That is your agency.
 7. Reload the dashboard. You now land on **Fleet**, and **Agency settings** in the top bar lets you set the logo and accent colour.
 
-If step 6 says "No account with the email …", the address does not match the one you signed up with, or you have not yet confirmed the email from step 3.
+If step 6 says "No account with the email …", the address you typed does not match the one you signed up with (check for typos; capital letters do not matter), or you have not yet pressed **Create account** in step 2.
 
 ---
 
@@ -180,7 +180,7 @@ The site's developer must first make the repository follow the site contract: `c
 
 1. In the dashboard, press **Fleet**, then **Add a site**.
 2. Press **Install the GitHub App**. GitHub opens.
-3. If you belong to several GitHub accounts or organisations, GitHub asks where to install. Choose the account that **owns the site's repository** (for a client's own organisation, the client must be an owner there, or they do this step themselves after you invite them).
+3. If you belong to several GitHub accounts or organisations, GitHub asks where to install. Choose the account that **owns the site's repository** (the person doing this step must be signed in to the dashboard as agency staff AND have the right to install apps on that GitHub organisation, normally as one of its owners. If you are a member but not an owner, GitHub records an install *request* and the dashboard says it is waiting for an owner to approve it; once they have, start again from **Add a site**. A client account cannot do this step: the dashboard only links installations for agency staff.)
 4. Choose **Only select repositories**, pick the site's repository, and press **Install**.
 5. GitHub sends you back to the dashboard's `/github/setup` page, which shows **GitHub account … is linked**. Press **Add a site**.
 
@@ -188,15 +188,15 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 
 ### F2. Check and connect
 
-1. On **Add a site**, paste the repository as `owner/name` or as its full GitHub address. Enter the branch (default `main`), a site name your client will recognise, and the site's live address (optional, used for "View live page" links).
+1. On **Add a site**, under **Which repository?**: in **Repository** paste the repository as `owner/name` or its full GitHub address; in **Branch** enter the branch (it is already `main`); in **Site name** enter the name your client will recognise (leave it blank to use the repository name); in **Live URL (optional)** enter the site's live address, which must start with `https://` (it is used for the **View live page** links).
 2. Press **Check and connect**.
-3. A checklist appears. Every line is a tick or a cross, and every cross has the fix written under it. When all lines are ticks, the site is created and **Open the site** appears.
+3. A checklist appears. Each line is a tick, a cross, or a dashed circle. A cross has the fix written under it; dashed lines were not checked because a line above them failed, so fix the first cross and press **Check and connect** again. When all lines are ticks, the site is created and **Open the site** appears.
 
 ### F3. Try an edit
 
 1. Open the site, press **Pages**, and choose a page.
 2. Change one field. It gets a **Changed** tag and the bar at the top counts one unpublished change.
-3. Press **Publish changes**. Within a few seconds you get **Published. Your changes will be live in about 2 minutes** and a **View the commit** link. Open it: you will see the change in `content/pages.json`.
+3. Press **Publish changes**. Within a few seconds you get **Published. Your changes will be live in about 2 minutes** and a **View the commit** link (a commit is one saved change in the repository's history on GitHub). Open it: you will see the change in `content/pages.json`.
 4. The site's own host (the client site's Netlify, not the dashboard's) rebuilds. Reload the live site after a minute or two.
 5. Change the field back and publish again, so the site is as it was.
 
@@ -205,7 +205,7 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 1. Open the site and press **Team**.
 2. Enter the client's email address, choose a role (**Client owner** or **Client editor**, both can edit and publish), and press **Create invite**.
 3. The dashboard shows an invite link with a **Copy link** button. Email sending is not set up in this version, so copy the link and send it to the client yourself. It expires after seven days.
-4. The client opens the link, creates an account **with that same email address** (or signs in if they already have one), and lands on their site. They see your portal name, logo and colour, and never the word Armature.
+4. The client opens the link, creates an account **with that same email address** (or signs in if they already have one), and sees **You now have access**; pressing **Open your site** takes them to it. They see your portal name, logo and colour, and never the word Armature.
 
 ---
 
@@ -213,13 +213,13 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 
 **Running a migration says "already exists".** You ran the file before. Nothing is broken; move on to the next file.
 
-**The dashboard shows "Missing VITE_SUPABASE_URL" (or the key).** Part D step 6: check the variable names exactly, then Trigger deploy again.
+**The sign-in page says "This dashboard is not connected to a Supabase project yet" and names a missing variable.** Part D step 6: check the variable names exactly, then Trigger deploy again.
 
 **"The … function is not deployed to this Supabase project."** Part C has not run, or it failed. Check the Actions tab for a red run, or Supabase → Edge Functions for the seven names.
 
-**After signing in: "Your account does not have access to any site yet."** For the agency owner: Part E step 5 was not run, or used a different email. For a client: they signed in with an email that is not the one the invite was sent to; they should sign out and use the invited address, or you send a new invite to the address they use.
+**After signing in: "Your account does not have access to any site yet."** For the agency owner: Part E step 5 was not run, or used a different email. For a client: either they have not opened the invite link while signed in (the link is what adds them: send it again and ask them to open it), or they signed in with an email that is not the one the invite was sent to; they should sign out and use the invited address, or you send a new invite to the address they use.
 
-**"This invite was sent to …, but you are signed in as …".** Same cause as above. Sign out and sign in with the invited address.
+**"This invite was sent to …, but you are signed in as …".** Same cause as above. Press **Sign out and use a different email** on that page, then sign in (or create an account) with the invited address; the invite is accepted automatically.
 
 **Confirmation or sign-in-link emails point at localhost.** Part A4: the Site URL in Supabase is still the default. Set it to `DASHBOARD_URL` and add the redirect URL.
 
@@ -227,7 +227,7 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 
 | Line | What to do |
 | --- | --- |
-| You are signed in | Sign out and in again. |
+| You are signed in | Sign out and in again. If it keeps failing, the two Netlify variables from Part D step 6 point at the wrong Supabase project. |
 | Your account can edit this site | Ask the agency to invite you to this site (Team). |
 | GitHub App secrets reached this function | Part B3: add the missing secret named in the message, then redeploy the functions (Part C). |
 | The App's private key can be read | The key was pasted incompletely or from the wrong file. Generate a new key (B2) and paste the whole `.pem` file (B3), then redeploy. |
@@ -241,6 +241,6 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 
 **The Publish button is grey.** Look at the line at the top of the editor. "Connecting to GitHub…" means wait a few seconds. "Not connected to GitHub" comes with an amber box that says why; press **Check connection**. If everything is green and Publish is still grey, you have no unpublished changes: change a field and it lights up.
 
-**"Someone else changed these fields while you were editing."** Two people edited the same field. Nothing was published. Press **Reload and keep my changes** to see their version with your edits still in place, then decide.
+**"Someone else changed this field (or these fields) while you were editing …"** Two people edited the same field; the notice **Nothing was published** lists which ones. Press **Reload and keep my changes** to load their version with your edits still in place and decide field by field, or **Discard my changes and reload** to drop yours.
 
 **Changing the dashboard's address later** (for example a custom domain): update Netlify (Domain management), Supabase (Part A4), the GitHub App's Setup URL (Part B1) and the optional `APP_URL` secret (Part B3, then redeploy the functions).

@@ -33,24 +33,24 @@ The file is one JSON object:
 | `label` | yes | Human name shown in the dashboard ("Home", "Header & footer"). |
 | `path` | yes | The page's live path, starting with `/` (`/`, `/contact/`). Used for the "View live page" link. |
 | `description` | no | One sentence shown under the page name. |
-| `sections` | yes | An array of sections. It may be empty, but then nothing on the page is editable. |
+| `sections` | yes | An array of sections. It may be empty, but then nothing on the page is editable (reported as a warning). |
 
 ### Section
 
 | Key | Required | Rules |
 | --- | --- | --- |
-| `key` | yes | Lowercase letters, digits and underscores (`hero`, `faq`, `seo`). Unique within the page. |
+| `key` | yes | Lowercase letters, digits and underscores, starting with a letter or digit (`hero`, `faq`, `seo`). Unique within the page. |
 | `label` | yes | Shown as the section tab in the editor. |
-| `fields` | yes | An array of fields. |
+| `fields` | yes | An array of fields. It may be empty, but the dashboard reports an empty section as a warning. |
 
 ### Field
 
 | Key | Required | Rules |
 | --- | --- | --- |
-| `key` | yes | Lowercase letters, digits and underscores. Unique within the section. |
+| `key` | yes | Lowercase letters, digits and underscores, starting with a letter or digit (`title`, `body`, `image_alt`). Unique within the section. |
 | `label` | yes | Shown above the control in the editor. Write it for the client, not the developer ("Headline", not "h1"). |
 | `type` | yes | One of `text`, `textarea`, `image`, `video`, `url`, `link`, `list`. |
-| `itemFields` | only for `list` | A non-empty array describing each repeatable item: `{ "key", "label", "type" }` where `type` is one of `text`, `textarea`, `image`, `url`. Keys are unique within the list. A non-list field must not have `itemFields`. |
+| `itemFields` | only for `list` | A non-empty array describing each repeatable item: `{ "key", "label", "type" }` where `type` is one of `text`, `textarea`, `image`, `url`. Keys are lowercase letters, digits and underscores, starting with a letter or digit, and unique within the list. A non-list field must not have `itemFields`. |
 | `help` | no | A short hint shown under the control. |
 
 ### What each field type means
@@ -60,7 +60,7 @@ The file is one JSON object:
 | `text` | A single-line input | a string | at most 300 characters |
 | `textarea` | A multi-line input | a string | at most 5000 characters |
 | `image` | A path input plus a file picker. A picked file is resized in the browser and committed under `public/assets/uploads/` | a string path such as `/assets/hero.webp` | must be empty or start with `/assets/`, must not contain `..`, at most 2000 characters |
-| `video` | A URL input (for example a YouTube, Vimeo or Wistia embed URL) | a string | must be empty or start with `https://`, `http://`, `mailto:`, `tel:` or `/` |
+| `video` | A URL input (for example a YouTube, Vimeo or Wistia embed URL) | a string | must be empty or start with `https://`, `http://`, `mailto:`, `tel:` or `/`; at most 2000 characters |
 | `url` | A URL input | a string | same rules as `video` |
 | `link` | Two inputs: the visible label and the destination | `{ "label": "...", "href": "..." }` | label at most 300 characters; `href` follows the `url` rules |
 | `list` | Repeatable items with Add, Remove, Move up, Move down | an array of objects, each carrying every `itemFields` key as a string | at most 100 items; each item field follows its type's rules above; an item may not carry keys the schema does not declare |
@@ -69,7 +69,7 @@ The file is one JSON object:
 
 ### The `shared` page
 
-By convention the page with slug `shared` holds content used on every page: the header (logo, navigation) and the footer. The dashboard treats it like any other page and lists it as "Header & footer" (or whatever `label` you give it). If there is no `shared` page the site still connects; the checklist shows a warning so nobody is surprised that the header is not editable.
+By convention the page with slug `shared` holds content used on every page: the header (logo, navigation) and the footer. The dashboard treats it like any other page and lists it as "Header & footer" (or whatever `label` you give it). If there is no `shared` page the site still connects (every checklist item passes); the dashboard shows a note on the site's pages list and in the editor saying that header and footer content will not be editable.
 
 ## content/pages.json — the content
 
@@ -88,7 +88,7 @@ Rules:
 
 ## public/assets/uploads/ — pictures
 
-When someone picks a picture for an `image` field, the browser resizes it first (WebP, longest edge at most 2000 pixels, at most 3 MB; PNG, JPEG and WebP originals are accepted) and the publish commits it as
+When someone picks a picture for an `image` field, the browser resizes it first (WebP, or JPEG if the browser cannot encode WebP; longest edge at most 2000 pixels; at most 3 MB; PNG, JPEG and WebP originals are accepted) and the publish commits it as
 
 ```
 public/assets/uploads/<page-slug>-<timestamp>-<safe-file-name>.<webp|png|jpg>
@@ -131,8 +131,8 @@ Keep one helper like this and read everything through it. Do not fetch `pages.js
 
 1. The editor sends only the fields that changed on one page, plus any new pictures, plus the commit it loaded the content from.
 2. The edge function checks the signed-in person may edit the site, validates every field against `content/schema.json` at the branch head, and refuses anything that breaks the rules above. Nothing is written yet.
-3. It reads the current `content/pages.json`. If the branch has moved since the editor loaded, it works out which fields the other commit changed. Different fields: the changes merge. The same field: the publish is refused, the editor is told which fields, and nothing is written.
-4. It merges the changes, runs the whole-file check on the result, and refuses to commit if the file would be invalid.
+3. It has already read the current `content/pages.json` alongside the schema. If the branch has moved since the editor loaded, it reads the file at the editor's commit (if that commit can no longer be read, the publish is refused and the editor is told to reload) and works out which fields the other commit changed. Different fields: the changes merge. The same field: the publish is refused, the editor is told which fields, and nothing is written.
+4. It merges the changes, runs the whole-file check on the result, and refuses to commit if the file would be invalid. It also refuses, writing nothing, if the merged file would be identical to the committed one and no new pictures were added.
 5. It makes **one commit** on the configured branch containing `content/pages.json` and any new files under `public/assets/uploads/`, with the message `Content: <page label> updated by <email>`. The branch is updated without force, so GitHub itself refuses anything that is not a fast-forward.
 6. Your host rebuilds the site on the push. With Netlify that is automatic and usually takes one to three minutes.
 

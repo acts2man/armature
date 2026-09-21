@@ -27,7 +27,7 @@ The first version: a manual-only editing dashboard. No AI features anywhere.
 - Seven Supabase edge functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `site-diagnose`, `invite-create`, `invite-accept`.
 - GitHub access through a GitHub App only: an RS256 app JWT signed with Web Crypto mints a one-hour installation token per request, scoped to the one repository.
 - The pilot's publish engine, ported: schema validation, URL and image rules, one commit per publish through the Git Data API, no force-push, field-level conflict merge, re-validation of the merged file before commit, errors that are never silent, secrets that stay server-side.
-- A `publishes` row for every attempt (committed, conflict or failed).
+- A `publishes` row for every attempt on a site the caller can access (committed, conflict or failed).
 
 **Data and security**
 

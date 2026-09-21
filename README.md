@@ -19,7 +19,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 
 - Sign in with email and password, or with an emailed sign-in link.
 - **Fleet**: every connected site with its status, last publish and open change requests.
-- **Add a site**: install the GitHub App, pick a repository and branch, and run the connection checklist.
+- **Add a site**: install the GitHub App, type the repository (`owner/name` or its GitHub URL) and branch, and run the connection checklist.
 - **Change requests** across every site, with a status and a note back to the client.
 - **Team**: invite clients to a site by email and see who has access.
 - **Agency settings**: portal name, logo and accent colour. Clients see the agency's brand and never the word Armature.
@@ -29,7 +29,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 
 - A home page with their site, recent publishes and their change requests.
 - **Edit pages**: a local draft per page, a **Changed** tag on every edited field, per-field **Revert**, **Discard all**, one **Publish** button, a warning before leaving with unpublished changes, and a **Check connection** button that explains exactly what is wrong when something is.
-- Pictures are resized in the browser (WebP, at most 2000 pixels wide, under 3 MB) before they are uploaded.
+- Pictures are resized in the browser (WebP, longest edge at most 2000 pixels, at most 3 MB) before they are uploaded.
 - **Request a change** with a title, details and screenshots, and follow its status.
 
 ## What it deliberately does not do yet
