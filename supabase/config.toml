@@ -1,0 +1,27 @@
+# Supabase CLI configuration for Armature. `project_id` is filled in by
+# `supabase link`; nothing here needs editing by hand.
+#
+# Every edge function requires a signed-in caller, so verify_jwt stays on.
+# The functions import the repo-root shared/ folder, which needs the API-based
+# bundler: deploy with `supabase functions deploy --use-api` (CLI 2.13.3 or newer).
+
+[functions.github-setup]
+verify_jwt = true
+
+[functions.site-connect]
+verify_jwt = true
+
+[functions.content-get]
+verify_jwt = true
+
+[functions.content-publish]
+verify_jwt = true
+
+[functions.site-diagnose]
+verify_jwt = true
+
+[functions.invite-create]
+verify_jwt = true
+
+[functions.invite-accept]
+verify_jwt = true
