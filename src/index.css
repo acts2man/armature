@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+/* Design tokens. The accent is a runtime CSS variable so each agency can override it. */
+@theme {
+  --color-ink: #16202b;
+  --color-text: #1b2733;
+  --color-muted: #4a5866;
+  --color-line: #d7dde3;
+  --color-ground: #eef1f4;
+  --color-panel: #ffffff;
+  --color-success: #176b43;
+  --color-success-soft: #e6f3ec;
+  --color-warning: #8a4b00;
+  --color-warning-soft: #fdf1e3;
+  --color-danger: #a32d2d;
+  --color-danger-soft: #fbe9e9;
+  --font-display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
+  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-card: 12px;
+}
+
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+}
+
+:root {
+  --accent: #2b3fd6;
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 10%, white);
+}
+
+html {
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Keyboard focus is always visible; mouse focus stays quiet. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Comfortable tap targets everywhere a finger might land. */
+button,
+[role="button"],
+a.btn,
+input[type="file"],
+select {
+  min-height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
