@@ -25,7 +25,7 @@ type Person = { user_id: string; profile: ProfileLite | null; created_at: string
 type MemberRow = Person & { role: SiteRole };
 type StaffRow = Person & { role: AgencyMember["role"] };
 type PendingInvite = Invite & { expired: boolean };
-type CreatedInvite = { url: string; email: string; expires_at: string };
+type CreatedInvite = { url: string; email: string; expires_at: string; emailed: boolean };
 
 async function loadProfiles(userIds: string[]): Promise<Map<string, ProfileLite>> {
   const map = new Map<string, ProfileLite>();
@@ -113,18 +113,20 @@ function InviteLinkNotice({ invite, onDismiss }: { invite: CreatedInvite; onDism
       title="Invite created"
       action={
         <>
-          <Button variant="secondary" size="sm" onClick={() => void copy()}>
+          <Button variant="secondary" onClick={() => void copy()}>
             {copied === "copied" ? "Copied" : "Copy link"}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onDismiss}>
+          <Button variant="ghost" onClick={onDismiss}>
             Dismiss
           </Button>
         </>
       }
     >
       <p>
-        Email sending is not set up yet, so copy this link and send it to {invite.email} yourself. It expires on{" "}
-        {formatDate(invite.expires_at)}.
+        {invite.emailed
+          ? `The link was emailed to ${invite.email}; you can also copy it below.`
+          : `Email sending is not set up yet, so copy this link and send it to ${invite.email} yourself.`}{" "}
+        It expires on {formatDate(invite.expires_at)}.
       </p>
       <div className="mt-2">
         <label htmlFor={inputId} className="sr-only">
@@ -197,7 +199,7 @@ function MembersSection({ siteId }: { siteId: string }) {
                   <td className="px-4 py-3 text-text">{SITE_ROLE_LABELS[row.role]}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-muted">{formatDate(row.created_at)}</td>
                   <td className="px-4 py-3 text-right">
-                    <Button variant="danger" size="sm" onClick={() => confirmRemove(row)} loading={remove.isPending && remove.variables === row.user_id}>
+                    <Button variant="danger" onClick={() => confirmRemove(row)} loading={remove.isPending && remove.variables === row.user_id}>
                       Remove
                       <SrOnly> {row.profile?.email ?? row.user_id}</SrOnly>
                     </Button>
@@ -284,7 +286,6 @@ function InvitesSection({ siteId }: { siteId: string }) {
               </div>
               <Button
                 variant="danger"
-                size="sm"
                 onClick={() => remove.mutate(invite.id)}
                 loading={remove.isPending && remove.variables === invite.id}
               >
@@ -329,7 +330,7 @@ function InviteForm({ siteId, agencyId }: { siteId: string; agencyId: string }) 
       return { ...result, email: input.email };
     },
     onSuccess: async (result) => {
-      setCreated({ url: result.invite_url, email: result.email, expires_at: result.expires_at });
+      setCreated({ url: result.invite_url, email: result.email, expires_at: result.expires_at, emailed: result.emailed });
       setEmail("");
       await queryClient.invalidateQueries({ queryKey: ["site-invites", siteId] });
     },

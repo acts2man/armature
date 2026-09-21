@@ -5,7 +5,7 @@
  */
 import { useMutation } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
@@ -54,7 +54,11 @@ async function submitRequest(siteId: string, userId: string, input: SubmitInput)
   return { requestId, uploadErrors };
 }
 
-function Thumbnail({ image, onRemove }: { image: PickedImage; onRemove: () => void }) {
+function revokePreviews(images: PickedImage[]) {
+  for (const image of images) URL.revokeObjectURL(image.prepared.previewUrl);
+}
+
+function Thumbnail({ image, onRemove, disabled }: { image: PickedImage; onRemove: () => void; disabled: boolean }) {
   return (
     <li className="relative">
       <img
@@ -68,7 +72,8 @@ function Thumbnail({ image, onRemove }: { image: PickedImage; onRemove: () => vo
       <button
         type="button"
         onClick={onRemove}
-        className="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-panel/90 text-text hover:bg-panel"
+        disabled={disabled}
+        className="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-panel/90 text-text hover:bg-panel disabled:cursor-not-allowed disabled:opacity-50"
         aria-label={`Remove ${image.name}`}
       >
         <X className="h-4 w-4" aria-hidden="true" />
@@ -89,6 +94,14 @@ export function NewChangeRequest() {
   const [preparing, setPreparing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Mirror `images` into a ref so the unmount cleanup (Cancel, browser back, navigate after
+  // Send) can revoke every preview URL, not only the ones removed by hand.
+  const imagesRef = useRef<PickedImage[]>([]);
+  useEffect(() => {
+    imagesRef.current = images;
+  }, [images]);
+  useEffect(() => () => revokePreviews(imagesRef.current), []);
+
   const mutation = useMutation({
     mutationFn: (input: SubmitInput) => {
       if (!user) throw new Error("You are signed out. Sign in again and try once more.");
@@ -96,6 +109,7 @@ export function NewChangeRequest() {
     },
     onSuccess: (result) => {
       if (result.uploadErrors.length === 0) {
+        revokePreviews(imagesRef.current);
         navigate(`/sites/${site.id}/requests/${result.requestId}`);
       }
     },
@@ -130,8 +144,20 @@ export function NewChangeRequest() {
     });
   }
 
+  /** Clear everything after a partially-uploaded request so a new one can be filed. */
+  function startAnother() {
+    revokePreviews(images);
+    setImages([]);
+    setTitle("");
+    setDetails("");
+    setFileErrors([]);
+    setFormError(null);
+    mutation.reset();
+  }
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (mutation.data) return; // The request already exists; a second insert would duplicate it.
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
       setFormError("Give the request a title.");
@@ -150,7 +176,9 @@ export function NewChangeRequest() {
   }
 
   const partial = mutation.data && mutation.data.uploadErrors.length > 0 ? mutation.data : null;
-  const busy = mutation.isPending || preparing;
+  // Once the row exists the form is frozen: re-sending would create a duplicate request.
+  const sent = Boolean(mutation.data);
+  const busy = mutation.isPending || preparing || sent;
 
   return (
     <div className="space-y-6">
@@ -163,7 +191,14 @@ export function NewChangeRequest() {
         <Notice
           kind="warning"
           title="The request was sent, but some screenshots did not upload"
-          action={<LinkButton to={`/sites/${site.id}/requests/${partial.requestId}`}>Open the request</LinkButton>}
+          action={
+            <>
+              <LinkButton to={`/sites/${site.id}/requests/${partial.requestId}`}>Open the request</LinkButton>
+              <Button variant="secondary" onClick={startAnother}>
+                Start another request
+              </Button>
+            </>
+          }
         >
           {partial.uploadErrors.join("\n")}
         </Notice>
@@ -225,7 +260,7 @@ export function NewChangeRequest() {
           {images.length > 0 && (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Chosen screenshots">
               {images.map((image) => (
-                <Thumbnail key={image.id} image={image} onRemove={() => removeImage(image.id)} />
+                <Thumbnail key={image.id} image={image} onRemove={() => removeImage(image.id)} disabled={busy} />
               ))}
             </ul>
           )}
@@ -242,7 +277,7 @@ export function NewChangeRequest() {
           )}
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" loading={mutation.isPending} disabled={preparing}>
+            <Button type="submit" loading={mutation.isPending} disabled={preparing || sent}>
               Send request
             </Button>
             <Link

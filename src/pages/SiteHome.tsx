@@ -42,17 +42,19 @@ function StatusPill({ status }: { status: SiteStatus }) {
 
 function SectionCard({ id, title, seeAll, children }: { id: string; title: string; seeAll: string; children: ReactNode }) {
   return (
-    <Card as="section" aria-labelledby={id}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id={id} className="text-lg font-semibold text-ink">
-          {title}
-        </h2>
-        <Link to={seeAll} className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">
-          See all
-        </Link>
-      </div>
-      <div className="mt-3">{children}</div>
-    </Card>
+    <section aria-labelledby={id}>
+      <Card className="h-full">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id={id} className="text-lg font-semibold text-ink">
+            {title}
+          </h2>
+          <Link to={seeAll} className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline-offset-2 hover:underline">
+            See all
+          </Link>
+        </div>
+        <div className="mt-3">{children}</div>
+      </Card>
+    </section>
   );
 }
 
@@ -183,7 +185,7 @@ function RecentRequests({ siteId, isStaff }: { siteId: string; isStaff: boolean 
   return (
     <SectionCard
       id="recent-requests"
-      title={isStaff ? "Change requests" : "Your change requests"}
+      title="Your change requests"
       seeAll={`/sites/${siteId}/requests`}
     >
       {body}
@@ -237,44 +239,46 @@ export function SiteHome() {
         }
       />
 
-      <Card as="section" aria-labelledby="site-status">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1">
-            <h2 id="site-status" className="text-lg font-semibold text-ink">
-              Status
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusPill status={site.status} />
-              <span className="text-sm text-muted">Last published {relativeTime(site.last_published_at)}</span>
+      <section aria-labelledby="site-status">
+        <Card>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h2 id="site-status" className="text-lg font-semibold text-ink">
+                Status
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusPill status={site.status} />
+                <span className="text-sm text-muted">Last published {relativeTime(site.last_published_at)}</span>
+              </div>
+              {isStaff && (
+                <p className="break-all font-mono text-sm text-muted">
+                  {site.repo_owner}/{site.repo_name}@{site.branch}
+                </p>
+              )}
             </div>
-            {isStaff && (
-              <p className="break-all font-mono text-sm text-muted">
-                {site.repo_owner}/{site.repo_name}@{site.branch}
-              </p>
-            )}
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={() => diagnose.mutate()} loading={diagnose.isPending}>
+                Check connection
+              </Button>
+              {isStaff && (
+                <LinkButton variant="secondary" to={`${root}/team`}>
+                  Team
+                </LinkButton>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" onClick={() => diagnose.mutate()} loading={diagnose.isPending}>
-              Check connection
-            </Button>
-            {isStaff && (
-              <LinkButton variant="secondary" to={`${root}/team`}>
-                Team
-              </LinkButton>
-            )}
-          </div>
-        </div>
-        {diagnose.isPending && (
-          <div className="mt-4">
-            <Spinner label="Running the connection check" />
-          </div>
-        )}
-        {diagnose.isError && (
-          <Notice kind="danger" title="The connection check could not run" className="mt-4">
-            {diagnose.error.message}
-          </Notice>
-        )}
-      </Card>
+          {diagnose.isPending && (
+            <div className="mt-4">
+              <Spinner label="Running the connection check" />
+            </div>
+          )}
+          {diagnose.isError && (
+            <Notice kind="danger" title="The connection check could not run" className="mt-4">
+              {diagnose.error.message}
+            </Notice>
+          )}
+        </Card>
+      </section>
 
       {diagnose.data && <CheckList report={diagnose.data} onHide={() => diagnose.reset()} />}
 

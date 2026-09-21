@@ -6,20 +6,24 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { AuthForm, AuthPageFrame } from "@/components/AuthForm.tsx";
-import { Button, Field, Input, Notice } from "@/components/ui.tsx";
+import { AuthForm, AuthPageFrame, UnusableLinkNotice } from "@/components/AuthForm.tsx";
+import { Button, Field, Input, Notice, Spinner } from "@/components/ui.tsx";
 import { missingSupabaseConfig, supabase, supabaseConfigured } from "@/lib/supabase.ts";
 
 const SUBTITLE = "Editing dashboard";
 
 /** Auth hints Supabase puts in the URL: the hash for implicit links, the query for PKCE ones. */
-function readUrlHints(): { recovery: boolean; error: string | null } {
-  if (typeof window === "undefined") return { recovery: false, error: null };
+function readUrlHints(): { recovery: boolean; error: string | null; code: string | null } {
+  if (typeof window === "undefined") return { recovery: false, error: null, code: null };
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const query = new URLSearchParams(window.location.search);
   return {
     recovery: hash.get("type") === "recovery" || query.get("type") === "recovery",
     error: hash.get("error_description") ?? query.get("error_description"),
+    // The PKCE code from an emailed link. Supabase strips it only when the exchange
+    // succeeds, and says nothing when it fails, so "code present but no session" is
+    // the one signal that the link did not work.
+    code: query.get("code"),
   };
 }
 
@@ -105,17 +109,19 @@ function NewPasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
 }
 
 export function SignIn() {
-  const { session } = useAuth();
+  const { loading, session } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [recovery, setRecovery] = useState(urlHints.recovery);
   const [urlError] = useState(urlHints.error);
+  const [urlCode] = useState(urlHints.code);
   const redirectPath = safePath((location.state as { from?: unknown } | null)?.from);
 
   useEffect(() => {
     // Consume the one-time hints so the next visit to /signin is a plain sign-in.
     urlHints.recovery = false;
     urlHints.error = null;
+    urlHints.code = null;
     if (!supabaseConfigured) return;
     const { data } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") setRecovery(true);
@@ -134,13 +140,28 @@ export function SignIn() {
     );
   }
 
+  // While the stored session (or the code exchange for an emailed link) is still resolving,
+  // show nothing that could flash: neither the form for someone already signed in, nor a
+  // verdict on a link that has not been tried yet.
+  if (loading) {
+    return (
+      <AuthPageFrame title="Sign in" subtitle={SUBTITLE}>
+        <Spinner label="Checking your account" />
+      </AuthPageFrame>
+    );
+  }
+
   const linkProblem = urlError ? (
     <Notice kind="danger" title="That link did not work" className="mb-5">
       {urlError}
     </Notice>
   ) : null;
+  // The page was opened from an emailed link and it produced no session.
+  const linkUnusable = Boolean(urlCode) && !session;
 
-  if (recovery) {
+  // A recovery link that failed to exchange cannot set a password (there is no session), so
+  // it falls through to the sign-in form, where "Forgot your password?" requests a new one.
+  if (recovery && !linkUnusable) {
     return (
       <AuthPageFrame title="Choose a new password" subtitle={SUBTITLE}>
         {linkProblem}
@@ -154,6 +175,7 @@ export function SignIn() {
   return (
     <AuthPageFrame title="Sign in" subtitle={SUBTITLE}>
       {linkProblem}
+      {linkUnusable && <UnusableLinkNotice className="mb-5" />}
       <AuthForm mode="signin" redirectPath={redirectPath} onSignedIn={() => navigate(redirectPath, { replace: true })} />
     </AuthPageFrame>
   );

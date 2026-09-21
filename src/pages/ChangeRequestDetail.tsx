@@ -42,8 +42,15 @@ type RequestData = {
   creator: Creator | null;
 };
 
-async function loadRequest(requestId: string): Promise<RequestData> {
-  const { data, error } = await supabase.from("change_requests").select("*").eq("id", requestId).maybeSingle();
+async function loadRequest(requestId: string, siteId: string): Promise<RequestData> {
+  // Scoped to the site in the URL, so /sites/A/requests/{id from site B} is treated as unavailable
+  // rather than rendered under site A's navigation.
+  const { data, error } = await supabase
+    .from("change_requests")
+    .select("*")
+    .eq("id", requestId)
+    .eq("site_id", siteId)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   const request = (data as ChangeRequest | null) ?? null;
   if (!request) return { request: null, attachments: [], creator: null };
@@ -147,6 +154,9 @@ function Attachments({ attachments }: { attachments: ChangeRequestAttachment[] }
 
 function StaffForm({ request, siteId }: { request: ChangeRequest; siteId: string }) {
   const queryClient = useQueryClient();
+  // Local state holds the saved values after Save, so the form is keyed on the request id only:
+  // remounting on every updated_at change would discard the mutation's success state (and any
+  // in-flight edits) as soon as the refetch landed.
   const [status, setStatus] = useState<ChangeRequestStatus>(request.status);
   const [note, setNote] = useState(request.agency_note);
 
@@ -218,9 +228,10 @@ export function ChangeRequestDetail() {
   const { site, isStaff } = useSite();
   const { requestId = "" } = useParams();
 
+  // The request id comes first so StaffForm's `["change-request", id]` invalidation still matches.
   const query = useQuery({
-    queryKey: ["change-request", requestId],
-    queryFn: () => loadRequest(requestId),
+    queryKey: ["change-request", requestId, site.id],
+    queryFn: () => loadRequest(requestId, site.id),
     enabled: requestId.length > 0,
   });
 
@@ -293,7 +304,7 @@ export function ChangeRequestDetail() {
         <h2 className="text-lg font-semibold text-ink">From the agency</h2>
         {isStaff ? (
           <div className="mt-4">
-            <StaffForm key={`${request.id}:${request.updated_at}`} request={request} siteId={site.id} />
+            <StaffForm key={request.id} request={request} siteId={site.id} />
           </div>
         ) : (
           <div className="mt-3 space-y-3">

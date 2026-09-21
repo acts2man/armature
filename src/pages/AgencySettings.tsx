@@ -26,7 +26,7 @@ const NAME_MAX = 120;
 type ProfileLite = Pick<Profile, "id" | "email" | "full_name">;
 type StaffRow = { user_id: string; role: AgencyRole; created_at: string; profile: ProfileLite | null };
 type PendingInvite = Invite & { expired: boolean };
-type CreatedInvite = { url: string; email: string; expires_at: string };
+type CreatedInvite = { url: string; email: string; expires_at: string; emailed: boolean };
 
 /** Relative luminance of a #rrggbb colour, for picking readable text in the preview. */
 function isLightColor(hex: string): boolean {
@@ -121,18 +121,20 @@ function InviteLinkNotice({ invite, onDismiss }: { invite: CreatedInvite; onDism
       title="Invite created"
       action={
         <>
-          <Button variant="secondary" size="sm" onClick={() => void copy()}>
+          <Button variant="secondary" onClick={() => void copy()}>
             {copied === "copied" ? "Copied" : "Copy link"}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onDismiss}>
+          <Button variant="ghost" onClick={onDismiss}>
             Dismiss
           </Button>
         </>
       }
     >
       <p>
-        Email sending is not set up yet, so copy this link and send it to {invite.email} yourself. It expires on{" "}
-        {formatDate(invite.expires_at)}.
+        {invite.emailed
+          ? `The link was emailed to ${invite.email}; you can also copy it below.`
+          : `Email sending is not set up yet, so copy this link and send it to ${invite.email} yourself.`}{" "}
+        It expires on {formatDate(invite.expires_at)}.
       </p>
       <div className="mt-2">
         <label htmlFor={inputId} className="sr-only">
@@ -334,7 +336,7 @@ function StaffInviteForm({ agencyId }: { agencyId: string }) {
       return { ...result, email: input.email };
     },
     onSuccess: async (result) => {
-      setCreated({ url: result.invite_url, email: result.email, expires_at: result.expires_at });
+      setCreated({ url: result.invite_url, email: result.email, expires_at: result.expires_at, emailed: result.emailed });
       setEmail("");
       await queryClient.invalidateQueries({ queryKey: ["agency-invites", agencyId] });
     },
@@ -426,7 +428,6 @@ function PendingStaffInvites({ agencyId }: { agencyId: string }) {
             </div>
             <Button
               variant="danger"
-              size="sm"
               onClick={() => remove.mutate(invite.id)}
               loading={remove.isPending && remove.variables === invite.id}
             >
@@ -486,13 +487,12 @@ function StaffCard({ agencyId, isOwner }: { agencyId: string; isOwner: boolean }
         <div className="mt-2">{body}</div>
       </div>
       {isOwner ? (
-        <>
-          <StaffInviteForm agencyId={agencyId} />
-          <PendingStaffInvites agencyId={agencyId} />
-        </>
+        <StaffInviteForm agencyId={agencyId} />
       ) : (
         <p className="text-sm text-muted">Only an agency owner can invite staff.</p>
       )}
+      {/* RLS lets every agency member read and delete invites, so all staff see the list. */}
+      <PendingStaffInvites agencyId={agencyId} />
     </Card>
   );
 }

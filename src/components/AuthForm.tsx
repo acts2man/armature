@@ -118,8 +118,10 @@ export function AuthForm({ mode, defaultEmail = "", lockEmail = false, redirectP
     void run("submit", async () => {
       const { error } = await supabase.auth.signInWithOtp({
         email: cleanEmail,
-        // On the invite page the person may have no account yet, so the link may create one.
-        options: { emailRedirectTo: returnTo, shouldCreateUser: mode === "invite" },
+        // A sign-in link never creates an account, on either page: an invitee who is new
+        // here uses "Create an account instead". (Supabase answers an unknown email with
+        // "Signups not allowed for otp", shown verbatim below the hint that explains it.)
+        options: { emailRedirectTo: returnTo, shouldCreateUser: false },
       });
       if (error) return problem(error.message);
       return {
@@ -228,13 +230,32 @@ export function AuthForm({ mode, defaultEmail = "", lockEmail = false, redirectP
         </form>
       ) : (
         <form onSubmit={submitMagicLink} className="space-y-4">
-          {emailField(`${id}-magic-email`, "We will email you a link that signs you in. No password needed.")}
+          {emailField(
+            `${id}-magic-email`,
+            mode === "invite"
+              ? 'We will email you a link that signs you in. It only works for an email address that already has an account; if you are new here, choose "Email and password" and then "Create an account instead".'
+              : "We will email you a link that signs you in. No password needed. It only works for an email address that already has an account.",
+          )}
           <Button type="submit" className="w-full" loading={busy === "submit"} disabled={busy !== null}>
             Email me a sign-in link
           </Button>
         </form>
       )}
     </div>
+  );
+}
+
+/**
+ * Shown above the form when the page was opened from an emailed link (?code=...) that
+ * produced no session. supabase-js reports nothing in that case: with the PKCE flow a
+ * link opened in a different browser has no code verifier, so no exchange is attempted,
+ * and a reused or expired link fails the exchange silently, leaving ?code= in the URL.
+ */
+export function UnusableLinkNotice({ className }: { className?: string }) {
+  return (
+    <Notice kind="danger" title="That sign-in link could not be used" className={className}>
+      Sign-in links only work once, and only in the browser they were requested from. Request a new one below, or sign in with your password.
+    </Notice>
   );
 }
 

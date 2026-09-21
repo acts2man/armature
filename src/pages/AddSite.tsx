@@ -225,119 +225,125 @@ export function AddSite() {
     <div className="space-y-6">
       <PageHeader title="Add a site" description="Connect a site's GitHub repository so its pages can be edited here." />
 
-      <Card as="section" aria-labelledby="add-site-step-1">
-        <SectionHeading number={1} id="add-site-step-1">
-          Connect GitHub
-        </SectionHeading>
-        <p className="mt-2 text-[15px] text-muted">
-          Install the GitHub App on the account or organisation that owns the site's repository and choose that
-          repository. GitHub will bring you back here when it is done.
-        </p>
-        <div className="mt-4">{installationsBlock}</div>
-        {install.isError && (
-          <Notice kind="danger" title="The install link could not be created" className="mt-4">
-            {install.error.message}
-          </Notice>
-        )}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={() => install.mutate()} loading={install.isPending}>
-            Install the GitHub App
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => void installations.refetch()}
-            loading={installations.isFetching && !installations.isPending}
-          >
-            Refresh list
-          </Button>
-        </div>
-        <p className="mt-3 text-sm text-muted">
-          Already installed? Open the App on GitHub and press Configure — it brings you back here too.
-        </p>
-      </Card>
-
-      <Card as="section" aria-labelledby="add-site-step-2">
-        <SectionHeading number={2} id="add-site-step-2">
-          Which repository?
-        </SectionHeading>
-        <form onSubmit={onSubmit} noValidate className="mt-4 space-y-4">
-          {agencies.length > 1 && (
-            <Field label="Agency" htmlFor="add-site-agency" hint="The agency this site belongs to.">
-              <Select id="add-site-agency" value={agencyId} onChange={(event) => setAgencyId(event.target.value)}>
-                {agencies.map((membership) => (
-                  <option key={membership.agency.id} value={membership.agency.id}>
-                    {membership.agency.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+      <section aria-labelledby="add-site-step-1">
+        <Card>
+          <SectionHeading number={1} id="add-site-step-1">
+            Connect GitHub
+          </SectionHeading>
+          <p className="mt-2 text-[15px] text-muted">
+            Install the GitHub App on the account or organisation that owns the site's repository and choose that
+            repository. GitHub will bring you back here when it is done.
+          </p>
+          <div className="mt-4">{installationsBlock}</div>
+          {install.isError && (
+            <Notice kind="danger" title="The install link could not be created" className="mt-4">
+              {install.error.message}
+            </Notice>
           )}
-          <Field
-            label="Repository"
-            htmlFor="add-site-repo"
-            error={errors.repo ?? null}
-            hint={
-              parsed ? (
-                <>
-                  Owner <span className="font-mono text-text">{parsed.owner}</span>, repository{" "}
-                  <span className="font-mono text-text">{parsed.name}</span>
-                </>
-              ) : (
-                'Either "owner/name" or the repository\'s GitHub URL.'
-              )
-            }
-          >
-            <Input
-              id="add-site-repo"
-              value={form.repo}
-              onChange={update("repo")}
-              placeholder="acme/acme-site or https://github.com/acme/acme-site"
-              autoComplete="off"
-              spellCheck={false}
-              required
-            />
-          </Field>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">
-              <Input id="add-site-branch" value={form.branch} onChange={update("branch")} autoComplete="off" spellCheck={false} required />
-            </Field>
-            <Field
-              label="Site name"
-              htmlFor="add-site-name"
-              hint={`Shown to the client. Leave blank to use "${parsed?.name ?? "the repository name"}".`}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={() => install.mutate()} loading={install.isPending}>
+              Install the GitHub App
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => void installations.refetch()}
+              loading={installations.isFetching && !installations.isPending}
             >
-              <Input id="add-site-name" value={form.name} onChange={update("name")} placeholder={parsed?.name ?? ""} />
-            </Field>
-          </div>
-          <Field
-            label="Live URL (optional)"
-            htmlFor="add-site-live-url"
-            error={errors.liveUrl ?? null}
-            hint="Where the published site can be seen. Must start with https://"
-          >
-            <Input
-              id="add-site-live-url"
-              type="url"
-              inputMode="url"
-              value={form.liveUrl}
-              onChange={update("liveUrl")}
-              placeholder="https://www.example.com"
-            />
-          </Field>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" loading={connect.isPending}>
-              Check and connect
+              Refresh list
             </Button>
           </div>
-        </form>
-      </Card>
+          <p className="mt-3 text-sm text-muted">
+            Already installed? Open the App on GitHub and press Configure — it brings you back here too.
+          </p>
+        </Card>
+      </section>
 
-      <Card as="section" aria-labelledby="add-site-step-3">
-        <SectionHeading number={3} id="add-site-step-3">
-          Result
-        </SectionHeading>
-        <div className="mt-4 space-y-4">{resultBlock}</div>
-      </Card>
+      <section aria-labelledby="add-site-step-2">
+        <Card>
+          <SectionHeading number={2} id="add-site-step-2">
+            Which repository?
+          </SectionHeading>
+          <form onSubmit={onSubmit} noValidate className="mt-4 space-y-4">
+            {agencies.length > 1 && (
+              <Field label="Agency" htmlFor="add-site-agency" hint="The agency this site belongs to.">
+                <Select id="add-site-agency" value={agencyId} onChange={(event) => setAgencyId(event.target.value)}>
+                  {agencies.map((membership) => (
+                    <option key={membership.agency.id} value={membership.agency.id}>
+                      {membership.agency.name}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+            <Field
+              label="Repository"
+              htmlFor="add-site-repo"
+              error={errors.repo ?? null}
+              hint={
+                parsed ? (
+                  <>
+                    Owner <span className="font-mono text-text">{parsed.owner}</span>, repository{" "}
+                    <span className="font-mono text-text">{parsed.name}</span>
+                  </>
+                ) : (
+                  'Either "owner/name" or the repository\'s GitHub URL.'
+                )
+              }
+            >
+              <Input
+                id="add-site-repo"
+                value={form.repo}
+                onChange={update("repo")}
+                placeholder="acme/acme-site or https://github.com/acme/acme-site"
+                autoComplete="off"
+                spellCheck={false}
+                required
+              />
+            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">
+                <Input id="add-site-branch" value={form.branch} onChange={update("branch")} autoComplete="off" spellCheck={false} required />
+              </Field>
+              <Field
+                label="Site name"
+                htmlFor="add-site-name"
+                hint={`Shown to the client. Leave blank to use "${parsed?.name ?? "the repository name"}".`}
+              >
+                <Input id="add-site-name" value={form.name} onChange={update("name")} placeholder={parsed?.name ?? ""} />
+              </Field>
+            </div>
+            <Field
+              label="Live URL (optional)"
+              htmlFor="add-site-live-url"
+              error={errors.liveUrl ?? null}
+              hint="Where the published site can be seen. Must start with https://"
+            >
+              <Input
+                id="add-site-live-url"
+                type="url"
+                inputMode="url"
+                value={form.liveUrl}
+                onChange={update("liveUrl")}
+                placeholder="https://www.example.com"
+              />
+            </Field>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" loading={connect.isPending}>
+                Check and connect
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </section>
+
+      <section aria-labelledby="add-site-step-3">
+        <Card>
+          <SectionHeading number={3} id="add-site-step-3">
+            Result
+          </SectionHeading>
+          <div className="mt-4 space-y-4">{resultBlock}</div>
+        </Card>
+      </section>
     </div>
   );
 }

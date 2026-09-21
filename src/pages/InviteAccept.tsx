@@ -5,11 +5,11 @@
  * refusal — is spelled out with a way forward.
  */
 import { useMutation } from "@tanstack/react-query";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router";
 import type { InviteAcceptResponse } from "@shared/publishTypes.ts";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { AuthForm, AuthPageFrame } from "@/components/AuthForm.tsx";
+import { AuthForm, AuthPageFrame, UnusableLinkNotice } from "@/components/AuthForm.tsx";
 import { Button, LinkButton, Notice, Spinner } from "@/components/ui.tsx";
 import { callFunction, type Failure } from "@/lib/functions.ts";
 
@@ -18,6 +18,12 @@ export function InviteAccept() {
   const { loading, session, user, refresh, signOut } = useAuth();
   const userId = user?.id ?? null;
   const startedFor = useRef<string | null>(null);
+  // An emailed sign-in link lands here as /invite/:token?code=... . Supabase strips the code
+  // only when the exchange succeeds and reports nothing when it fails, so a code that is
+  // still there once loading has finished, with no session, means the link did not work.
+  const [openedFromLink, setOpenedFromLink] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("code"),
+  );
 
   const accept = useMutation<InviteAcceptResponse | Failure, Error, string>({
     mutationFn: async (inviteToken) => {
@@ -38,6 +44,7 @@ export function InviteAccept() {
 
   function switchAccount() {
     startedFor.current = null;
+    setOpenedFromLink(false);
     reset();
     void signOut();
   }
@@ -52,7 +59,12 @@ export function InviteAccept() {
   } else if (loading) {
     body = <Spinner label="Checking your account" />;
   } else if (!session) {
-    body = <AuthForm mode="invite" redirectPath={`/invite/${token}`} />;
+    body = (
+      <>
+        {openedFromLink && <UnusableLinkNotice />}
+        <AuthForm mode="invite" redirectPath={`/invite/${token}`} />
+      </>
+    );
   } else if (accept.status === "idle" || accept.status === "pending") {
     body = <Spinner label="Accepting your invite" />;
   } else if (accept.status === "error") {

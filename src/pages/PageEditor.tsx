@@ -121,7 +121,7 @@ function ListEditor({
             <div className="flex flex-wrap gap-1">
               <Button
                 variant="ghost"
-                size="sm"
+                className="min-w-11"
                 aria-label={`Move item ${index + 1} up`}
                 disabled={index === 0}
                 onClick={() => onChange(moveItem(list, index, index - 1))}
@@ -130,7 +130,7 @@ function ListEditor({
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                className="min-w-11"
                 aria-label={`Move item ${index + 1} down`}
                 disabled={index === list.length - 1}
                 onClick={() => onChange(moveItem(list, index, index + 1))}
@@ -139,9 +139,8 @@ function ListEditor({
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
                 aria-label={`Remove item ${index + 1}`}
-                className="hover:bg-danger-soft hover:text-danger"
+                className="min-w-11 hover:bg-danger-soft hover:text-danger"
                 onClick={() => onChange(list.filter((_, i) => i !== index))}
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -388,20 +387,23 @@ function FieldCard({
   }
 
   return (
-    <Card as="section" aria-labelledby={`${id}-heading`} className={clsx(isChanged && "border-accent")}>
+    <section
+      aria-labelledby={`${id}-heading`}
+      className={clsx("rounded-card border border-line bg-panel p-4 sm:p-5", isChanged && "border-accent")}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${id}-heading`} className="flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
           {field.label}
           {isChanged && <Pill tone="accent">Changed</Pill>}
         </h3>
-        <Button variant="ghost" size="sm" disabled={!isChanged || busy} onClick={onRevert}>
+        <Button variant="ghost" disabled={!isChanged || busy} onClick={onRevert}>
           <RotateCcw className="h-4 w-4" aria-hidden="true" /> Revert
           <SrOnly> {field.label}</SrOnly>
         </Button>
       </div>
       {field.help && <p className="mt-1 text-sm text-muted">{field.help}</p>}
       <div className="mt-3">{control}</div>
-    </Card>
+    </section>
   );
 }
 
@@ -731,7 +733,7 @@ function Editor({ slug }: { slug: string }) {
             </LinkButton>
           }
         >
-          This page is not in the site's content map.
+          This page is not in the content registry.
         </Notice>
       </div>
     );
@@ -948,7 +950,7 @@ function Editor({ slug }: { slug: string }) {
           kind="warning"
           title="Notes about this site's content"
           action={
-            <Button variant="secondary" size="sm" aria-expanded={showWarnings} onClick={() => setShowWarnings((current) => !current)}>
+            <Button variant="secondary" aria-expanded={showWarnings} onClick={() => setShowWarnings((current) => !current)}>
               {showWarnings ? "Hide notes" : `Show ${plural(warnings.length, "note")}`}
             </Button>
           }
