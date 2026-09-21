@@ -1,3 +1,4 @@
+// deno-lint-ignore-file require-await -- fake fetch stubs return responses synchronously
 import { assert, assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
 import { base64ToBytes, utf8ToBase64 } from "../../../shared/base64.ts";
 import { ArmatureError } from "./errors.ts";
