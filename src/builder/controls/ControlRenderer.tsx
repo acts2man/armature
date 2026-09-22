@@ -80,7 +80,7 @@ function TextControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
       {spec.multiline ? (
         <textarea id={id} value={value} maxLength={spec.max} placeholder={spec.placeholder} onChange={(event) => set(event.target.value)} className={clsx(controlInputClass, "min-h-20 py-1.5 leading-relaxed")} />
       ) : (
-        <input id={id} type="text" value={value} maxLength={spec.max} placeholder={spec.placeholder} onChange={(event) => set(event.target.value)} className={controlInputClass} />
+        <input id={id} type={spec.inputType ?? "text"} value={spec.inputType === "datetime-local" ? value.slice(0, 16) : value} maxLength={spec.max} placeholder={spec.placeholder} onChange={(event) => set(event.target.value)} className={controlInputClass} />
       )}
     </Row>
   );
@@ -121,7 +121,7 @@ function ChoiceControl({ target, spec }: { target: ControlTarget; spec: Extract<
   };
   return (
     <Responsive target={target} spec={spec}>
-      <Choice label={spec.label} value={value ?? inherited} allowNone={spec.allowNone ?? true} options={spec.options.map((option) => ({ value: option.value, title: option.label, label: option.icon ? iconFor(option.icon) : option.label }))} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`)} />
+      <Choice label={spec.label} value={value === undefined && inherited === undefined ? undefined : String(value ?? inherited)} allowNone={spec.allowNone ?? true} options={spec.options.map((option) => ({ value: option.value, title: option.label, label: option.icon ? iconFor(option.icon) : option.label }))} onChange={(next) => set(spec.numeric && next !== undefined ? (Number(next) as never) : next, `Changed ${spec.label.toLowerCase()}`)} />
     </Responsive>
   );
 }
@@ -615,6 +615,120 @@ function CssControl({ target, spec }: { target: ControlTarget; spec: Extract<Con
   );
 }
 
+// --- rows and lines ---------------------------------------------------------------------------------------
+
+const rowId = () => Math.random().toString(36).slice(2, 10).padEnd(8, "0");
+
+/** A target over one row: reads and writes inside it, stored by rewriting the whole list. */
+function rowTarget(target: ControlTarget, path: Path, rows: Record<string, unknown>[], index: number): ControlTarget {
+  const row = rows[index] ?? {};
+  return {
+    ...target,
+    read: (sub) => sub.reduce<unknown>((value, key) => (value && typeof value === "object" ? (value as Record<string, unknown>)[key] : undefined), row),
+    write: (sub, value, label, group) => {
+      const next = rows.map((current, i) => (i === index ? writeInto(current, sub, value) : current));
+      target.write(path, next, label, group ? `${key(path)}.${index}.${group}` : undefined);
+    },
+  };
+}
+
+function writeInto(object: Record<string, unknown>, path: Path, value: unknown): Record<string, unknown> {
+  const [head, ...rest] = path;
+  if (head === undefined) return object;
+  const copy = { ...object };
+  if (rest.length === 0) {
+    if (value === undefined) delete copy[head];
+    else copy[head] = value;
+    return copy;
+  }
+  const child = copy[head] && typeof copy[head] === "object" && !Array.isArray(copy[head]) ? (copy[head] as Record<string, unknown>) : {};
+  copy[head] = writeInto(child, rest, value);
+  return copy;
+}
+
+function ItemsControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "items" }> }) {
+  const rows = (target.read(spec.path) as Record<string, unknown>[] | undefined) ?? [];
+  const [open, setOpen] = useState<string | null>(null);
+  const max = spec.max ?? 50;
+  const min = spec.min ?? 0;
+  const save = (next: Record<string, unknown>[], label: string) => target.write(spec.path, next, label);
+  const move = (index: number, delta: number) => {
+    const next = [...rows];
+    const [row] = next.splice(index, 1);
+    if (!row) return;
+    next.splice(index + delta, 0, row);
+    save(next, `Moved ${spec.itemLabel.toLowerCase()}`);
+  };
+  return (
+    <div className="flex flex-col gap-1.5" data-testid={`items-${key(spec.path)}`}>
+      <span className="text-[12px] font-medium text-muted">{spec.label}</span>
+      {rows.map((row, index) => {
+        const id = typeof row["id"] === "string" ? row["id"] : String(index);
+        const expanded = open === id;
+        const title = String(row[spec.titleKey] ?? "") || `${spec.itemLabel} ${index + 1}`;
+        return (
+          <div key={id} className="rounded-sm border border-line" data-testid="item-row">
+            <div className="flex items-center gap-0.5 pr-1">
+              <button type="button" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : id)} className="flex h-8 min-w-0 flex-1 items-center gap-1.5 px-2 text-left text-[12px] font-semibold text-text hover:bg-ground">
+                {expanded ? <icons.IconChevronDown size={13} className="text-muted" /> : <icons.IconChevronRight size={13} className="text-muted" />}
+                <span className="truncate">{title}</span>
+              </button>
+              <button type="button" aria-label={`Move ${title} up`} disabled={index === 0} onClick={() => move(index, -1)} className="inline-flex h-7 w-6 items-center justify-center rounded-sm text-muted hover:bg-ground disabled:opacity-30">
+                <icons.IconArrowUp size={12} />
+              </button>
+              <button type="button" aria-label={`Move ${title} down`} disabled={index === rows.length - 1} onClick={() => move(index, 1)} className="inline-flex h-7 w-6 items-center justify-center rounded-sm text-muted hover:bg-ground disabled:opacity-30">
+                <icons.IconArrowDown size={12} />
+              </button>
+              <button type="button" aria-label={`Duplicate ${title}`} disabled={rows.length >= max} onClick={() => save([...rows.slice(0, index + 1), { ...row, id: rowId() }, ...rows.slice(index + 1)], `Duplicated ${spec.itemLabel.toLowerCase()}`)} className="inline-flex h-7 w-6 items-center justify-center rounded-sm text-muted hover:bg-ground disabled:opacity-30">
+                <icons.IconCopy size={12} />
+              </button>
+              <button type="button" aria-label={`Remove ${title}`} disabled={rows.length <= min} onClick={() => save(rows.filter((_, i) => i !== index), `Removed ${spec.itemLabel.toLowerCase()}`)} className="inline-flex h-7 w-6 items-center justify-center rounded-sm text-muted hover:bg-ground hover:text-red disabled:opacity-30">
+                <icons.IconTrash size={12} />
+              </button>
+            </div>
+            {expanded && (
+              <div className="flex flex-col gap-3 border-t border-line p-2.5">
+                <ControlRenderer target={rowTarget(target, spec.path, rows, index)} specs={spec.fields} />
+              </div>
+            )}
+          </div>
+        );
+      })}
+      <button
+        type="button"
+        disabled={rows.length >= max}
+        onClick={() => {
+          const row = { id: rowId(), ...spec.create() };
+          save([...rows, row], `Added ${spec.itemLabel.toLowerCase()}`);
+          setOpen(String(row.id));
+        }}
+        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-sm border border-dashed border-line text-[12px] font-semibold text-muted hover:border-accent hover:text-accent disabled:opacity-40"
+        data-testid="add-item"
+      >
+        <icons.IconPlus size={13} /> Add {spec.itemLabel.toLowerCase()}
+      </button>
+    </div>
+  );
+}
+
+function LinesControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "lines" }> }) {
+  const id = useId();
+  const lines = (target.read(spec.path) as string[] | undefined) ?? [];
+  return (
+    <Row label={spec.label} htmlFor={id} hint={spec.hint ?? "One per line."}>
+      <textarea
+        id={id}
+        value={lines.join("\n")}
+        onChange={(event) => {
+          const next = event.target.value.split("\n").slice(0, spec.max ?? 50);
+          target.write(spec.path, next.some((line) => line.trim()) ? next : undefined, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+        }}
+        className={clsx(controlInputClass, "min-h-24 py-1.5 leading-relaxed")}
+      />
+    </Row>
+  );
+}
+
 // --- groups and the renderer ---------------------------------------------------------------------------------------
 
 function Group({ label, open = true, children }: { label: string; open?: boolean; children: ReactNode }) {
@@ -705,6 +819,10 @@ export function ControlRenderer({ target, specs, inset }: { target: ControlTarge
             return <BackgroundControl key={key(spec.path)} target={target} spec={spec} />;
           case "typography":
             return <TypographyControl key={key(spec.path)} target={target} spec={spec} />;
+          case "items":
+            return <ItemsControl key={key(spec.path)} target={target} spec={spec} />;
+          case "lines":
+            return <LinesControl key={key(spec.path)} target={target} spec={spec} />;
           case "overlay":
             return <OverlayControl key={key(spec.path)} target={target} path={spec.path} />;
           case "border":

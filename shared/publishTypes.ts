@@ -16,7 +16,8 @@ export type FailureCode =
   | "invalid"
   | "conflict"
   | "github_error"
-  | "not_found";
+  | "not_found"
+  | "rate_limited";
 
 export type Failure = {
   ok: false;

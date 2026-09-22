@@ -45,7 +45,7 @@ A migration is a text file of database instructions. You paste each one into the
 4. In Supabase, press **SQL Editor** in the left sidebar, then **New query** (or the **+** button).
 5. Paste, then press **Run** (bottom right, or Ctrl/Cmd+Enter).
 6. Wait for the message **Success. No rows returned**. If you see an error instead, read Part G below; the usual cause is running the same file twice.
-7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then for `20260922000100_hosting_and_services.sql`.
+7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then `20260922000100_hosting_and_services.sql`, then `20260923000100_forms.sql`.
 
 To confirm: press **Table Editor** in the left sidebar. You should see tables named `agencies`, `sites`, `publishes`, `change_requests` and a few more.
 
@@ -96,6 +96,7 @@ The GitHub App is what lets the dashboard write to client sites. It has exactly 
    - If the box only accepts a single line, or the key does not work later, paste the base64 form instead. On a Mac, open Terminal and run `base64 -i ~/Downloads/your-key.pem | tr -d '\n' | pbcopy` (adjust the file name), then paste. On Windows, open PowerShell and run `[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\you\Downloads\your-key.pem")) | Set-Clipboard`, then paste. The dashboard accepts both forms.
    - Save.
 5. Optional but recommended: add `APP_URL` with your Netlify address (no trailing slash). It is used to build invite links. Without it, the dashboard uses the address the request came from, which is normally the same thing.
+6. Optional, for the page builder's Form widget: add `RESEND_API_KEY` (from https://resend.com/api-keys) so form entries are emailed, and `FORM_IP_SALT` (any long random text, for example from a password generator). Without the Resend key, entries are still saved in the dashboard; without the salt, one is derived from the service key.
 
 Secrets only reach edge functions that were deployed **after** the secrets were saved. That is why Part B comes before Part C. If you change a secret later, redeploy the functions (Part C) afterwards.
 
@@ -103,7 +104,7 @@ Secrets only reach edge functions that were deployed **after** the secrets were 
 
 ## Part C — Deploy the edge functions
 
-The edge functions are nine small programs in the folder `supabase/functions` of this repository. They must be uploaded to your Supabase project. There are two ways; the first needs no terminal.
+The edge functions are twelve small programs in the folder `supabase/functions` of this repository. They must be uploaded to your Supabase project. There are two ways; the first needs no terminal.
 
 ### C1. The no-terminal way: a GitHub Action
 
@@ -119,14 +120,14 @@ This repository includes a workflow called **Deploy edge functions**. It needs t
 
 From now on, every change to the functions that lands on the `main` branch deploys automatically.
 
-To confirm: in Supabase press **Edge Functions**. You should see nine functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `site-diagnose`, `invite-create`, `invite-accept`, `client-create` and `password-set`.
+To confirm: in Supabase press **Edge Functions**. You should see twelve functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `content-publish-batch`, `site-diagnose`, `site-embed-check`, `invite-create`, `invite-accept`, `client-create`, `password-set` and `form-submit`. `form-submit` is the only one that accepts callers who are not signed in (website visitors sending a form); `supabase/config.toml` turns off its sign-in check.
 
 ### C2. The terminal way (if you prefer)
 
 1. Install Node.js (the **LTS** download at https://nodejs.org) and, on GitHub, download this repository (**Code → Download ZIP**) or clone it. Open a terminal in the repository folder.
 2. `npx supabase login` opens a browser window; approve it. This lets the tool act as you.
 3. `npx supabase link --project-ref PROJECT_REF` (use your value from A2) connects the folder to your project. It may ask for the database password from A1.
-4. `npx supabase functions deploy --use-api` uploads all nine functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
+4. `npx supabase functions deploy --use-api` uploads all twelve functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
 
 ---
 
@@ -246,6 +247,16 @@ The visual editor ("Edit site visually") shows the live website inside the dashb
 Then open the site in the dashboard and press **Edit site visually**. If the editor says "This site isn't set up for visual editing yet", the site has no bridge or the wrong origin in its allowlist; if it says the site refuses to be shown, it prints the exact header to add. Either way the page editor keeps working. A site that never adds the bridge simply keeps the form editor.
 
 For the page builder (dragging widgets, styling, new pages), the site copies the `kit/` folder instead of the single bridge file and follows "Site contract v2" in [SITE_CONTRACT.md](SITE_CONTRACT.md). A site still on the bridge shows agency staff the note "This site uses an older kit version" inside the editor, with the steps.
+
+### F8. Forms on a site
+
+A site built with the page builder can carry Form widgets. Entries go to the `form-submit` function, which checks them against the form as published in the site's repository, rate limits each visitor, stores them and emails them.
+
+1. Apply `20260923000100_forms.sql` (Part A3) and deploy the functions (Part C).
+2. In the site's code, pass the function's address and the site's id to the kit: `createArmatureKit({ ..., forms: { endpoint: "https://PROJECT_REF.supabase.co/functions/v1/form-submit", siteId: "<the site's id from the dashboard address>" } })` (SITE_CONTRACT.md, "Forms").
+3. To have entries emailed: set `RESEND_API_KEY` (Part B3, step 6), then on the site's **Hosting & services** set the automatic-email provider to Resend, a sender address on a domain verified in Resend, and the addresses entries go to (up to ten; stored as `site_services.form_recipients`).
+
+Entries are kept in the `form_submissions` table: agency staff and the site's clients can read them; nobody can add one except the function. The visitor's IP address is never stored, only a salted hash used for the rate limits.
 
 ## Part G — If something goes wrong
 

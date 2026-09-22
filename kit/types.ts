@@ -136,6 +136,10 @@ export type Advanced = {
     zIndex?: number;
   };
   animation?: { type: AnimationType; duration?: number; delay?: number };
+  /** A small effect while the pointer is over the element. */
+  hoverAnimation?: HoverAnimation;
+  /** Scrolling effects: vertical parallax (-10 to 10; 0 is none). */
+  scroll?: { parallax?: number };
   /** Hidden per device. A hidden element still shows in the editor at 40% with a badge. */
   hidden?: { desktop?: boolean; tablet?: boolean; mobile?: boolean };
   /** Agency only from here on. */
@@ -294,6 +298,86 @@ export type DividerProps = {
 };
 
 export type SiteSectionProps = { key: string };
+
+// --- the widget library (Basic and General) ----------------------------------------------------
+
+/** Rows in a repeater (accordion items, list items, gallery pictures) carry a stable id. */
+export type Align = "left" | "center" | "right";
+
+export type IconProps = {
+  icon: IconValue | null;
+  link?: LinkValue;
+  size?: MaybeResponsive<Size>;
+  view?: "default" | "stacked" | "framed";
+  shape?: "circle" | "square";
+  color?: Color;
+  secondary?: Color;
+  align?: MaybeResponsive<Align>;
+  rotate?: number;
+};
+
+export type VideoSource = "youtube" | "vimeo" | "file";
+export type VideoProps = {
+  source: VideoSource;
+  url: string;
+  /** A picture shown before the video loads (YouTube's own thumbnail when empty). */
+  poster?: string;
+  autoplay?: boolean;
+  loop?: boolean;
+  controls?: boolean;
+  muted?: boolean;
+  aspect?: "16/9" | "4/3" | "1/1" | "9/16" | "21/9";
+  /** Start at this many seconds. */
+  start?: number;
+  title?: string;
+};
+
+export type TitleTag = "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "div";
+export type BoxPosition = "top" | "left" | "right";
+
+export type IconBoxProps = { icon: IconValue | null; title: string; titleTag?: TitleTag; description?: string; link?: LinkValue; position?: BoxPosition; align?: MaybeResponsive<Align>; iconColor?: Color; iconSize?: Size };
+export type ImageBoxProps = { src: string; alt?: string; title: string; titleTag?: TitleTag; description?: string; link?: LinkValue; position?: BoxPosition; align?: MaybeResponsive<Align>; imageWidth?: Size };
+
+export type IconListItem = { id: string; text: string; icon?: IconValue | null; link?: LinkValue };
+export type IconListProps = { items: IconListItem[]; icon?: IconValue | null; layout?: "stacked" | "inline"; divider?: boolean; iconColor?: Color; gap?: Size };
+
+export type PanelItem = { id: string; title: string; content: string };
+export type AccordionProps = { items: PanelItem[]; /** Which items start open. */ open?: "first" | "none" | "all"; titleTag?: TitleTag; iconPosition?: "left" | "right" };
+export type TabsProps = { items: PanelItem[]; layout?: "horizontal" | "vertical"; align?: "start" | "center" | "end" | "stretch" };
+
+export type TestimonialProps = { quote: string; name: string; role?: string; src?: string; alt?: string; rating?: number; align?: MaybeResponsive<Align>; layout?: "image-top" | "image-left" | "image-bottom" };
+export type StarRatingProps = { rating: number; scale?: 5 | 10; title?: string; color?: Color; emptyColor?: Color; size?: Size; align?: MaybeResponsive<Align> };
+export type CounterProps = { start?: number; end: number; duration?: number; prefix?: string; suffix?: string; separator?: boolean; decimals?: number; title?: string; align?: MaybeResponsive<Align> };
+export type ProgressProps = { title?: string; percent: number; showPercent?: boolean; innerText?: string; color?: Color; trackColor?: Color; height?: Size };
+export type AlertKind = "info" | "success" | "warning" | "danger";
+export type AlertProps = { kind: AlertKind; title: string; description?: string; dismissible?: boolean; icon?: boolean };
+
+export type SocialNetwork = "facebook" | "instagram" | "x" | "twitter" | "linkedin" | "youtube" | "tiktok" | "pinterest" | "github" | "email" | "phone" | "website" | "rss" | "whatsapp";
+export type SocialItem = { id: string; network: SocialNetwork; href: string; label?: string };
+export type SocialIconsProps = { items: SocialItem[]; shape?: "rounded" | "square" | "circle"; size?: Size; colors?: "brand" | "custom"; color?: Color; iconColor?: Color; gap?: Size; align?: MaybeResponsive<Align> };
+
+export type GalleryImage = { id: string; src: string; alt?: string; caption?: string };
+export type Aspect = "1/1" | "4/3" | "3/2" | "16/9" | "3/4" | "auto";
+export type GalleryProps = { images: GalleryImage[]; columns?: MaybeResponsive<number>; gap?: Size; aspect?: Aspect; lightbox?: boolean; captions?: boolean };
+export type CarouselProps = { images: GalleryImage[]; perView?: MaybeResponsive<number>; gap?: Size; aspect?: Aspect; autoplay?: boolean; interval?: number; loop?: boolean; arrows?: boolean; dots?: boolean; pauseOnHover?: boolean; captions?: boolean; lightbox?: boolean };
+
+export type MapProps = { address: string; zoom?: number; height?: MaybeResponsive<Size>; title?: string };
+export type CtaProps = { layout?: "classic" | "cover"; src?: string; alt?: string; title: string; description?: string; buttonText?: string; link?: LinkValue; ribbon?: string; align?: MaybeResponsive<Align>; minHeight?: Size };
+export type PriceFeature = { id: string; text: string; included: boolean };
+export type PriceTableProps = { heading: string; subheading?: string; currency?: string; price: string; period?: string; features: PriceFeature[]; buttonText?: string; link?: LinkValue; ribbon?: string; footer?: string; featured?: boolean };
+export type CountdownProps = { mode?: "date" | "evergreen"; date?: string; minutes?: number; units?: { days?: boolean; hours?: boolean; minutes?: boolean; seconds?: boolean }; labels?: boolean; expired?: string };
+export type FlipSide = { icon?: IconValue | null; src?: string; title: string; description?: string };
+export type FlipBoxProps = { front: FlipSide; back: FlipSide & { buttonText?: string; link?: LinkValue }; effect?: "flip" | "slide" | "fade"; direction?: "left" | "right" | "up" | "down"; height?: MaybeResponsive<Size>; frontColor?: Color; backColor?: Color };
+export type BlockquoteProps = { quote: string; author?: string; source?: string; link?: LinkValue; look?: "border" | "quotation" | "boxed"; align?: MaybeResponsive<Align> };
+export type TocProps = { title?: string; headings?: ("h2" | "h3" | "h4" | "h5" | "h6")[]; marker?: "numbers" | "bullets" | "none"; collapsible?: boolean; startOpen?: boolean };
+export type HtmlProps = { code: string; height?: MaybeResponsive<Size>; title?: string };
+
+export type FormFieldType = "text" | "email" | "tel" | "textarea" | "number" | "date" | "select" | "radio" | "checkbox" | "consent";
+export type FormField = { id: string; type: FormFieldType; label: string; name: string; placeholder?: string; required?: boolean; options?: string[]; width?: 100 | 50 | 33; help?: string };
+export type FormProps = { fields: FormField[]; submitText?: string; success?: string; redirect?: string; buttonPreset?: string; /** Shown to the person filling it in; the address the entries go to lives in the dashboard. */ name?: string; labels?: boolean };
+
+/** Advanced motion effects added by the widget library. */
+export type HoverAnimation = "none" | "grow" | "shrink" | "float" | "sink" | "rotate" | "pulse" | "wobble";
 
 // --- site kit (content/site-kit.json) ------------------------------------------------------------
 

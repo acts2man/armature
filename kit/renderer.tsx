@@ -6,7 +6,7 @@
  */
 import { createElement, useEffect, useMemo, useRef, useSyncExternalStore, type ComponentType, type ReactNode } from "react";
 import { pageCss } from "./css.ts";
-import { installEntranceAnimations } from "./motion.ts";
+import { installEntranceAnimations, installParallax } from "./motion.ts";
 import { safeAttributeName } from "./sanitize.ts";
 import type { KitSnapshot, KitStore } from "./store.ts";
 import type { Element, LayoutDoc, SiteSectionProps } from "./types.ts";
@@ -20,6 +20,8 @@ export type KitRuntime = {
   /** Slots currently mounted on the page, with the section keys they would show without a layout. */
   slots: Map<string, string[]>;
   onSlotsChange: Set<() => void>;
+  /** Where the Form widget sends entries (the dashboard's form-submit function), when the site set it. */
+  forms?: { endpoint: string; siteId: string };
 };
 
 let runtime: KitRuntime | null = null;
@@ -52,7 +54,7 @@ export function normalizePath(path: string): string {
 // --- elements --------------------------------------------------------------------------------
 
 /** Image elements in document order, so the first picture on a page loads eagerly. */
-type RenderState = { imageOrder: Map<string, number> };
+type RenderState = { imageOrder: Map<string, number>; page: string };
 
 function imageOrderOf(root: Element[]): Map<string, number> {
   const order = new Map<string, number>();
@@ -109,13 +111,14 @@ function renderElement(element: Element, state: RenderState, snapshot: KitSnapsh
     "data-ae-id": element.id,
     "data-ae-type": element.type,
     "data-ae-anim": element.advanced.animation && element.advanced.animation.type !== "none" ? element.advanced.animation.type : undefined,
+    "data-ae-parallax": element.advanced.scroll?.parallax ? String(Math.max(-10, Math.min(10, element.advanced.scroll.parallax))) : undefined,
   };
   for (const attribute of element.advanced.attributes ?? []) {
     if (safeAttributeName(attribute.name)) common[attribute.name.toLowerCase()] = attribute.value;
   }
   const imageIndex = element.type === "image" ? (state.imageOrder.get(element.id) ?? -1) : -1;
   const children = element.children?.map((child) => <ElementView key={child.id} element={child} state={state} />);
-  return <>{render({ element, common, children, kit: snapshot.kit, editMode: snapshot.editMode, imageIndex })}</>;
+  return <>{render({ element, common, children, kit: snapshot.kit, editMode: snapshot.editMode, imageIndex, page: state.page })}</>;
 }
 
 
@@ -209,9 +212,15 @@ export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: L
   usePageSeo(layout, builderPage);
   useEffect(() => {
     if (!root.current) return;
-    return installEntranceAnimations(root.current);
-  }, [layout]);
-  const state = useMemo<RenderState>(() => ({ imageOrder: layout ? imageOrderOf(layout.root) : new Map() }), [layout]);
+    const stopEntrances = installEntranceAnimations(root.current);
+    // Parallax moves elements while scrolling; the editor keeps them still so handles line up.
+    const stopParallax = snapshot.editMode ? () => undefined : installParallax(root.current);
+    return () => {
+      stopEntrances();
+      stopParallax();
+    };
+  }, [layout, snapshot.editMode]);
+  const state = useMemo<RenderState>(() => ({ imageOrder: layout ? imageOrderOf(layout.root) : new Map(), page: slug }), [layout, slug]);
   if (!layout) return null;
   return (
     <div ref={root} className={`ae-root${layout.pageSettings?.fullCanvas ? " ae-full-canvas" : ""}`} data-ae-page={slug}>

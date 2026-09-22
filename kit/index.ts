@@ -32,6 +32,7 @@ import { setKitRuntime, type KitRuntime } from "./renderer.tsx";
 import { createKitStore, type ContentTree, type LinkValue, type ListValue } from "./store.ts";
 import type { LayoutDoc, SiteKit } from "./types.ts";
 import "./widgets.tsx";
+import "./library/index.ts";
 
 export const KIT_VERSION = "2.0.0";
 export { PROTOCOL_VERSION };
@@ -49,6 +50,12 @@ export type ArmatureKitConfig = {
   layouts?: Record<string, unknown> | LayoutDoc[];
   /** Client-side navigation for the editor's page switcher. Default: a full page load. */
   navigate?: (path: string) => void;
+  /**
+   * Where the Form widget sends entries: the dashboard's form-submit function and this
+   * site's id (both shown on the site's settings in the dashboard). Without it, forms
+   * show a note instead of sending.
+   */
+  forms?: { endpoint: string; siteId: string };
 };
 
 export type ArmatureKit = {
@@ -73,6 +80,7 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
     codedSlugs: new Set((config.schema?.pages ?? []).map((page) => page.slug)),
     slots: new Map(),
     onSlotsChange: new Set(),
+    forms: config.forms && /^https:\/\/[^\s]+$/i.test(config.forms.endpoint) && /^[0-9a-f-]{36}$/i.test(config.forms.siteId) ? config.forms : undefined,
   };
   setKitRuntime(runtime);
   const bridge = createBridge({ allowedOrigins: config.allowedOrigins, schema: config.schema, store, kitVersion: KIT_VERSION, navigate: config.navigate, slots: runtime.slots, onSlotsChange: runtime.onSlotsChange });
@@ -134,7 +142,7 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
 export { ArmaturePage, ArmatureRoute, ArmatureSlot, useBuilderPages, useKitSnapshot } from "./renderer.tsx";
 export { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
 export { Icon } from "./icon.tsx";
-export { pageCss, kitCss, elementsCss, registerWidgetCss } from "./css.ts";
+export { pageCss, kitCss, elementsCss, registerBaseCss, registerStyleTarget, registerWidgetCss } from "./css.ts";
 export { registerWidget } from "./widgets.tsx";
 export { defaultSiteKit } from "./defaults.ts";
 export { resolve, own, setAt, isResponsive, hasOverride } from "./responsive.ts";

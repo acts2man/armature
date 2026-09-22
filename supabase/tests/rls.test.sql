@@ -369,5 +369,80 @@ do $$ begin
     'a failed publish does not stamp the site';
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- 7. Form entries: read by the site's people, written only by the function
+-- ---------------------------------------------------------------------------
+insert into public.form_submissions (id, site_id, page_slug, element_id, form_name, data, ip_hash) values
+  ('00000000-0000-0000-0000-00000000f00a', '00000000-0000-0000-0000-00000000000a', 'contact', 'form0001', 'Contact', '{"name":"Ada"}', repeat('a', 64)),
+  ('00000000-0000-0000-0000-00000000f00b', '00000000-0000-0000-0000-00000000000b', 'contact', 'form0002', 'Contact', '{"name":"Bo"}', repeat('b', 64)),
+  ('00000000-0000-0000-0000-00000000f00c', '00000000-0000-0000-0000-00000000000c', 'contact', 'form0003', 'Contact', '{"name":"Cy"}', repeat('c', 64));
+
+-- The recipients list only takes real-looking addresses, at most ten.
+do $$ begin
+  insert into public.site_services (site_id, form_recipients) values ('00000000-0000-0000-0000-00000000000b', array['office@example.com', 'owner@example.com'])
+  on conflict (site_id) do update set form_recipients = excluded.form_recipients;
+  begin
+    update public.site_services set form_recipients = array['not an email'] where site_id = '00000000-0000-0000-0000-00000000000b';
+    raise exception 'a malformed form recipient was accepted';
+  exception when check_violation then null;
+  end;
+end $$;
+
+-- Client A: reads site A's entry only, marks it read, cannot change it, add one or delete it.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.form_submissions) = 1, 'client A reads only site A form entries';
+  update public.form_submissions set read_at = now() where id = '00000000-0000-0000-0000-00000000f00a';
+  assert (select read_at from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00a') is not null, 'client A can mark an entry read';
+  begin
+    update public.form_submissions set data = '{"name":"Forged"}' where id = '00000000-0000-0000-0000-00000000f00a';
+    raise exception 'client A changed what a visitor sent';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.form_submissions (site_id, page_slug, element_id, data, ip_hash)
+    values ('00000000-0000-0000-0000-00000000000a', 'contact', 'form0001', '{}', repeat('d', 64));
+    raise exception 'client A inserted a form entry directly';
+  exception when insufficient_privilege then null;
+  end;
+  delete from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00a';
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00a') = 1, 'a client cannot delete form entries';
+end $$;
+
+-- Agency X staff: read both of X's sites, delete one, never see agency Y's.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.form_submissions) = 2, 'agency X staff read the entries of agency X sites only';
+  delete from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00b';
+  assert (select count(*) from public.form_submissions) = 1, 'agency staff can delete an entry';
+  assert (select count(*) from public.site_services where form_recipients <> '{}') = 1, 'agency staff read where entries go';
+end $$;
+reset role;
+
+-- Clients cannot see where entries go (site_services stays with the agency).
+-- (Client B was promoted to staff earlier in this file, so client A stands in.)
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.site_services) = 0, 'a client cannot read form recipients';
+end $$;
+reset role;
+
+-- Anonymous visitors have no access to entries at all.
+set local role anon;
+do $$ begin
+  begin
+    perform count(*) from public.form_submissions;
+    raise exception 'anon was able to query form entries';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 select 'rls.test.sql: all assertions passed' as result;
 rollback;

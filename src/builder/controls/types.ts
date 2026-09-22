@@ -12,9 +12,13 @@ export type Path = readonly string[];
 export type Option = { value: string; label: string };
 
 export type ControlSpec =
-  | { kind: "text"; label: string; path: Path; multiline?: boolean; placeholder?: string; hint?: string; max?: number }
+  | { kind: "text"; label: string; path: Path; multiline?: boolean; placeholder?: string; hint?: string; max?: number; /** A browser input type for dates and numbers typed as text. */ inputType?: "datetime-local" | "url" | "email" }
+  /** A list of rows (accordion items, pictures, form fields): add, reorder, duplicate, remove, each row's own controls. */
+  | { kind: "items"; label: string; path: Path; itemLabel: string; titleKey: string; fields: ControlSpec[]; create: () => Record<string, unknown>; max?: number; min?: number }
+  /** A list of short strings, one per line (a dropdown's options). */
+  | { kind: "lines"; label: string; path: Path; hint?: string; max?: number }
   | { kind: "select"; label: string; path: Path; options: Option[]; responsive?: boolean; hint?: string; /** Shown greyed when nothing is set (e.g. the text preset's value). */ fallback?: string | number; /** Values are stored as numbers. */ numeric?: boolean; /** Choosing "Default" removes this whole path (e.g. the position object with its offsets). */ clearPath?: Path; /** Omit the automatic "Default" option. */ required?: boolean }
-  | { kind: "choice"; label: string; path: Path; options: (Option & { icon?: string })[]; responsive?: boolean; allowNone?: boolean }
+  | { kind: "choice"; label: string; path: Path; options: (Option & { icon?: string })[]; responsive?: boolean; allowNone?: boolean; /** Values are stored as numbers. */ numeric?: boolean }
   | { kind: "toggle"; label: string; path: Path; responsive?: boolean; hint?: string }
   | { kind: "number"; label: string; path: Path; min?: number; max?: number; step?: number; responsive?: boolean; hint?: string }
   | { kind: "size"; label: string; path: Path; units?: Unit[]; min?: number; max?: number; responsive?: boolean; hint?: string; allowScreen?: boolean; /** Shown greyed when nothing is set (e.g. the text preset's value). */ fallback?: Size }

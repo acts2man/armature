@@ -837,6 +837,13 @@ export function createBridge(config: BridgeConfig): Bridge {
       return;
     }
     if (builderElement) {
+      // A selected widget's interactive parts (an accordion title, a tab, a carousel
+      // arrow) work in the editor: the click reaches the widget and the selection stays.
+      const interactive = event.target instanceof Element ? event.target.closest("[data-ae-interactive]") : null;
+      if (interactive && selectedElement === builderElement && builderElement.contains(interactive) && !event.altKey) {
+        if (anchor && interactive.contains(anchor)) event.preventDefault();
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       if (event.altKey) {

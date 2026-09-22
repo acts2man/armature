@@ -27,4 +27,9 @@ export const armature = createArmatureKit({
   siteKit: siteKit as SiteKit,
   layouts: import.meta.glob("../content/layouts/*.json", { eager: true }),
   navigate: (path) => (navigate ? navigate(path) : window.location.assign(path)),
+  // Where the Form widget sends entries: the dashboard's form-submit function and this site's id.
+  forms: {
+    endpoint: (import.meta.env.VITE_ARMATURE_FORMS_ENDPOINT as string | undefined) ?? "https://demo.supabase.co/functions/v1/form-submit",
+    siteId: (import.meta.env.VITE_ARMATURE_SITE_ID as string | undefined) ?? "11111111-1111-4111-8111-111111111111",
+  },
 });

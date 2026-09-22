@@ -301,3 +301,13 @@ describe("the kit store while an element is typed into", () => {
     expect(store.getSnapshot()).toBe(snapshot);
   });
 });
+
+describe("motion effects", () => {
+  it("writes hover animations with a reduced-motion opt-out, and marks parallax for the runtime", async () => {
+    const { elementsCss: css } = await import("./css.ts");
+    const moving = element({ id: "hovergrw", type: "spacer", advanced: { hoverAnimation: "grow", scroll: { parallax: 4 } } });
+    const out = css([moving], kit);
+    expect(out).toContain(".ae-root .ae-hovergrw:hover { transform: scale(1.05); }");
+    expect(out).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ae-root \.ae-hovergrw:hover \{ transform: none; \}/);
+  });
+});

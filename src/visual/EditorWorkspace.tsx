@@ -47,6 +47,7 @@ import { StructurePicker } from "@/builder/StructurePicker.tsx";
 import { withKitFont } from "@/builder/fonts.ts";
 import { useDrag, type DragSource } from "@/builder/useDrag.ts";
 import { createStructure, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
+import "@/builder/widgets/library.ts";
 import { IconCopy, IconEraser, IconEye, IconEyeOff, IconLock, IconPaste, IconPencil, IconTemplate, IconTrash, IconTree, IconUnlock } from "@/components/icons.tsx";
 import { siteQueryKey } from "@/components/SiteLayout.tsx";
 import { Button, Modal, useToast } from "@/components/ui.tsx";

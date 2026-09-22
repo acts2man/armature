@@ -308,6 +308,8 @@ export function advancedSpecs(parentIsFlex: boolean): ControlSpec[] {
             { kind: "number", label: "Delay (ms)", path: ["advanced", "animation", "delay"], min: 0, max: 5000, step: 50 },
           ],
         },
+        { kind: "select", label: "Hover animation", path: ["advanced", "hoverAnimation"], options: opts(["grow", "Grow"], ["shrink", "Shrink"], ["float", "Float up"], ["sink", "Sink"], ["rotate", "Tilt"], ["pulse", "Pulse"], ["wobble", "Wobble"]) },
+        { kind: "number", label: "Scroll parallax (-10 to 10)", path: ["advanced", "scroll", "parallax"], min: -10, max: 10, step: 1, hint: "Drifts against the scroll on the live site. Off in the editor and for visitors who ask for reduced motion." },
       ],
     },
     {

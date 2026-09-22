@@ -337,7 +337,20 @@ drag is one undo step however long the pointer rests, and Esc drops the step ent
 Handles write the device being edited (a tablet drag never touches desktop) and start from
 the element's own pixel value when it has one, else from what the page measured. While an
 element is typed into, the kit freezes its rendering and remounts it from the stored value
-when the edit ends. Connection states never silent. Under 900px, the friendly note and the
+when the edit ends.
+**Decision (M5):** the widget library's zod schemas live in `shared/builder/widgetSchemas.ts`
+(on top of `primitives.ts`, so schema.ts can fold them in without an import cycle); its
+renderers in `kit/library/`, its editor definitions and Content tabs in
+`src/builder/widgets/library.ts`. Repeaters (accordion items, pictures, form fields) are a
+control kind that rewrites the whole list, so every row edit is one command. Accordion,
+tab and carousel clicks reach a widget in the editor once it is selected
+(`data-ae-interactive`); embedded frames sit under a shield so a click selects them.
+Social network glyphs are simple stroke icons shipped with the kit (lucide no longer ships
+brand marks). The Form posts to a public `form-submit` function that reads the form from
+the published layout, never from the request; entries live in `form_submissions` (RLS:
+the site's people read, agency staff delete, nobody inserts but the function) and are
+emailed through Resend with the agency's sender and recipients from `site_services`.
+Connection states never silent. Under 900px, the friendly note and the
 form editor. Security: no eval, no innerHTML in site or editor, everything sanitized,
 all URLs validated, secrets server-side only, RLS on every new table, rate limits on the
 form endpoint. The form editor and Stage 1 keep working as the fallback.
@@ -366,7 +379,7 @@ dialog) compared against the design.
       (kit) panel with global references.
 - [x] **M4 Direct manipulation.** Inline rich text with the floating toolbar, image resize
       handles, column resize, padding/margin handles, spacer/min-height drag.
-- [ ] **M5 Widget library.** Every remaining widget in section 3 (Form last), motion
+- [x] **M5 Widget library.** Every remaining widget in section 3 (Form last), motion
       effects, background gradient/image/video/overlay, icon picker.
 - [ ] **M6 Pages and platform.** Site sections integration, new pages and page settings,
       templates, media library, Supabase drafts, element-level conflict publish,

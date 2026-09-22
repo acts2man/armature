@@ -583,3 +583,117 @@ test.describe("canvas handles", () => {
     await expect(spacer).toHaveCSS("height", "90px");
   });
 });
+
+// --- milestone 5: the widget library ---------------------------------------------------------------
+
+test.describe("the widget library on the public site", () => {
+  test("an accordion opens one item at a time, by mouse and keyboard", async ({ page }) => {
+    await page.goto(`${DEMO_SITE_URL}/contact/`, { waitUntil: "domcontentloaded" });
+    const accordion = page.locator(".ae-ctfaq001");
+    const first = accordion.getByRole("button", { name: "How soon can you start?" });
+    const second = accordion.getByRole("button", { name: "Do you work outside Sacramento?" });
+    await expect(first).toHaveAttribute("aria-expanded", "true");
+    await expect(accordion.getByText("Most projects start design")).toBeVisible();
+    await second.click();
+    await expect(second).toHaveAttribute("aria-expanded", "true");
+    await expect(first).toHaveAttribute("aria-expanded", "false");
+    await expect(accordion.getByText("Most projects start design")).toBeHidden();
+    await second.focus();
+    await page.keyboard.press("Enter");
+    await expect(second).toHaveAttribute("aria-expanded", "false");
+    // Social icons: bare email becomes a mailto: link, networks are labelled.
+    await expect(page.locator(".ae-ctsocial").getByRole("link", { name: "Email" })).toHaveAttribute("href", "mailto:hello@alderstone.example");
+    await expect(page.locator(".ae-ctsocial").getByRole("link", { name: "Instagram" })).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  test("the form checks fields, sends to the form function, and shows the thank-you", async ({ page }) => {
+    const sent: Record<string, unknown>[] = [];
+    await page.route("https://demo.supabase.co/functions/v1/form-submit", async (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      sent.push(body);
+      const values = body["values"] as Record<string, string>;
+      if (!values["email"]?.includes("@")) {
+        await route.fulfill({ json: { ok: false, code: "invalid", message: "Please check the highlighted fields.", fieldErrors: { email: "Please enter a valid email address." } } });
+        return;
+      }
+      await route.fulfill({ json: { ok: true, message: "Thanks, we'll call you within one business day." } });
+    });
+    await page.goto(`${DEMO_SITE_URL}/contact/`, { waitUntil: "domcontentloaded" });
+    const form = page.locator("form.ae-ctform01");
+    // The honeypot is there for bots, out of sight and out of the tab order.
+    await expect(form.locator('input[name="ae_website"]')).toHaveAttribute("tabindex", "-1");
+    await expect(form.locator(".ae-form-trap")).not.toBeInViewport();
+    await form.getByLabel("Your name").fill("Ada Lovelace");
+    await form.getByLabel("Email").fill("ada-at-example");
+    await form.getByLabel("Project").selectOption("Remodel");
+    await form.getByLabel("Tell us about it").fill("A second storey.");
+    await page.waitForTimeout(300);
+    // The browser's own check stops an email without @ first; the function's check is the second line.
+    await form.evaluate((node) => ((node as HTMLFormElement).noValidate = true));
+    await form.getByRole("button", { name: "Send" }).click();
+    await expect(form.getByText("Please enter a valid email address.")).toBeVisible();
+    await expect(form.getByLabel("Email")).toHaveAttribute("aria-invalid", "true");
+    await form.getByLabel("Email").fill("ada@example.com");
+    await form.getByRole("button", { name: "Send" }).click();
+    await expect(page.locator(".ae-ctform01[role=status]")).toHaveText("Thanks, we'll call you within one business day.");
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toMatchObject({ site_id: "11111111-1111-4111-8111-111111111111", page: "contact", element_id: "ctform01", trap: "", values: { full_name: "Ada Lovelace", email: "ada@example.com", project: "Remodel", message: "A second storey." } });
+    expect(typeof sent[1]?.["started_at"]).toBe("number");
+  });
+});
+
+test.describe("the widget library in the editor", () => {
+  test("every group is in the Elements panel; a Tabs widget inserts, and its rows edit live", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await page.getByTestId("tab-elements").click();
+    for (const type of ["icon", "video", "icon-box", "accordion", "tabs", "gallery", "carousel", "countdown", "price-table", "form", "html"]) await expect(page.getByTestId(`element-${type}`)).toBeVisible();
+    await frame.locator(".ae-txtbuild").click();
+    await page.getByTestId("tab-elements").click();
+    await page.getByTestId("element-tabs").click();
+    const tabs = frame.locator(".ae-tabs");
+    await expect(tabs).toHaveCount(1);
+    await expect(tabs.getByRole("tab")).toHaveCount(3);
+    // Rows: rename the second tab and add a fourth from the Content tab.
+    const rows = page.getByTestId("items-props.items");
+    await rows.getByTestId("item-row").nth(1).getByRole("button", { name: "Second tab", exact: true }).click();
+    await rows.getByLabel("Title").fill("Our process");
+    await expect(tabs.getByRole("tab", { name: "Our process" })).toBeVisible();
+    await rows.getByTestId("add-item").click();
+    await expect(tabs.getByRole("tab")).toHaveCount(4);
+    // With the widget selected, a click on a tab reaches it (the selection stays).
+    await tabs.getByRole("tab", { name: "Our process" }).click();
+    await expect(tabs.getByRole("tab", { name: "Our process" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", (await tabs.getAttribute("data-ae-id")) ?? "");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(tabs.getByRole("tab")).toHaveCount(3);
+  });
+
+  test("a video is a click-to-load facade that never contacts the host from the editor", async ({ page }) => {
+    const hosts: string[] = [];
+    page.on("request", (request) => {
+      if (/youtube|ytimg|vimeo/.test(request.url())) hosts.push(request.url());
+    });
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-txtbuild").click();
+    await page.getByTestId("tab-elements").click();
+    await page.getByTestId("element-video").click();
+    await page.getByLabel("Address").fill("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+    const facade = frame.locator(".ae-video-facade");
+    await expect(facade).toBeVisible();
+    await expect(facade).toContainText("Plays from YouTube");
+    await facade.click();
+    await facade.click();
+    await expect(frame.locator(".ae-video iframe")).toHaveCount(0);
+    expect(hosts).toEqual([]);
+  });
+
+  test("clients never see the HTML embed", async ({ page }) => {
+    await openEditor(page, { role: "client", editingLevel: "builder" });
+    await waitForReady(page);
+    await page.getByTestId("tab-elements").click();
+    await expect(page.getByTestId("element-accordion")).toBeVisible();
+    await expect(page.getByTestId("element-html")).toHaveCount(0);
+  });
+});

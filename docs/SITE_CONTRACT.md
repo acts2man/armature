@@ -499,6 +499,41 @@ exactly as before.
 
 4. **The frame header**, as in v1.1 (`Content-Security-Policy: frame-ancestors 'self' <dashboard origin>`).
 
+5. **Forms (only if the site uses the Form widget).** Pass the dashboard's form function
+   and the site's id (the id in the site's dashboard address) to the kit:
+
+   ```ts
+   createArmatureKit({ ...,
+     forms: { endpoint: "https://<project>.supabase.co/functions/v1/form-submit", siteId: "<site id>" },
+   });
+   ```
+
+   Without it a form shows "This form is not connected yet" and never sends. The function
+   trusts nothing from the page: it reads the form's fields from the published layout,
+   drops unknown fields, rate limits each visitor and each site, and ignores entries whose
+   hidden honeypot field is filled or that arrive faster than a person types.
+
+6. **Content-Security-Policy, if the site sends one.** The widget library reaches outside
+   the site only when asked: `connect-src` the form endpoint above; `frame-src`
+   `https://www.youtube-nocookie.com https://player.vimeo.com https://maps.google.com
+   https://www.google.com` for videos (after a visitor presses play) and maps; `style-src`
+   `https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com` for Google fonts.
+   The HTML widget (agency only) runs in a sandboxed `srcdoc` frame with its own origin.
+
+### The widget library
+
+Beyond the core widgets (Container, Grid, Heading, Text Editor, Image, Button, Spacer,
+Divider), the kit renders Icon, Video (YouTube, Vimeo or a file; a click-to-load facade
+that contacts the host only when a visitor presses play), Icon Box, Image Box, Icon List,
+Accordion, Toggle, Tabs, Testimonial, Star Rating, Counter, Progress Bar, Alert, Social
+Icons, Image Gallery (with a lightbox), Image Carousel, Google Map, Call to Action, Price
+Table, Countdown (to a date, or per visitor), Flip Box, Blockquote, Table of Contents,
+Form, and the agency-only HTML embed. Interactive widgets follow the WAI-ARIA patterns
+(buttons with `aria-expanded`, tablists with arrow keys, a native `<dialog>` lightbox) and
+stop moving for visitors who ask for reduced motion. Their props are in `kit/types.ts` and
+their rules in `shared/builder/widgetSchemas.ts`. A newer widget an older kit does not know
+is skipped on the site (the editor shows "Unsupported element").
+
 ### Files the editor writes
 
 ```

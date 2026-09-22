@@ -8,12 +8,13 @@ import { defaultSiteKit, setAt, validateElement, validateSiteKit, type Element, 
 import { googleFontsHref } from "@kit/values.ts";
 import { withKitFont } from "../fonts.ts";
 import { setPath } from "../store.ts";
-import { widgetDefinition } from "../widgets/registry.ts";
+import { widgetDefinition, widgetDefinitions } from "../widgets/registry.ts";
+import "../widgets/library.ts";
 import { advancedSpecs, contentSpecsFor, styleSpecs } from "./specs.ts";
 import type { ControlSpec, Path } from "./types.ts";
 import { readAt } from "./path.ts";
 
-const CORE = ["container", "grid", "heading", "text", "image", "button", "spacer", "divider"];
+const ALL = widgetDefinitions().map((definition) => definition.type);
 
 /** Every leaf control, with groups and conditional blocks opened up. */
 function leaves(specs: ControlSpec[]): ControlSpec[] {
@@ -26,12 +27,23 @@ const sides = (units: string[] | undefined) => ({ top: size(units), right: size(
 /** A plausible value for a control, and the extra writes a composite control makes. */
 function sample(spec: ControlSpec): [Path, unknown][] {
   switch (spec.kind) {
-    case "text":
-      return [[spec.path, spec.path.includes("href") ? "/contact/" : "Words"]];
+    case "text": {
+      const last = spec.path[spec.path.length - 1] ?? "";
+      const value = last === "href" || last === "redirect" ? "/contact/" : last === "url" ? "https://www.youtube.com/watch?v=dQw4w9WgXcQ" : last === "date" ? "2030-01-01T10:00" : last === "poster" ? "/assets/cover.webp" : last === "name" ? "full_name" : "Words";
+      return [[spec.path, value]];
+    }
+    case "items": {
+      // One row, built from the row's own controls.
+      let row: Record<string, unknown> = { id: "row00001", ...spec.create() };
+      for (const field of leaves(spec.fields)) for (const [path, value] of sample(field)) row = setPath(row, path, value);
+      return [[spec.path, [row]]];
+    }
+    case "lines":
+      return [[spec.path, ["One", "Two"]]];
     case "select":
       return [[spec.path, spec.numeric ? Number(spec.options[0]?.value) : spec.options[0]?.value]];
     case "choice":
-      return [[spec.path, spec.options[0]?.value]];
+      return [[spec.path, spec.numeric ? Number(spec.options[0]?.value) : spec.options[0]?.value]];
     case "toggle":
       return [[spec.path, true]];
     case "number":
@@ -101,7 +113,11 @@ function applyAll(element: Element, specs: ControlSpec[], device: "desktop" | "t
 }
 
 describe("inspector specs write values the schema accepts", () => {
-  for (const type of CORE) {
+  it("covers the whole library", () => {
+    expect(ALL.length).toBeGreaterThanOrEqual(32);
+    for (const type of ALL) expect(contentSpecsFor(type), `${type} has a Content tab`).toBeTruthy();
+  });
+  for (const type of ALL) {
     it(`${type}: content, style (normal and hover), advanced, on every device`, () => {
       const created = widgetDefinition(type)?.create();
       expect(created, `${type} is registered`).toBeTruthy();

@@ -211,6 +211,17 @@ function overlayDecls(overlay: BackgroundOverlay): Decl[] {
 
 // --- advanced ----------------------------------------------------------------------------------------
 
+/** Hover animations: one declaration each, dropped for visitors who ask for reduced motion. */
+const HOVER_ANIMATIONS: Record<string, [string, string]> = {
+  grow: ["transform", "scale(1.05)"],
+  shrink: ["transform", "scale(0.95)"],
+  float: ["transform", "translateY(-6px)"],
+  sink: ["transform", "translateY(6px)"],
+  rotate: ["transform", "rotate(4deg)"],
+  pulse: ["animation", "ae-pulse 1s ease-in-out infinite"],
+  wobble: ["animation", "ae-wobble 0.8s ease-in-out"],
+};
+
 function advancedRules(sheet: Sheet, selector: string, advanced: Advanced, kit: SiteKit, options: CssOptions): void {
   const spacing = (property: "margin" | "padding") =>
     sheet.responsive(selector, advanced[property], (sides) => {
@@ -240,6 +251,14 @@ function advancedRules(sheet: Sheet, selector: string, advanced: Advanced, kit: 
     sheet.add("base", `${selector}.ae-in`, "animation", `ae-${advanced.animation.type} ${advanced.animation.duration ?? 800}ms ${advanced.animation.delay ?? 0}ms both`);
     sheet.add("reducedMotion", `${selector}[data-ae-anim]`, "opacity", "1");
     sheet.add("reducedMotion", `${selector}.ae-in`, "animation", "none");
+  }
+  if (advanced.hoverAnimation && advanced.hoverAnimation !== "none") {
+    const hover = HOVER_ANIMATIONS[advanced.hoverAnimation];
+    if (hover) {
+      sheet.add("base", selector, "transition", "transform 0.25s ease");
+      sheet.add("base", `${selector}:hover`, hover[0], hover[1]);
+      sheet.add("reducedMotion", `${selector}:hover`, hover[0], "none");
+    }
   }
   if (advanced.hidden) {
     const hide = (bucket: Bucket) => {
@@ -493,8 +512,16 @@ const BASE_CSS = `
 @keyframes ae-fadeInRight { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 @keyframes ae-zoomIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
 @keyframes ae-slideInUp { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes ae-pulse { 0%, 100% { transform: none; } 50% { transform: scale(1.05); } }
+@keyframes ae-wobble { 0%, 100% { transform: none; } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
 @keyframes ae-bounceIn { 0% { opacity: 0; transform: scale(0.8); } 60% { opacity: 1; transform: scale(1.04); } 100% { transform: none; } }
 `.trim();
+
+/** Base CSS added by the widget library: a string, or a function of the kit (for breakpoints). */
+const extraBaseCss: (string | ((kit: SiteKit) => string))[] = [];
+export function registerBaseCss(css: string | ((kit: SiteKit) => string)): void {
+  extraBaseCss.push(css);
+}
 
 /** The kit's custom properties, presets and base widget styles. Same for every page. */
 export function kitCss(kit: SiteKit): string {
@@ -521,7 +548,8 @@ export function kitCss(kit: SiteKit): string {
   sheet.add("base", root, "--ae-field-text", refToCss(kit.forms.fieldText));
   for (const [name, preset] of Object.entries(kit.typography)) typographyPresetVars(sheet, name, preset);
   for (const [name, preset] of Object.entries(kit.buttons)) buttonPresetRules(sheet, name, preset);
-  return `${BASE_CSS}\n${sheet.render(kit)}`;
+  const extra = extraBaseCss.map((css) => (typeof css === "string" ? css : css(kit))).join("\n");
+  return `${BASE_CSS}${extra ? `\n${extra}` : ""}\n${sheet.render(kit)}`;
 }
 
 /** The whole stylesheet for one page: kit, then every element. */

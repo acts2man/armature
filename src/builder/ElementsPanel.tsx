@@ -12,6 +12,7 @@ import type { SiteSectionInfo } from "@shared/visualProtocol.ts";
 import { createElement } from "./store.ts";
 import type { DragSource } from "./useDrag.ts";
 import { GROUP_LABELS, STRUCTURES, createStructure, widgetDefinitions, type WidgetDefinition, type WidgetGroup } from "./widgets/registry.ts";
+import "./widgets/library.ts";
 
 export type PanelItem = { key: string; label: string; icon: ReactNode; keywords: string[]; create: () => Element; hint?: string };
 

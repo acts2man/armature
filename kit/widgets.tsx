@@ -22,6 +22,8 @@ export type WidgetContext = {
   editMode: boolean;
   /** For images: the first picture on the page loads eagerly with a high priority. */
   imageIndex: number;
+  /** The page's slug (the Form widget says which page an entry came from). */
+  page: string;
 };
 
 export type WidgetRender = (context: WidgetContext) => ReactNode;
@@ -34,7 +36,7 @@ export function registerWidget(type: string, render: WidgetRender): void {
 
 export const getWidget = (type: string): WidgetRender | undefined => WIDGETS.get(type);
 
-const linkAttributes = (link: { href: string; newTab?: boolean; rel?: string } | undefined) => {
+export const linkAttributes = (link: { href: string; newTab?: boolean; rel?: string } | undefined) => {
   const href = safeHref(link?.href);
   if (!href) return null;
   const rel = [link?.newTab ? newTabRel : "", link?.rel ?? ""].filter(Boolean).join(" ") || undefined;
@@ -43,25 +45,44 @@ const linkAttributes = (link: { href: string; newTab?: boolean; rel?: string } |
 
 // --- containers ------------------------------------------------------------------------------
 
+/**
+ * A container's video background (the kit renders the <video>; the CSS shows the poster
+ * instead for visitors who ask for reduced motion, and on phones unless allowed).
+ */
+function BackgroundVideo({ element }: { element: Element }) {
+  const raw = element.style.background as unknown;
+  const background = (raw && typeof raw === "object" && "desktop" in (raw as object) ? (raw as { desktop: unknown }).desktop : raw) as { kind?: string; src?: string; poster?: string; loop?: boolean; playOnMobile?: boolean } | undefined;
+  if (!background || background.kind !== "video") return null;
+  const src = safeMediaSrc(background.src);
+  if (!src || src.startsWith("data:")) return null;
+  return <video className={`ae-bg-video${background.playOnMobile ? "" : " ae-bg-video-nomobile"}`} src={src} poster={safeMediaSrc(background.poster)} autoPlay muted loop={background.loop !== false} playsInline preload="metadata" aria-hidden="true" tabIndex={-1} />;
+}
+const hasVideo = (element: Element) => {
+  const raw = element.style.background as unknown;
+  const background = raw && typeof raw === "object" && "desktop" in (raw as object) ? (raw as { desktop: unknown }).desktop : raw;
+  return !!background && typeof background === "object" && (background as { kind?: string }).kind === "video";
+};
+
 function Container({ element, common, children, editMode }: WidgetContext) {
   const props = element.props as ContainerProps;
   const tag = props.tag ?? "div";
   const empty = !element.children || element.children.length === 0;
-  const className = `${common.className} ae-con${(props.layout ?? "boxed") === "boxed" ? " ae-con-boxed" : ""}${editMode && empty ? " ae-empty" : ""}`;
+  const className = `${common.className} ae-con${(props.layout ?? "boxed") === "boxed" ? " ae-con-boxed" : ""}${editMode && empty ? " ae-empty" : ""}${hasVideo(element) ? " ae-has-video" : ""}`;
   const link = linkAttributes(props.link);
   const inner = <div className="ae-con-inner">{children}</div>;
+  const video = <BackgroundVideo element={element} />;
   if (link) {
-    return createElement(tag, { ...common, className }, <a className="ae-con-link" {...link}>{inner}</a>);
+    return createElement(tag, { ...common, className }, video, <a className="ae-con-link" {...link}>{inner}</a>);
   }
-  return createElement(tag, { ...common, className }, inner);
+  return createElement(tag, { ...common, className }, video, inner);
 }
 
 function Grid({ element, common, children, editMode }: WidgetContext) {
   const props = element.props as GridProps;
   const tag = props.tag ?? "div";
   const empty = !element.children || element.children.length === 0;
-  const className = `${common.className} ae-con ae-grid${(props.layout ?? "boxed") === "boxed" ? " ae-con-boxed" : ""}${editMode && empty ? " ae-empty" : ""}`;
-  return createElement(tag, { ...common, className }, <div className="ae-con-inner">{children}</div>);
+  const className = `${common.className} ae-con ae-grid${(props.layout ?? "boxed") === "boxed" ? " ae-con-boxed" : ""}${editMode && empty ? " ae-empty" : ""}${hasVideo(element) ? " ae-has-video" : ""}`;
+  return createElement(tag, { ...common, className }, <BackgroundVideo element={element} />, <div className="ae-con-inner">{children}</div>);
 }
 
 // --- basic ----------------------------------------------------------------------------------
