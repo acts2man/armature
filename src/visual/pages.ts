@@ -12,6 +12,17 @@ export const DEVICES: { id: Device; label: string; width: number }[] = [
 
 export const deviceWidth = (device: Device): number => DEVICES.find((item) => item.id === device)?.width ?? 1440;
 
+/** Site contract v2: the tablet canvas is as wide as the kit's tablet breakpoint; the phone stays a real phone (below the mobile breakpoint). */
+export function deviceWidthFor(device: Device, breakpoints: { tablet: number; mobile: number } | null): number {
+  if (!breakpoints) return deviceWidth(device);
+  if (device === "tablet") return breakpoints.tablet;
+  if (device === "phone") return Math.min(390, breakpoints.mobile);
+  return deviceWidth(device);
+}
+
+/** The editor's device names map to the model's ("phone" is "mobile"). */
+export const modelDevice = (device: Device): "desktop" | "tablet" | "mobile" => (device === "phone" ? "mobile" : device);
+
 /** "/about/" and "/about" and "/About" are the same page. */
 export function normalizePath(path: string): string {
   let out = path.trim().split(/[?#]/)[0] ?? "";

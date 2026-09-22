@@ -11,9 +11,24 @@ import { markTourSeen, modKey } from "./pages.ts";
 
 // --- shortcuts ------------------------------------------------------------------------
 
-export function ShortcutsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function ShortcutsSheet({ open, onClose, builder }: { open: boolean; onClose: () => void; builder?: boolean }) {
   const mod = modKey();
+  const builderRows: [string, string][] = builder
+    ? [
+        ["Drag from Elements", "Add a widget where the blue line shows"],
+        ["Right-click", "The element menu"],
+        [`${mod}+C / ${mod}+V`, "Copy and paste an element (works across pages and sites)"],
+        [`${mod}+Shift+V`, "Paste only the style"],
+        [`${mod}+D`, "Duplicate the element"],
+        ["Delete", "Delete the element"],
+        ["↑ ↓", "Select the previous or next element"],
+        ["← →", "Select the parent, or the first child"],
+        ["Alt+Click", "Select the parent"],
+        [`${mod}+P`, "Preview"],
+      ]
+    : [];
   const rows: [string, string][] = [
+    ...builderRows,
     ["Click", "Select text, a picture or a button"],
     ["Click again, or Enter", "Type straight on the page"],
     ["Enter", "Finish typing (Shift+Enter for a new line in a paragraph)"],

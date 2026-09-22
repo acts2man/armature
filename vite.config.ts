@@ -11,6 +11,7 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@shared": fileURLToPath(new URL("./shared", import.meta.url)),
+      "@kit": fileURLToPath(new URL("./kit", import.meta.url)),
     },
   },
   build: {

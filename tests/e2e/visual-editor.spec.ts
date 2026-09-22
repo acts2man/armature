@@ -148,9 +148,10 @@ test.describe("visual editor", () => {
     await expect(canvas).toHaveAttribute("data-device-width", "390");
     await expect(canvas).toHaveAttribute("data-scale", "1.000");
     await expect.poll(() => page.getByTestId("sheet").evaluate((el) => el.clientWidth)).toBe(390);
+    // The tablet canvas is as wide as the site kit's tablet breakpoint (1024 for the demo).
     await page.getByRole("button", { name: /Tablet view/ }).click();
-    await expect(canvas).toHaveAttribute("data-device-width", "820");
-    expect(desktopWidth).toBeLessThan(820);
+    await expect(canvas).toHaveAttribute("data-device-width", "1024");
+    expect(desktopWidth).toBeLessThan(1024);
     await expect(siteFrame(page).locator("h1")).toBeVisible();
   });
 

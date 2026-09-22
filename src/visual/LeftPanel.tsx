@@ -156,39 +156,7 @@ export function LeftPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3" role="tabpanel">
         {tab === "pages" ? (
-          <div className="flex flex-col gap-px">
-            {pages.map((item) => {
-              const active = item.slug === page?.slug;
-              const count = changedByPage[item.slug] ?? 0;
-              return (
-                <button
-                  key={item.slug}
-                  type="button"
-                  aria-current={active ? "page" : undefined}
-                  onClick={() => onPage(item.slug)}
-                  data-testid={`page-${item.slug}`}
-                  className={clsx("flex min-h-11 w-full items-center justify-between gap-2 rounded-sm px-2 text-left", active ? "bg-blue-soft text-blue" : "text-text hover:bg-ground")}
-                >
-                  <span className="flex min-w-0 items-center gap-2.5">
-                    <IconPage size={16} className={active ? "text-blue" : "text-muted"} />
-                    <span className="min-w-0">
-                      <span className={clsx("block truncate text-[13px]", active ? "font-semibold" : "font-medium")}>{item.label}</span>
-                      <span className="block truncate font-mono text-[11px] text-muted">{item.path}</span>
-                    </span>
-                  </span>
-                  {count > 0 && (
-                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-fg">
-                      {count}
-                      <SrOnly> unpublished changes</SrOnly>
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {shared && (
-              <p className="mt-3 px-2 text-[12px] leading-relaxed text-muted">The header and footer ({shared.label}) appear on every page; find their fields under Layers.</p>
-            )}
-          </div>
+          <PagesList pages={pages} page={page} changedByPage={changedByPage} onPage={onPage} shared={shared} />
         ) : page ? (
           <div className="flex flex-col gap-0.5">
             {page.sections.map((section) => (
@@ -209,5 +177,43 @@ export function LeftPanel({
         )}
       </div>
     </aside>
+  );
+}
+
+/** The Pages tab: every page with its path and a count of unpublished changes. Shared with the builder panel. */
+export function PagesList({ pages, page, changedByPage, onPage, shared, children }: { pages: PageDefinition[]; page: PageDefinition | undefined; changedByPage: Record<string, number>; onPage: (slug: string) => void; shared?: PageDefinition | undefined; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-px">
+      {pages.map((item) => {
+        const active = item.slug === page?.slug;
+        const count = changedByPage[item.slug] ?? 0;
+        return (
+          <button
+            key={item.slug}
+            type="button"
+            aria-current={active ? "page" : undefined}
+            onClick={() => onPage(item.slug)}
+            data-testid={`page-${item.slug}`}
+            className={clsx("flex min-h-11 w-full items-center justify-between gap-2 rounded-sm px-2 text-left", active ? "bg-blue-soft text-blue" : "text-text hover:bg-ground")}
+          >
+            <span className="flex min-w-0 items-center gap-2.5">
+              <IconPage size={16} className={active ? "text-blue" : "text-muted"} />
+              <span className="min-w-0">
+                <span className={clsx("block truncate text-[13px]", active ? "font-semibold" : "font-medium")}>{item.label}</span>
+                <span className="block truncate font-mono text-[11px] text-muted">{item.path}</span>
+              </span>
+            </span>
+            {count > 0 && (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-fg">
+                {count}
+                <SrOnly> unpublished changes</SrOnly>
+              </span>
+            )}
+          </button>
+        );
+      })}
+      {children}
+      {shared && <p className="mt-3 px-2 text-[12px] leading-relaxed text-muted">The header and footer ({shared.label}) appear on every page; find their fields under Layers.</p>}
+    </div>
   );
 }

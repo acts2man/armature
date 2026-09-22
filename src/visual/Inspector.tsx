@@ -327,6 +327,7 @@ export function Inspector({
   actions,
   replaceRequest,
   agencyName,
+  elementPanel,
 }: {
   schema: SiteSchema;
   baseline: ContentTree;
@@ -338,6 +339,8 @@ export function Inspector({
   /** Bumped when the toolbar's Replace image is pressed, to open the file picker. */
   replaceRequest: number;
   agencyName: string;
+  /** Site contract v2: the selected builder element's panel, shown instead of a field. */
+  elementPanel?: ReactNode;
 }) {
   const meta = selectedPath ? fieldMeta(schema, selectedPath) : null;
   const root = selectedPath ? fieldRoot(selectedPath) : null;
@@ -345,7 +348,9 @@ export function Inspector({
   const value = root ? currentValue(draft, baseline, root) : undefined;
 
   let body: ReactNode;
-  if (!meta || !root || !selectedPath) {
+  if (elementPanel) {
+    body = elementPanel;
+  } else if (!meta || !root || !selectedPath) {
     body = (
       <div className="flex flex-col gap-3 px-5 py-6 text-[13px] leading-relaxed text-muted">
         <p className="font-semibold text-text">Nothing selected</p>

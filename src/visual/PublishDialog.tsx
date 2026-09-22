@@ -25,6 +25,7 @@ export function PublishDialog({
   onPublish,
   onReloadKeepRest,
   onDiscardAndReload,
+  layoutChanges = 0,
 }: {
   open: boolean;
   state: PublishState;
@@ -34,6 +35,8 @@ export function PublishDialog({
   onPublish: () => void;
   onReloadKeepRest: () => void;
   onDiscardAndReload: () => void;
+  /** Pages whose layout changed in the draft (published by the builder publish, milestone 6). */
+  layoutChanges?: number;
 }) {
   const total = summary.reduce((sum, page) => sum + page.items.length, 0);
   const title =
@@ -73,6 +76,12 @@ export function PublishDialog({
       {state.step === "summary" && (
         <div className="flex flex-col gap-4" data-testid="publish-summary">
           <p className="text-[14px] leading-relaxed text-muted">Everything below goes live in one publish. Nothing else on the site changes.</p>
+          {layoutChanges > 0 && (
+            <Notice kind="info" title={`${layoutChanges} ${layoutChanges === 1 ? "page layout" : "page layouts"} stay in your draft`}>
+              Layout changes (moved, added and styled elements) are kept in this browser and publish once the builder's publish step lands in a later milestone. The content changes below publish now.
+            </Notice>
+          )}
+          {total === 0 && <p className="text-[13px] text-muted">There are no content changes to publish yet.</p>}
           <ul className="flex flex-col gap-3">
             {summary.map((page) => (
               <li key={page.slug} className="rounded-[10px] border border-line">

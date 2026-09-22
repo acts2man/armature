@@ -399,3 +399,70 @@ export const IconPointer = make(
     <path d="M5 4l14 7-6 2-3 6z" />
   </>,
 );
+
+// --- page builder ---------------------------------------------------------------------------
+export const IconSpacer = make("Spacer", <path d="M4 5h16M4 19h16M12 9v6M9.5 11.5 12 9l2.5 2.5M9.5 12.5 12 15l2.5-2.5" />);
+export const IconDivider = make("Divider", <path d="M4 12h16M7 6h10M7 18h10" />);
+export const IconBox = make("Box", <rect x="4" y="4" width="16" height="16" rx="2" />);
+export const IconMove = make("Move", <path d="M12 2v20M2 12h20M8 6l4-4 4 4M8 18l4 4 4-4M6 8l-4 4 4 4M18 8l4 4-4 4" />);
+export const IconTree = make("Tree", <path d="M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1" />);
+export const IconUnlock = make(
+  "Unlock",
+  <>
+    <rect x="5" y="11" width="14" height="10" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 7.5-2" />
+  </>,
+);
+export const IconMore = make(
+  "More",
+  <>
+    <circle cx="6" cy="12" r="1.2" />
+    <circle cx="12" cy="12" r="1.2" />
+    <circle cx="18" cy="12" r="1.2" />
+  </>,
+);
+export const IconWidget = make(
+  "Widget",
+  <>
+    <rect x="3" y="3" width="8" height="8" rx="1.5" />
+    <rect x="13" y="13" width="8" height="8" rx="1.5" />
+    <path d="M17 3v8M13 7h8M3 17h8M7 13v8" />
+  </>,
+);
+export const IconTemplate = make(
+  "Template",
+  <>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 10h18M9 10v10" />
+  </>,
+);
+export const IconBold = make("Bold", <path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z" />);
+export const IconItalic = make("Italic", <path d="M10 5h8M6 19h8M14 5l-4 14" />);
+export const IconUnderline = make("Underline", <path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14" />);
+export const IconStrike = make("Strike", <path d="M4 12h16M8 8a4 3 0 0 1 8 0M8 16a4 3 0 0 0 8 0" />);
+export const IconListBullet = make(
+  "ListBullet",
+  <>
+    <path d="M9 6h11M9 12h11M9 18h11" />
+    <circle cx="4.5" cy="6" r="1" />
+    <circle cx="4.5" cy="12" r="1" />
+    <circle cx="4.5" cy="18" r="1" />
+  </>,
+);
+export const IconListOrdered = make("ListOrdered", <path d="M10 6h10M10 12h10M10 18h10M4 4h1v4M4 8h2M4 14h2l-2 2.5h2M4 18" />);
+export const IconAlignLeft = make("AlignLeft", <path d="M4 6h16M4 12h10M4 18h13" />);
+export const IconAlignCenter = make("AlignCenter", <path d="M4 6h16M7 12h10M5.5 18h13" />);
+export const IconAlignRight = make("AlignRight", <path d="M4 6h16M10 12h10M7 18h13" />);
+export const IconAlignJustify = make("AlignJustify", <path d="M4 6h16M4 12h16M4 18h16" />);
+export const IconDroplet = make("Droplet", <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />);
+export const IconEraser = make("Eraser", <path d="m7 20 9.5-9.5a2 2 0 0 0 0-2.8l-2.2-2.2a2 2 0 0 0-2.8 0L3 14a2 2 0 0 0 0 2.8L6.2 20zM6 12l6 6M11 20h10" />);
+export const IconSliders = make("Sliders", <path d="M4 7h10M18 7h2M4 17h2M10 17h10M14 5v4M6 15v4" />);
+export const IconPaste = make(
+  "Paste",
+  <>
+    <rect x="7" y="4" width="10" height="16" rx="2" />
+    <path d="M10 4V3h4v1M10 10h4M10 14h4" />
+  </>,
+);
+export const IconArrowRight = make("ArrowRight", <path d="M5 12h14M13 6l6 6-6 6" />);
+export const IconCornerUp = make("CornerUp", <path d="M14 5l5 5-5 5M19 10H8a4 4 0 0 0-4 4v5" />);

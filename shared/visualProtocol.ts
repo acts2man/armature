@@ -94,6 +94,8 @@ export type MappedField = {
   inline: boolean;
   /** For links: the destination the site rendered. */
   href?: string;
+  /** v2: the id of the builder element (usually a site section) that contains this field. */
+  owner?: string;
 };
 
 export type Viewport = { width: number; height: number; scrollX: number; scrollY: number };

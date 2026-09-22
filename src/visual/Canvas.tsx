@@ -278,6 +278,9 @@ export function Canvas({
   siteName,
   hint,
   olderKit,
+  sheetRef,
+  elementOverlays,
+  dragging,
 }: {
   iframeRef: React.RefObject<HTMLIFrameElement>;
   src: string | null;
@@ -300,6 +303,12 @@ export function Canvas({
   hint: string | null;
   /** The site answered with the v1.1 bridge: content editing works, the page builder needs kit v2. */
   olderKit?: boolean;
+  /** The scaled sheet that holds the frame, for converting pointer positions during drags. */
+  sheetRef?: React.RefObject<HTMLDivElement | null>;
+  /** Site contract v2: the builder's overlays, drawn above the Stage 1 ones. */
+  elementOverlays?: ReactNode;
+  /** While an element is being dragged, a transparent layer keeps the pointer in the parent. */
+  dragging?: boolean;
 }) {
   const main = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
@@ -322,6 +331,7 @@ export function Canvas({
   return (
     <main ref={main} className="relative flex min-w-0 flex-1 justify-center overflow-hidden" style={{ paddingTop: SHEET_TOP }} data-testid="canvas" data-device-width={deviceWidth} data-scale={scale.toFixed(3)}>
       <div
+        ref={sheetRef}
         className="relative overflow-hidden rounded-t-[10px] bg-panel shadow-sheet transition-[width] duration-200 ease-[var(--ease-standard)]"
         style={{ width: sheetWidth, height: sheetHeight }}
         data-testid="sheet"
@@ -351,6 +361,8 @@ export function Canvas({
           <>
             <ImageTargets store={store} scale={scale} onSelect={onSelectImage} onDrop={onDropImage} />
             <Overlays store={store} scale={scale} schema={schema} selectedPath={selectedPath} changed={changed} editing={editing} actions={actions} />
+            {elementOverlays}
+            {dragging && <div className="absolute inset-0 cursor-grabbing" data-testid="drag-capture" />}
           </>
         )}
         {ready && preview && (

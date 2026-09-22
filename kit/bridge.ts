@@ -98,7 +98,7 @@ export function decodeFieldPath(text: string): string | null {
 type Rect = { x: number; y: number; width: number; height: number };
 type Box = { top: number; right: number; bottom: number; left: number };
 type MappedKind = "text" | "image" | "link";
-type MappedField = { path: string; kind: MappedKind; rect: Rect; tag: string; inline: boolean; href?: string };
+type MappedField = { path: string; kind: MappedKind; rect: Rect; tag: string; inline: boolean; href?: string; owner?: string };
 type ElementRect = { id: string; type: string; tag: string; rect: Rect; padding: Box; margin: Box; parentId: string | null; page: string | null; empty: boolean; inner?: Rect; section?: string };
 type Viewport = { width: number; height: number; scrollX: number; scrollY: number };
 type ElementInfo = { path: string; kind: MappedKind; inline: boolean; textNode?: Text };
@@ -250,6 +250,8 @@ export function createBridge(config: BridgeConfig): Bridge {
     const anchor = info.kind === "link" ? element.closest("a") : null;
     const field: MappedField = { path: info.path, kind: info.kind, rect, tag: element.tagName.toLowerCase(), inline: info.inline };
     if (anchor) field.href = anchor.getAttribute("href") ?? "";
+    const owner = element.closest(`[${ELEMENT_ATTRIBUTE}]`);
+    if (owner) field.owner = owner.getAttribute(ELEMENT_ATTRIBUTE) ?? undefined;
     return field;
   };
 
@@ -476,10 +478,12 @@ export function createBridge(config: BridgeConfig): Bridge {
   // --- inline editing ------------------------------------------------------------------------------------
   const readText = (element: Element): string => stegaClean(((element as HTMLElement).innerText ?? element.textContent ?? "").replace(/\u00a0/g, " "));
 
+  let lastFinishedAt = 0;
   const finishEdit = (commit: boolean) => {
     if (!editing) return;
     const session = editing;
     editing = null;
+    lastFinishedAt = Date.now();
     session.cleanup();
     const host = session.host;
     suppressMutations += 1;
@@ -907,6 +911,8 @@ export function createBridge(config: BridgeConfig): Bridge {
       send({ type: `${PREFIX}key`, key });
       return;
     }
+    // The Enter that just committed an edit must not start the next one.
+    if (event.key === "Enter" && Date.now() - lastFinishedAt < 150) return;
     if (event.key === "Enter" && selected && elementInfo.get(selected)?.inline) {
       event.preventDefault();
       startFieldEdit(selected);

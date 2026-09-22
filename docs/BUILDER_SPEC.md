@@ -313,9 +313,15 @@ Layout evolves `docs/1-visual-editor.html` and keeps its look.
 
 Native-feeling: overlays at 60fps (geometry outside React state), 150-200ms transitions,
 skeletons, no layout jumps, crisp focus states, every control keyboard reachable, a
-five-step first-run tour. One normalized store with an immutable, patch-based undo stack
-(continuous typing and drags grouped into one step); every change goes through the same
-command system. Connection states never silent. Under 900px, the friendly note and the
+five-step first-run tour. One store and one undo stack for every change (continuous typing
+and drags grouped into one step); every change goes through the same command system.
+**Decision (M2):** the store keeps each page's layout as the same tree the kit renders and
+the repository stores, with a memoized id index (element → parent, position, depth) so
+by-id access is O(1) without a separate normalized copy; commands return new trees with
+structural sharing, and each history entry keeps the state before and after (an O(1) swap
+for undo, redo and click-to-jump). Coded pages without a layout are seeded from their
+slot's sections with stable ids, outside the history, and enter the draft on the first edit.
+Keyboard: ↑/↓ walk siblings, ← selects the parent, → the first child, Alt-click the parent. Connection states never silent. Under 900px, the friendly note and the
 form editor. Security: no eval, no innerHTML in site or editor, everything sanitized,
 all URLs validated, secrets server-side only, RLS on every new table, rate limits on the
 form endpoint. The form editor and Stage 1 keep working as the fallback.
@@ -336,7 +342,7 @@ dialog) compared against the design.
       core (Container, Grid, Heading, Text Editor, Image, Button, Spacer, Divider), CSS
       generator, rich-text renderer, bridge protocol v2 with v1.1 compatibility, demo-site
       upgrade, `docs/SITE_CONTRACT.md` v2.
-- [ ] **M2 Canvas.** Normalized store and command/undo system, element overlays, drag and
+- [x] **M2 Canvas.** Normalized store and command/undo system, element overlays, drag and
       drop (panel and move), structure picker, context menu, copy/paste/duplicate/delete,
       Navigator, keyboard shortcuts, History.
 - [ ] **M3 Inspector.** Schema-driven control library, Content/Style/Advanced for the M1

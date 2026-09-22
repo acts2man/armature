@@ -4,14 +4,18 @@
  * re-rendering the whole editor. Read it with `useGeometry()`.
  */
 import { useSyncExternalStore } from "react";
-import type { MappedField, Viewport } from "@shared/visualProtocol.ts";
+import type { ElementRect, MappedField, Viewport } from "@shared/visualProtocol.ts";
 
 export type Geometry = {
   hover: MappedField | null;
-  /** The selected element's latest rectangle, or null when it is not on this page. */
+  /** The selected field's latest rectangle, or null when it is not on this page. */
   selected: MappedField | null;
   viewport: Viewport;
   fields: MappedField[];
+  /** Site contract v2: every builder element on the page with its boxes. */
+  elements: ElementRect[];
+  /** The builder element under the pointer inside the frame. */
+  hoverElement: string | null;
 };
 
 export type GeometryStore = {
@@ -21,7 +25,7 @@ export type GeometryStore = {
   reset: () => void;
 };
 
-const initial = (): Geometry => ({ hover: null, selected: null, viewport: { width: 0, height: 0, scrollX: 0, scrollY: 0 }, fields: [] });
+const initial = (): Geometry => ({ hover: null, selected: null, viewport: { width: 0, height: 0, scrollX: 0, scrollY: 0 }, fields: [], elements: [], hoverElement: null });
 
 export function createGeometryStore(): GeometryStore {
   let state = initial();
