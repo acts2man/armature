@@ -4,12 +4,12 @@
  * private attachments bucket, one folder per request.
  */
 import { useMutation } from "@tanstack/react-query";
-import { X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
+import { IconArrowLeft, IconSend, IconUpload, IconX } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
-import { Button, Card, Field, Input, LinkButton, Notice, PageHeader, Textarea } from "@/components/ui.tsx";
+import { Button, Field, Input, LinkButton, Notice, PageHeader, Panel, Textarea } from "@/components/ui.tsx";
 import { prepareImage, type PreparedImage } from "@/lib/resizeImage.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { ATTACHMENTS_BUCKET } from "@/lib/types.ts";
@@ -18,7 +18,6 @@ const TITLE_MAX = 200;
 const DETAILS_MAX = 10000;
 
 type PickedImage = { id: string; name: string; prepared: PreparedImage };
-
 type SubmitInput = { title: string; details: string; images: PickedImage[] };
 type SubmitResult = { requestId: string; uploadErrors: string[] };
 
@@ -29,11 +28,7 @@ function extensionFor(type: string): string {
 }
 
 async function submitRequest(siteId: string, userId: string, input: SubmitInput): Promise<SubmitResult> {
-  const { data, error } = await supabase
-    .from("change_requests")
-    .insert({ site_id: siteId, created_by: userId, title: input.title, details: input.details })
-    .select("id")
-    .single();
+  const { data, error } = await supabase.from("change_requests").insert({ site_id: siteId, created_by: userId, title: input.title, details: input.details }).select("id").single();
   if (error) throw new Error(error.message);
   const requestId = (data as { id: string }).id;
 
@@ -41,9 +36,7 @@ async function submitRequest(siteId: string, userId: string, input: SubmitInput)
   for (const [index, image] of input.images.entries()) {
     const file = image.prepared.file;
     const path = `${siteId}/${requestId}/${Date.now()}-${index}.${extensionFor(file.type)}`;
-    const upload = await supabase.storage
-      .from(ATTACHMENTS_BUCKET)
-      .upload(path, file, { contentType: file.type, upsert: false });
+    const upload = await supabase.storage.from(ATTACHMENTS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
     if (upload.error) {
       uploadErrors.push(`${image.name}: ${upload.error.message}`);
       continue;
@@ -61,22 +54,18 @@ function revokePreviews(images: PickedImage[]) {
 function Thumbnail({ image, onRemove, disabled }: { image: PickedImage; onRemove: () => void; disabled: boolean }) {
   return (
     <li className="relative">
-      <img
-        src={image.prepared.previewUrl}
-        alt={image.name}
-        className="aspect-square w-full rounded-lg border border-line object-cover"
-      />
-      <p className="mt-1 truncate text-xs text-muted" title={image.name}>
+      <img src={image.prepared.previewUrl} alt={image.name} className="aspect-square w-full rounded-control border border-line object-cover" />
+      <p className="mt-1 truncate text-[12px] text-muted" title={image.name}>
         {image.name} · {Math.max(1, Math.round(image.prepared.bytes / 1024))} KB
       </p>
       <button
         type="button"
         onClick={onRemove}
         disabled={disabled}
-        className="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-lg bg-panel/90 text-text hover:bg-panel disabled:cursor-not-allowed disabled:opacity-50"
+        className="absolute right-1 top-1 inline-flex h-11 w-11 items-center justify-center rounded-control bg-panel/90 text-text shadow-segment hover:bg-panel disabled:cursor-not-allowed disabled:opacity-50"
         aria-label={`Remove ${image.name}`}
       >
-        <X className="h-4 w-4" aria-hidden="true" />
+        <IconX size={16} />
       </button>
     </li>
   );
@@ -94,8 +83,7 @@ export function NewChangeRequest() {
   const [preparing, setPreparing] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
-  // Mirror `images` into a ref so the unmount cleanup (Cancel, browser back, navigate after
-  // Send) can revoke every preview URL, not only the ones removed by hand.
+  // Mirror `images` into a ref so the unmount cleanup can revoke every preview URL.
   const imagesRef = useRef<PickedImage[]>([]);
   useEffect(() => {
     imagesRef.current = images;
@@ -181,11 +169,11 @@ export function NewChangeRequest() {
   const busy = mutation.isPending || preparing || sent;
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Request a change"
-        description={`Tell the agency what should change on ${site.name}. They will see it straight away.`}
-      />
+    <div className="flex flex-col gap-4">
+      <Link to={`/sites/${site.id}/requests`} className="inline-flex h-11 items-center gap-2 text-[13px] font-medium text-muted hover:text-text">
+        <IconArrowLeft size={16} /> All change requests
+      </Link>
+      <PageHeader title="Request a change" description={`Tell the agency what should change on ${site.name}. They see it straight away.`} />
 
       {partial && (
         <Notice
@@ -193,8 +181,10 @@ export function NewChangeRequest() {
           title="The request was sent, but some screenshots did not upload"
           action={
             <>
-              <LinkButton to={`/sites/${site.id}/requests/${partial.requestId}`}>Open the request</LinkButton>
-              <Button variant="secondary" onClick={startAnother}>
+              <LinkButton to={`/sites/${site.id}/requests/${partial.requestId}`} size="sm">
+                Open the request
+              </LinkButton>
+              <Button variant="secondary" size="sm" onClick={startAnother}>
                 Start another request
               </Button>
             </>
@@ -204,90 +194,87 @@ export function NewChangeRequest() {
         </Notice>
       )}
 
-      <form onSubmit={onSubmit} noValidate>
-        <Card className="space-y-5">
-          <Field label="Title" htmlFor="request-title" hint={`${title.length}/${TITLE_MAX}`}>
-            <Input
-              id="request-title"
-              required
-              maxLength={TITLE_MAX}
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="e.g. Update the opening hours on the Contact page"
-              disabled={busy}
-            />
-          </Field>
+      <form onSubmit={onSubmit} noValidate className="max-w-3xl">
+        <Panel title="The request">
+          <div className="flex flex-col gap-5 p-4 sm:p-5">
+            <Field label="Title" htmlFor="request-title" hint={`${title.length}/${TITLE_MAX}`}>
+              <Input
+                id="request-title"
+                required
+                maxLength={TITLE_MAX}
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="e.g. Update the opening hours on the Contact page"
+                disabled={busy}
+              />
+            </Field>
 
-          <Field
-            label="Details"
-            htmlFor="request-details"
-            hint="What should change, and where? Links to the page help."
-          >
-            <Textarea
-              id="request-details"
-              maxLength={DETAILS_MAX}
-              value={details}
-              onChange={(event) => setDetails(event.target.value)}
-              rows={6}
-              disabled={busy}
-            />
-          </Field>
+            <Field label="Details" htmlFor="request-details" hint="What should change, and where? Links to the page help.">
+              <Textarea id="request-details" maxLength={DETAILS_MAX} value={details} onChange={(event) => setDetails(event.target.value)} rows={6} disabled={busy} />
+            </Field>
 
-          <Field
-            label="Screenshots"
-            htmlFor="request-screenshots"
-            hint="Optional. PNG, JPEG or WebP. Images are resized in your browser before upload."
-          >
-            <input
-              id="request-screenshots"
-              type="file"
-              multiple
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => void onPickFiles(event)}
-              disabled={busy}
-              className="block w-full min-h-11 rounded-lg border border-line bg-panel px-3 py-2 text-[15px] text-text file:mr-3 file:min-h-8 file:rounded-md file:border-0 file:bg-ground file:px-3 file:text-sm file:font-medium file:text-text disabled:bg-ground disabled:text-muted"
-            />
-          </Field>
+            <Field label="Screenshots" htmlFor="request-screenshots" hint="Optional. PNG, JPEG or WebP. Images are resized in your browser before upload.">
+              <label
+                htmlFor="request-screenshots"
+                className="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-[10px] border border-dashed border-line bg-ground px-4 py-4 text-center text-[13px] text-muted hover:border-muted/60"
+              >
+                <IconUpload size={20} />
+                <span>
+                  <span className="font-semibold text-text">Choose images</span> or drop them here
+                </span>
+                <input
+                  id="request-screenshots"
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(event) => void onPickFiles(event)}
+                  disabled={busy}
+                  className="sr-only"
+                />
+              </label>
+            </Field>
 
-          {preparing && <p className="text-sm text-muted">Preparing images…</p>}
+            {preparing && (
+              <p className="text-[13px] text-muted" role="status">
+                Preparing images…
+              </p>
+            )}
 
-          {fileErrors.length > 0 && (
-            <Notice kind="danger" title="Some files could not be used">
-              {fileErrors.join("\n")}
-            </Notice>
-          )}
+            {fileErrors.length > 0 && (
+              <Notice kind="danger" title="Some files could not be used">
+                {fileErrors.join("\n")}
+              </Notice>
+            )}
 
-          {images.length > 0 && (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Chosen screenshots">
-              {images.map((image) => (
-                <Thumbnail key={image.id} image={image} onRemove={() => removeImage(image.id)} disabled={busy} />
-              ))}
-            </ul>
-          )}
+            {images.length > 0 && (
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Chosen screenshots">
+                {images.map((image) => (
+                  <Thumbnail key={image.id} image={image} onRemove={() => removeImage(image.id)} disabled={busy} />
+                ))}
+              </ul>
+            )}
 
-          {formError && (
-            <Notice kind="danger" title="Check the form">
-              {formError}
-            </Notice>
-          )}
-          {mutation.isError && (
-            <Notice kind="danger" title="The request could not be sent">
-              {mutation.error.message}
-            </Notice>
-          )}
+            {formError && (
+              <Notice kind="danger" title="Check the form">
+                {formError}
+              </Notice>
+            )}
+            {mutation.isError && (
+              <Notice kind="danger" title="The request could not be sent">
+                {mutation.error.message}
+              </Notice>
+            )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" loading={mutation.isPending} disabled={preparing || sent}>
-              Send request
-            </Button>
-            <Link
-              to={`/sites/${site.id}/requests`}
-              className="inline-flex min-h-11 items-center text-sm text-muted underline-offset-2 hover:underline"
-            >
-              Cancel
-            </Link>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" loading={mutation.isPending} disabled={preparing || sent}>
+                <IconSend size={16} /> Send request
+              </Button>
+              <Link to={`/sites/${site.id}/requests`} className="inline-flex h-11 items-center px-2 text-[14px] font-medium text-muted hover:text-text">
+                Cancel
+              </Link>
+            </div>
           </div>
-        </Card>
+        </Panel>
       </form>
     </div>
   );

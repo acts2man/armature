@@ -1,67 +1,68 @@
 /**
- * The connection checklist, ported from the pilot: a tick, a cross or a dash per
- * step, plus the plain-English fix. Used by "Check connection" and "Add a site".
+ * The connection checklist: a tick, a cross or a dashed circle per step, plus the
+ * plain-English fix. Used by "Check connection" and "Add a site".
  */
-import { CheckCircle2, CircleDashed, XCircle } from "lucide-react";
 import type { ConnectionCheck, ConnectionReport } from "@shared/publishTypes.ts";
-import { Button, Card } from "./ui.tsx";
+import { IconCheck, IconDashedCircle, IconX } from "./icons.tsx";
+import { Button, Panel, Pill } from "./ui.tsx";
 
 export function CheckRow({ check }: { check: ConnectionCheck }) {
   const icon =
     check.status === "ok" ? (
-      <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" aria-hidden="true" />
+      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-soft text-green">
+        <IconCheck size={14} />
+      </span>
     ) : check.status === "fail" ? (
-      <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" aria-hidden="true" />
+      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-red-soft text-red">
+        <IconX size={14} />
+      </span>
     ) : (
-      <CircleDashed className="mt-0.5 h-5 w-5 shrink-0 text-muted/60" aria-hidden="true" />
+      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted/70">
+        <IconDashedCircle size={20} />
+      </span>
     );
 
   return (
-    <li className="flex gap-3">
+    <li className="flex gap-3 border-b border-line px-4 py-3 last:border-b-0 sm:px-5">
       {icon}
       <div className="min-w-0">
-        <p className="font-medium text-text">
+        <p className="text-[14px] font-semibold leading-6 text-text">
           {check.label}
-          <span className="sr-only">
-            {check.status === "ok" ? " — passed" : check.status === "fail" ? " — failed" : " — not checked"}
-          </span>
+          <span className="sr-only">{check.status === "ok" ? " — passed" : check.status === "fail" ? " — failed" : " — not checked"}</span>
         </p>
-        <p className="whitespace-pre-wrap break-words text-sm text-muted">{check.detail}</p>
-        {check.fix && <p className="mt-1 whitespace-pre-wrap break-words text-sm text-warning">{check.fix}</p>}
+        <p className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-muted">{check.detail}</p>
+        {check.fix && <p className="mt-1.5 whitespace-pre-wrap break-words rounded-sm bg-amber-soft px-2.5 py-1.5 text-[13px] leading-relaxed text-amber">{check.fix}</p>}
       </div>
     </li>
   );
 }
 
-export function CheckList({
-  report,
-  onHide,
-  title,
-}: {
-  report: ConnectionReport;
-  onHide?: () => void;
-  title?: string;
-}) {
+export function CheckList({ report, onHide, title }: { report: ConnectionReport; onHide?: () => void; title?: string }) {
+  const passed = report.checks.filter((check) => check.status === "ok").length;
   return (
-    <Card as="section" aria-live="polite">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-ink">
-          {title ?? (report.allPassed ? "Connection check: everything passed" : "Connection check: something needs fixing")}
-        </h2>
-        {onHide && (
-          <Button variant="ghost" size="sm" onClick={onHide}>
-            Hide
-          </Button>
-        )}
-      </div>
-      <ul className="mt-4 space-y-4">
+    <Panel
+      title={title ?? (report.allPassed ? "Connection check" : "Connection check")}
+      aside={
+        <>
+          <Pill tone={report.allPassed ? "green" : "amber"}>
+            {report.allPassed ? "Everything passed" : `${passed} of ${report.checks.length} passed`}
+          </Pill>
+          {onHide && (
+            <Button variant="ghost" size="sm" onClick={onHide}>
+              Hide
+            </Button>
+          )}
+        </>
+      }
+    >
+      <ul aria-live="polite">
         {report.checks.map((check) => (
           <CheckRow key={check.id} check={check} />
         ))}
       </ul>
-      <p className="mt-4 text-xs text-muted">
-        Secret values are never shown here — only whether a setting arrived and how many characters long it is.
+      <p className="border-t border-line px-4 py-3 text-[12px] text-muted sm:px-5">
+        Secret values are never shown here, only whether a setting arrived and how many characters long it is.
       </p>
-    </Card>
+    </Panel>
   );
 }

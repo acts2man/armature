@@ -6,10 +6,10 @@
  * Also exports the full-page frame both of those pages sit in, since neither is
  * inside the AppShell and no agency branding is known before sign-in.
  */
-import { clsx } from "clsx";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { supabase } from "@/lib/supabase.ts";
-import { Button, Field, Input, Notice } from "./ui.tsx";
+import { IconEye, IconEyeOff } from "./icons.tsx";
+import { Button, Field, Input, Notice, Segmented } from "./ui.tsx";
 
 export type AuthFormProps = {
   /** "signin" for the sign-in page; "invite" for the invite page, where new accounts are expected. */
@@ -26,25 +26,9 @@ type Busy = "submit" | "reset" | null;
 type Message = { kind: "success" | "warning" | "danger"; title: string; body: string };
 
 const textButtonClass =
-  "inline-flex min-h-11 items-center text-sm font-medium text-accent underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex min-h-11 items-center text-[13px] font-semibold text-text underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-50";
 
 const problem = (body: string): Message => ({ kind: "danger", title: "That did not work", body });
-
-function MethodTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={clsx(
-        "min-h-11 rounded-md px-3 text-sm font-medium transition-colors",
-        active ? "bg-panel text-ink shadow-sm" : "text-muted hover:text-text",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function AuthForm({ mode, defaultEmail = "", lockEmail = false, redirectPath, onSignedIn }: AuthFormProps) {
   const id = useId();
@@ -52,6 +36,7 @@ export function AuthForm({ mode, defaultEmail = "", lockEmail = false, redirectP
   const [creating, setCreating] = useState(false);
   const [email, setEmail] = useState(defaultEmail);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState<Busy>(null);
   const [message, setMessage] = useState<Message | null>(null);
 
@@ -172,14 +157,16 @@ export function AuthForm({ mode, defaultEmail = "", lockEmail = false, redirectP
 
   return (
     <div className="space-y-5">
-      <div role="group" aria-label="How to sign in" className="grid grid-cols-2 gap-1 rounded-lg bg-ground p-1">
-        <MethodTab active={method === "password"} onClick={() => switchMethod("password")}>
-          Email and password
-        </MethodTab>
-        <MethodTab active={method === "magic"} onClick={() => switchMethod("magic")}>
-          Email me a sign-in link
-        </MethodTab>
-      </div>
+      <Segmented
+        label="How to sign in"
+        value={method}
+        onChange={switchMethod}
+        className="grid w-full grid-cols-2 [&>button]:h-10 [&>button]:text-[13px]"
+        options={[
+          { value: "password", label: "Email and password" },
+          { value: "magic", label: "Email me a link" },
+        ]}
+      />
 
       {message && (
         <Notice kind={message.kind} title={message.title}>
@@ -195,16 +182,28 @@ export function AuthForm({ mode, defaultEmail = "", lockEmail = false, redirectP
             htmlFor={`${id}-password`}
             hint={creating ? "At least 6 characters." : undefined}
           >
-            <Input
-              id={`${id}-password`}
-              type="password"
-              name="password"
-              autoComplete={creating ? "new-password" : "current-password"}
-              required
-              minLength={creating ? 6 : undefined}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <div className="relative">
+              <Input
+                id={`${id}-password`}
+                type={showPassword ? "text" : "password"}
+                name="password"
+                autoComplete={creating ? "new-password" : "current-password"}
+                required
+                minLength={creating ? 6 : undefined}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="pr-12"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-sm text-muted hover:bg-ground hover:text-text"
+              >
+                {showPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}
+              </button>
+            </div>
           </Field>
           <Button type="submit" className="w-full" loading={busy === "submit"} disabled={busy !== null}>
             {creating ? "Create account" : "Sign in"}
@@ -259,13 +258,17 @@ export function UnusableLinkNotice({ className }: { className?: string }) {
   );
 }
 
-/** Full-page centred card for the screens outside the AppShell (sign-in, invite). */
+/**
+ * Full-page centred card for the screens outside the AppShell (sign-in, invite,
+ * choose a password). No agency is known before sign-in, so the mark is a plain
+ * initial; once a portal name is known it is shown instead.
+ */
 export function AuthPageFrame({ title, subtitle, children }: { title: ReactNode; subtitle?: ReactNode; children: ReactNode }) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-ground px-4 py-8">
       <main className="w-full max-w-md rounded-card border border-line bg-panel p-6 sm:p-8">
-        <h1 className="text-2xl font-semibold text-ink">{title}</h1>
-        {subtitle && <p className="mt-1 text-[15px] text-muted">{subtitle}</p>}
+        <h1 className="font-display text-[26px] font-semibold leading-tight text-text">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-[14px] leading-relaxed text-muted">{subtitle}</p>}
         <div className="mt-6">{children}</div>
       </main>
     </div>

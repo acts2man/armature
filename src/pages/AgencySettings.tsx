@@ -1,32 +1,19 @@
 /**
- * Agency settings: the portal name, logo and accent colour clients see, plus
- * the agency's staff and their invitations. Owners edit; staff can only look.
+ * Agency settings: the portal name, logo and accent colour clients see. Owners
+ * edit; staff can only look. Staff and invitations live on the Team screen.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { clsx } from "clsx";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useAuth, type AgencyMembership } from "@/auth/AuthProvider.tsx";
-import { Button, Card, Field, Input, LinkButton, Notice, PageHeader, Pill, Select, Spinner, SrOnly } from "@/components/ui.tsx";
-import { formatDate, plural } from "@/lib/format.ts";
-import { callFunction } from "@/lib/functions.ts";
+import { IconGlobe } from "@/components/icons.tsx";
+import { Button, Field, Input, LinkButton, Notice, PageHeader, Panel, PanelRow, Select, Skeleton, useToast } from "@/components/ui.tsx";
+import { plural } from "@/lib/format.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { isHexColor } from "@/lib/theme.ts";
-import {
-  AGENCY_ROLE_LABELS,
-  type Agency,
-  type AgencyMember,
-  type AgencyRole,
-  type Invite,
-  type Profile,
-} from "@/lib/types.ts";
-import type { InviteCreateResponse } from "@shared/publishTypes.ts";
+import type { Agency } from "@/lib/types.ts";
 
 const NAME_MAX = 120;
-
-type ProfileLite = Pick<Profile, "id" | "email" | "full_name">;
-type StaffRow = { user_id: string; role: AgencyRole; created_at: string; profile: ProfileLite | null };
-type PendingInvite = Invite & { expired: boolean };
-type CreatedInvite = { url: string; email: string; expires_at: string; emailed: boolean };
 
 /** Relative luminance of a #rrggbb colour, for picking readable text in the preview. */
 function isLightColor(hex: string): boolean {
@@ -38,117 +25,17 @@ function isLightColor(hex: string): boolean {
   return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4) > 0.4;
 }
 
-async function loadProfiles(userIds: string[]): Promise<Map<string, ProfileLite>> {
-  const map = new Map<string, ProfileLite>();
-  if (userIds.length === 0) return map;
-  const { data, error } = await supabase.from("profiles").select("id, email, full_name").in("id", userIds);
-  if (error) throw new Error(`Could not load people's names: ${error.message}`);
-  for (const profile of (data ?? []) as ProfileLite[]) map.set(profile.id, profile);
-  return map;
-}
-
-async function loadStaff(agencyId: string): Promise<StaffRow[]> {
-  const { data, error } = await supabase.from("agency_members").select("*").eq("agency_id", agencyId).order("created_at");
-  if (error) throw new Error(error.message);
-  const staff = (data ?? []) as AgencyMember[];
-  const profiles = await loadProfiles(staff.map((member) => member.user_id));
-  return staff.map((member) => ({
-    user_id: member.user_id,
-    role: member.role,
-    created_at: member.created_at,
-    profile: profiles.get(member.user_id) ?? null,
-  }));
-}
-
-async function loadAgencyInvites(agencyId: string): Promise<PendingInvite[]> {
-  const { data, error } = await supabase
-    .from("invites")
-    .select("*")
-    .eq("agency_id", agencyId)
-    .is("site_id", null)
-    .is("accepted_at", null)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  const now = Date.now();
-  return ((data ?? []) as Invite[]).map((invite) => ({
-    ...invite,
-    expired: new Date(invite.expires_at).getTime() < now,
-  }));
-}
-
 async function loadSiteCount(agencyId: string): Promise<number> {
-  const { count, error } = await supabase
-    .from("sites")
-    .select("id", { count: "exact", head: true })
-    .eq("agency_id", agencyId);
+  const { count, error } = await supabase.from("sites").select("id", { count: "exact", head: true }).eq("agency_id", agencyId);
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
 
-function PersonCell({ row }: { row: StaffRow }) {
-  const name = row.profile?.full_name?.trim();
-  const email = row.profile?.email?.trim();
-  if (!name && !email) return <span className="text-muted">—</span>;
-  return (
-    <div className="min-w-0">
-      <p className="font-medium text-text">{name || email}</p>
-      {name && email && <p className="break-all text-xs text-muted">{email}</p>}
-    </div>
-  );
-}
-
-function InviteLinkNotice({ invite, onDismiss }: { invite: CreatedInvite; onDismiss: () => void }) {
-  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
-  const inputId = `invite-link-${invite.email.replace(/[^a-z0-9]/gi, "-")}`;
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(invite.url);
-      setCopied("copied");
-    } catch {
-      const input = document.getElementById(inputId);
-      if (input instanceof HTMLInputElement) {
-        input.focus();
-        input.select();
-      }
-      setCopied("failed");
-    }
-  }
-
-  return (
-    <Notice
-      kind="success"
-      title="Invite created"
-      action={
-        <>
-          <Button variant="secondary" onClick={() => void copy()}>
-            {copied === "copied" ? "Copied" : "Copy link"}
-          </Button>
-          <Button variant="ghost" onClick={onDismiss}>
-            Dismiss
-          </Button>
-        </>
-      }
-    >
-      <p>
-        {invite.emailed
-          ? `The link was emailed to ${invite.email}; you can also copy it below.`
-          : `Email sending is not set up yet, so copy this link and send it to ${invite.email} yourself.`}{" "}
-        It expires on {formatDate(invite.expires_at)}.
-      </p>
-      <div className="mt-2">
-        <label htmlFor={inputId} className="sr-only">
-          Invite link
-        </label>
-        <Input id={inputId} readOnly value={invite.url} onFocus={(event) => event.currentTarget.select()} />
-      </div>
-      {copied === "failed" && <p className="mt-1 text-sm">Copying failed; the link is selected, so press Ctrl+C or Cmd+C.</p>}
-    </Notice>
-  );
-}
+const SWATCHES = ["#2B3FD6", "#0F766E", "#A21C5B", "#16202B"];
 
 function BrandingForm({ agency, isOwner }: { agency: Agency; isOwner: boolean }) {
   const { refresh } = useAuth();
+  const toast = useToast();
   const [name, setName] = useState(agency.name);
   const [portalName, setPortalName] = useState(agency.portal_name);
   const [logoUrl, setLogoUrl] = useState(agency.logo_url ?? "");
@@ -161,11 +48,10 @@ function BrandingForm({ agency, isOwner }: { agency: Agency; isOwner: boolean })
     mutationFn: async (input: { name: string; portal_name: string; logo_url: string | null; accent_color: string }) => {
       const { data, error } = await supabase.from("agencies").update(input).eq("id", agency.id).select("id");
       if (error) throw new Error(error.message);
-      if (!data || data.length === 0) {
-        throw new Error("Nothing was saved. Only an agency owner can change these settings.");
-      }
+      if (!data || data.length === 0) throw new Error("Nothing was saved. Only an agency owner can change these settings.");
       await refresh();
     },
+    onSuccess: () => toast.show("Branding saved"),
   });
 
   function onAccentText(value: string) {
@@ -201,328 +87,149 @@ function BrandingForm({ agency, isOwner }: { agency: Agency; isOwner: boolean })
 
   const disabled = !isOwner || mutation.isPending;
   const previewColor = isHexColor(accent) ? accent : pickerValue;
+  const previewPortal = portalName.trim() || "Client portal";
 
   return (
-    <Card as="section">
-      <h2 className="text-lg font-semibold text-ink">Branding</h2>
-      {!isOwner && (
-        <Notice kind="info" className="mt-3">
-          Only an agency owner can change these settings
-        </Notice>
-      )}
-      <form onSubmit={onSubmit} className="mt-4 space-y-5" noValidate>
-        <Field label="Agency name" htmlFor="agency-name">
-          <Input
-            id="agency-name"
-            required
-            maxLength={NAME_MAX}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            disabled={disabled}
-          />
-        </Field>
-        <Field label="Portal name" htmlFor="agency-portal-name" hint="Shown to clients instead of the agency name">
-          <Input
-            id="agency-portal-name"
-            required
-            maxLength={NAME_MAX}
-            value={portalName}
-            onChange={(event) => setPortalName(event.target.value)}
-            disabled={disabled}
-          />
-        </Field>
-        <Field
-          label="Logo URL"
-          htmlFor="agency-logo-url"
-          hint="A square image, https://… . Leave empty to show the portal's initial."
-        >
-          <Input
-            id="agency-logo-url"
-            type="url"
-            inputMode="url"
-            placeholder="https://"
-            value={logoUrl}
-            onChange={(event) => setLogoUrl(event.target.value)}
-            disabled={disabled}
-          />
-        </Field>
-        <div className="grid gap-4 sm:grid-cols-[auto_1fr]">
-          <Field label="Accent colour" htmlFor="agency-accent-picker">
-            <input
-              id="agency-accent-picker"
-              type="color"
-              value={pickerValue}
-              onChange={(event) => {
-                setAccent(event.target.value);
-                setPickerValue(event.target.value);
-              }}
-              disabled={disabled}
-              className="h-11 w-16 cursor-pointer rounded-lg border border-line bg-panel p-1 disabled:cursor-not-allowed disabled:opacity-50"
-            />
+    <Panel title="Branding" aside={!isOwner ? <span className="text-[12px] text-muted">Only an owner can change these</span> : undefined}>
+      <form onSubmit={onSubmit} className="grid gap-5 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_320px]" noValidate>
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Agency name" htmlFor="agency-name" hint="Used on your own screens">
+              <Input id="agency-name" required maxLength={NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} disabled={disabled} />
+            </Field>
+            <Field label="Portal name" htmlFor="agency-portal-name" hint="What clients see instead of the agency name">
+              <Input id="agency-portal-name" required maxLength={NAME_MAX} value={portalName} onChange={(event) => setPortalName(event.target.value)} disabled={disabled} />
+            </Field>
+          </div>
+          <Field label="Logo URL" htmlFor="agency-logo-url" hint="A square image at an https:// address. Leave empty to show the portal's initials.">
+            <Input id="agency-logo-url" type="url" inputMode="url" placeholder="https://" value={logoUrl} onChange={(event) => setLogoUrl(event.target.value)} disabled={disabled} />
           </Field>
-          <Field
-            label="Accent colour (hex)"
-            htmlFor="agency-accent-hex"
-            hint="Six hex digits, like #2b3fd6"
-            error={accent && !isHexColor(accent) ? "That is not a six-digit hex colour." : null}
-          >
-            <Input
-              id="agency-accent-hex"
-              value={accent}
-              maxLength={7}
-              spellCheck={false}
-              onChange={(event) => onAccentText(event.target.value)}
-              disabled={disabled}
-              className="font-mono"
-            />
-          </Field>
-        </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-semibold text-text">Accent colour</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2" role="group" aria-label="Suggested colours">
+                {SWATCHES.map((swatch) => {
+                  const selected = accent.toLowerCase() === swatch.toLowerCase();
+                  return (
+                    <button
+                      key={swatch}
+                      type="button"
+                      aria-label={`Use ${swatch}`}
+                      aria-pressed={selected}
+                      disabled={disabled}
+                      onClick={() => {
+                        setAccent(swatch);
+                        setPickerValue(swatch);
+                      }}
+                      style={{ backgroundColor: swatch }}
+                      className={clsx("h-8 w-8 rounded-full", selected ? "ring-2 ring-accent ring-offset-2 ring-offset-panel" : "shadow-[inset_0_0_0_1px_rgba(22,32,43,0.18)]")}
+                    />
+                  );
+                })}
+              </div>
+              <label htmlFor="agency-accent-picker" className="sr-only">
+                Pick a colour
+              </label>
+              <input
+                id="agency-accent-picker"
+                type="color"
+                value={pickerValue}
+                onChange={(event) => {
+                  setAccent(event.target.value);
+                  setPickerValue(event.target.value);
+                }}
+                disabled={disabled}
+                className="h-11 w-14 cursor-pointer rounded-control border border-line bg-panel p-1 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+              <div className="w-36">
+                <label htmlFor="agency-accent-hex" className="sr-only">
+                  Accent colour as hex
+                </label>
+                <Input id="agency-accent-hex" value={accent} maxLength={7} spellCheck={false} onChange={(event) => onAccentText(event.target.value)} disabled={disabled} className="font-mono" />
+              </div>
+            </div>
+            {accent && !isHexColor(accent) ? (
+              <p className="text-[13px] text-red" role="alert">
+                That is not a six-digit hex colour.
+              </p>
+            ) : (
+              <p className="text-[12px] text-muted">Buttons, links and focus rings in the portal use this colour.</p>
+            )}
+          </div>
 
-        <div className="rounded-card border border-line bg-ground p-4">
-          <p className="text-sm font-medium text-text">Preview</p>
-          <p className="mt-1 text-sm text-muted">Buttons and links in the portal will use this colour.</p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <span
-              aria-hidden="true"
-              className={clsx(
-                "inline-flex min-h-11 items-center justify-center rounded-lg px-4 text-[15px] font-medium",
-                isLightColor(previewColor) ? "text-ink" : "text-white",
-              )}
-              style={{ backgroundColor: previewColor }}
-            >
-              Publish changes
-            </span>
-            <span aria-hidden="true" className="text-[15px] font-medium underline" style={{ color: previewColor }}>
-              A link in this colour
-            </span>
+          {formError && (
+            <Notice kind="danger" title="Check the form">
+              {formError}
+            </Notice>
+          )}
+          {mutation.isError && (
+            <Notice kind="danger" title="Settings could not be saved">
+              {mutation.error.message}
+            </Notice>
+          )}
+          <div>
+            <Button type="submit" loading={mutation.isPending} disabled={!isOwner}>
+              Save branding
+            </Button>
           </div>
         </div>
 
-        {formError && (
-          <Notice kind="danger" title="Check the form">
-            {formError}
-          </Notice>
-        )}
-        {mutation.isError && (
-          <Notice kind="danger" title="Settings could not be saved">
-            {mutation.error.message}
-          </Notice>
-        )}
-        {mutation.isSuccess && <Notice kind="success">Saved</Notice>}
-
-        <Button type="submit" loading={mutation.isPending} disabled={!isOwner}>
-          Save
-        </Button>
-      </form>
-    </Card>
-  );
-}
-
-function StaffInviteForm({ agencyId }: { agencyId: string }) {
-  const queryClient = useQueryClient();
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<AgencyRole>("staff");
-  const [created, setCreated] = useState<CreatedInvite | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: async (input: { email: string; role: AgencyRole }) => {
-      const result = await callFunction<InviteCreateResponse>("invite-create", {
-        agency_id: agencyId,
-        site_id: null,
-        email: input.email,
-        role: input.role,
-      });
-      if (!result.ok) throw new Error(result.message);
-      return { ...result, email: input.email };
-    },
-    onSuccess: async (result) => {
-      setCreated({ url: result.invite_url, email: result.email, expires_at: result.expires_at, emailed: result.emailed });
-      setEmail("");
-      await queryClient.invalidateQueries({ queryKey: ["agency-invites", agencyId] });
-    },
-  });
-
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const trimmed = email.trim().toLowerCase();
-    if (!trimmed) return;
-    setCreated(null);
-    mutation.mutate({ email: trimmed, role });
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <h3 className="text-base font-semibold text-ink">Invite staff</h3>
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        <Field label="Email" htmlFor="staff-invite-email">
-          <Input
-            id="staff-invite-email"
-            type="email"
-            required
-            autoComplete="off"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            disabled={mutation.isPending}
-          />
-        </Field>
-        <Field label="Role" htmlFor="staff-invite-role">
-          <Select
-            id="staff-invite-role"
-            value={role}
-            onChange={(event) => setRole(event.target.value as AgencyRole)}
-            disabled={mutation.isPending}
-          >
-            <option value="staff">{AGENCY_ROLE_LABELS.staff}</option>
-            <option value="owner">{AGENCY_ROLE_LABELS.owner}</option>
-          </Select>
-        </Field>
-      </div>
-      {mutation.isError && (
-        <Notice kind="danger" title="The invite could not be created">
-          {mutation.error.message}
-        </Notice>
-      )}
-      {created && <InviteLinkNotice invite={created} onDismiss={() => setCreated(null)} />}
-      <Button type="submit" loading={mutation.isPending}>
-        Create invite
-      </Button>
-    </form>
-  );
-}
-
-function PendingStaffInvites({ agencyId }: { agencyId: string }) {
-  const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["agency-invites", agencyId], queryFn: () => loadAgencyInvites(agencyId) });
-
-  const remove = useMutation({
-    mutationFn: async (inviteId: string) => {
-      const { error } = await supabase.from("invites").delete().eq("id", inviteId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["agency-invites", agencyId] }),
-  });
-
-  let body: ReactNode;
-  if (query.isPending) {
-    body = <Spinner label="Loading invitations" />;
-  } else if (query.isError) {
-    body = (
-      <Notice kind="danger" title="Invitations could not be loaded">
-        {query.error.message}
-      </Notice>
-    );
-  } else if (query.data.length === 0) {
-    body = <p className="text-sm text-muted">No pending invitations.</p>;
-  } else {
-    body = (
-      <ul className="divide-y divide-line">
-        {query.data.map((invite) => (
-          <li key={invite.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-            <div className="min-w-0">
-              <p className="break-all font-medium text-text">{invite.email}</p>
-              <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
-                <span>{AGENCY_ROLE_LABELS[invite.role as AgencyRole] ?? invite.role}</span>
-                <span>· Expires {formatDate(invite.expires_at)}</span>
-                {invite.expired && <Pill tone="danger">Expired</Pill>}
-              </p>
+        {/* Live preview of the client sidebar */}
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] font-semibold text-text">Preview</span>
+          <div aria-hidden="true" className="overflow-hidden rounded-card border border-line">
+            <div className="flex flex-col gap-3 bg-ink p-3 text-ink-text">
+              <div className="flex items-center gap-3 px-1">
+                {logoUrl.trim() && /^https?:\/\//.test(logoUrl.trim()) ? (
+                  <img src={logoUrl.trim()} alt="" className="h-9 w-9 rounded-control bg-white object-contain" />
+                ) : (
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-control bg-white font-display text-[15px] font-bold text-ink">{previewPortal.slice(0, 2).toUpperCase()}</span>
+                )}
+                <span className="min-w-0">
+                  <span className="block truncate text-[14px] font-semibold text-white">{previewPortal}</span>
+                  <span className="block text-[12px]">Client portal</span>
+                </span>
+              </div>
+              <span className="flex h-9 items-center rounded-control bg-ink-2 px-3 text-[13px] font-semibold text-white">Dashboard</span>
+              <span className="flex h-9 items-center px-3 text-[13px]">Pages</span>
+              <span className="flex h-11 items-center justify-center rounded-control text-[14px] font-semibold" style={{ backgroundColor: previewColor, color: isLightColor(previewColor) ? "#16202b" : "#ffffff" }}>
+                Edit site visually
+              </span>
             </div>
-            <Button
-              variant="danger"
-              onClick={() => remove.mutate(invite.id)}
-              loading={remove.isPending && remove.variables === invite.id}
-            >
-              Delete
-              <SrOnly> invite for {invite.email}</SrOnly>
-            </Button>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  return (
-    <div className="space-y-2">
-      <h3 className="text-base font-semibold text-ink">Pending invitations</h3>
-      {remove.isError && (
-        <Notice kind="danger" title="The invitation could not be deleted">
-          {remove.error.message}
-        </Notice>
-      )}
-      {body}
-    </div>
+            <div className="flex items-center gap-3 bg-ground p-3">
+              <span className="inline-flex h-9 items-center rounded-control px-4 text-[14px] font-semibold" style={{ backgroundColor: previewColor, color: isLightColor(previewColor) ? "#16202b" : "#ffffff" }}>
+                Publish
+              </span>
+              <span className="text-[14px] font-semibold underline underline-offset-2" style={{ color: previewColor }}>
+                A link
+              </span>
+            </div>
+          </div>
+        </div>
+      </form>
+    </Panel>
   );
 }
 
-function StaffCard({ agencyId, isOwner }: { agencyId: string; isOwner: boolean }) {
-  const query = useQuery({ queryKey: ["agency-staff", agencyId], queryFn: () => loadStaff(agencyId) });
-
-  let body: ReactNode;
-  if (query.isPending) {
-    body = <Spinner label="Loading agency staff" />;
-  } else if (query.isError) {
-    body = (
-      <Notice kind="danger" title="Agency staff could not be loaded">
-        {query.error.message}
-      </Notice>
-    );
-  } else if (query.data.length === 0) {
-    body = <p className="text-sm text-muted">No staff found.</p>;
-  } else {
-    body = (
-      <ul className="divide-y divide-line">
-        {query.data.map((row) => (
-          <li key={row.user_id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-            <PersonCell row={row} />
-            <span className="text-sm text-muted">{AGENCY_ROLE_LABELS[row.role]}</span>
-          </li>
-        ))}
-      </ul>
-    );
-  }
-
-  return (
-    <Card as="section" className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-ink">Agency staff</h2>
-        <div className="mt-2">{body}</div>
-      </div>
-      {isOwner ? (
-        <StaffInviteForm agencyId={agencyId} />
-      ) : (
-        <p className="text-sm text-muted">Only an agency owner can invite staff.</p>
-      )}
-      {/* RLS lets every agency member read and delete invites, so all staff see the list. */}
-      <PendingStaffInvites agencyId={agencyId} />
-    </Card>
-  );
-}
-
-function ClientsCard({ agencyId }: { agencyId: string }) {
+function ClientsPanel({ agencyId }: { agencyId: string }) {
   const query = useQuery({ queryKey: ["agency-site-count", agencyId], queryFn: () => loadSiteCount(agencyId) });
-
   let body: ReactNode;
-  if (query.isPending) {
-    body = <Spinner label="Counting sites" />;
-  } else if (query.isError) {
-    body = (
-      <Notice kind="danger" title="Sites could not be counted">
-        {query.error.message}
-      </Notice>
-    );
-  } else {
-    body = <p className="text-[15px] text-text">This agency looks after {plural(query.data, "site")}.</p>;
-  }
-
+  if (query.isPending) body = <Skeleton className="w-40" />;
+  else if (query.isError) body = <span className="text-red">{query.error.message}</span>;
+  else body = `This agency looks after ${plural(query.data, "site")}. Client members are managed on each site's Team tab.`;
   return (
-    <Card as="section">
-      <h2 className="text-lg font-semibold text-ink">Clients</h2>
-      <div className="mt-2">{body}</div>
-      <div className="mt-3">
-        <LinkButton to="/fleet" variant="secondary">
-          Open the fleet
-        </LinkButton>
-      </div>
-    </Card>
+    <Panel title="Clients">
+      <PanelRow
+        icon={<IconGlobe size={18} />}
+        title="Client sites"
+        detail={body}
+        action={
+          <LinkButton to="/fleet" variant="secondary" size="sm">
+            Open the fleet
+          </LinkButton>
+        }
+      />
+    </Panel>
   );
 }
 
@@ -537,8 +244,8 @@ export function AgencySettings() {
 
   if (!membership) {
     return (
-      <div className="space-y-6">
-        <PageHeader title="Agency settings" description="What your clients see when they sign in." />
+      <div className="flex flex-col gap-5">
+        <PageHeader title="Settings" description="What your clients see when they sign in." />
         <Notice kind="warning" title="Your account is not staff of any agency">
           Agency settings are only available to agency owners and staff.
         </Notice>
@@ -547,12 +254,11 @@ export function AgencySettings() {
   }
 
   const agency = membership.agency;
-  const role = membership.role ?? agencyRole;
-  const isOwner = role === "owner";
+  const isOwner = (membership.role ?? agencyRole) === "owner";
 
   return (
-    <div className="space-y-6">
-      <PageHeader title="Agency settings" description="What your clients see when they sign in." />
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Settings" description="What your clients see when they sign in: the portal name, logo and accent colour." />
       {agencies.length > 1 && (
         <Field label="Agency" htmlFor="agency-select" className="max-w-sm">
           <Select id="agency-select" value={agency.id} onChange={(event) => setSelectedId(event.target.value)}>
@@ -565,8 +271,7 @@ export function AgencySettings() {
         </Field>
       )}
       <BrandingForm key={agency.id} agency={agency} isOwner={isOwner} />
-      <StaffCard agencyId={agency.id} isOwner={isOwner} />
-      <ClientsCard agencyId={agency.id} />
+      <ClientsPanel agencyId={agency.id} />
     </div>
   );
 }

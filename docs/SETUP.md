@@ -166,7 +166,7 @@ Now go back and finish the two places that needed this address:
    The first value is your agency's name. The second must be **exactly** the email address you signed up with. The third is the portal name your clients will see at the top of every page (if you leave it out, the agency name is used).
 
 6. Press **Run**. The result is one long id. That is your agency.
-7. Reload the dashboard. You now land on **Fleet**, and **Agency settings** in the top bar lets you set the logo and accent colour.
+7. Reload the dashboard. You now land on **Fleet**, and **Settings** in the sidebar lets you set the portal name, logo and accent colour.
 
 If step 6 says "No account with the email …", the address you typed does not match the one you signed up with (check for typos; capital letters do not matter), or you have not yet pressed **Create account** in step 2.
 

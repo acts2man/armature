@@ -5,6 +5,14 @@ All notable changes to Armature are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Every screen restyled to the approved design** (docs/1-visual-editor.html to docs/4-agency-fleet.html): Bricolage Grotesque headings with Hanken Grotesk text, a dark ink sidebar (the Armature wordmark and wire-A logo for agencies; the agency's own portal name and logo for clients, who never see the word Armature), white panels with 1px borders on a cool grey ground, 44px controls, and the agency accent colour flowing through buttons, links and focus rings. Below 900px the sidebar becomes a top bar with a menu drawer.
+- Fleet now opens with stat cards (sites, needs attention, open requests, publishes in the last 30 days), the client sites table, and the newest open change request in a panel on the right. The client dashboard greets the person by name and shows only what needs their attention, recent publishes, site health and change requests, with quiet empty states where there is nothing yet.
+- The page editor has a sections list, one inspector-style panel per field with its key, a "Changed" tag and the accent "wire" outline on edited fields, and a sticky publish bar.
+- Agency navigation is Fleet, Change requests, Team and Settings; agency staff and their invitations moved from Settings to Team. Clients get a Settings screen with their account and sites.
+- Loading states use skeletons instead of spinners; saves confirm with a toast; leaving the editor with unpublished changes and removing a member ask in a dialog.
+
 ### Added
 
 - **Create client login**: on a site's Team screen, agency staff can create a client's account themselves (name, email, site, role, temporary password with a **Generate** button and show/hide) and copy a ready-to-send message with the sign-in link, email and temporary password. The invite-link flow stays as it was. If the email already has an account, that person is only given access to the site and their existing password is left alone.

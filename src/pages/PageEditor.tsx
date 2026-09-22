@@ -1,5 +1,7 @@
 /**
- * /sites/:siteId/pages/:slug — the page editor, ported from the pilot.
+ * /sites/:siteId/pages/:slug — the page editor, styled after the visual editor's
+ * layers panel and inspector: sections on the left, one inspector-style panel per
+ * field on the right, a sticky publish bar on top.
  *
  * Nothing is saved anywhere until Publish: edits live in an overlay over the
  * content loaded from the repository, each changed field is marked, and one press
@@ -9,26 +11,33 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { clsx } from "clsx";
-import { ArrowDown, ArrowLeft, ArrowUp, ExternalLink, Plus, RotateCcw, Stethoscope, Trash2, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useBlocker, useParams } from "react-router";
 import { CheckList } from "@/components/CheckList.tsx";
+import {
+  IconAlert,
+  IconArrowDown,
+  IconArrowLeft,
+  IconArrowUp,
+  IconExternal,
+  IconHeading,
+  IconImage,
+  IconLayers,
+  IconLink,
+  IconParagraph,
+  IconPlus,
+  IconStethoscope,
+  IconTrash,
+  IconUndo,
+} from "@/components/icons.tsx";
 import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
-import { Button, Card, Field, Input, LinkButton, Notice, PageHeader, Pill, Spinner, SrOnly, Textarea } from "@/components/ui.tsx";
+import { Button, Field, IconButton, Input, LinkButton, Modal, Notice, PageHeader, Pill, Skeleton, SrOnly, Textarea, useToast } from "@/components/ui.tsx";
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
 import { plural, shortSha } from "@/lib/format.ts";
 import { callFunction, type Failure } from "@/lib/functions.ts";
 import { fileToBase64, prepareImage, type PreparedImage } from "@/lib/resizeImage.ts";
 import type { ContentValue, LinkValue } from "@shared/contentFile.ts";
-import type {
-  ConnectionReport,
-  ContentGetResponse,
-  DiagnoseResponse,
-  FieldUpdate,
-  ImageUpload,
-  PublishRequest,
-  PublishResponse,
-} from "@shared/publishTypes.ts";
+import type { ConnectionReport, ContentGetResponse, DiagnoseResponse, FieldUpdate, ImageUpload, PublishRequest, PublishResponse } from "@shared/publishTypes.ts";
 import { getPageDefinition, type ItemField, type PageField, type PageSection } from "@shared/schema.ts";
 
 type FieldState = { text: string; href: string; list: Record<string, string>[] };
@@ -39,20 +48,16 @@ const EMPTY: FieldState = { text: "", href: "", list: [] };
 const DEFAULT_ITEM_FIELDS: ItemField[] = [{ key: "text", label: "Text", type: "text" }];
 
 /** The editor is always in exactly one of these three connection states. */
-type ConnectionState =
-  | { kind: "connecting" }
-  | { kind: "connected"; branch: string; repo: string; commitSha: string }
-  | { kind: "error"; message: string };
+type ConnectionState = { kind: "connecting" } | { kind: "connected"; branch: string; repo: string; commitSha: string } | { kind: "error"; message: string };
 
 /**
  * Turn a rejected query into something worth reading. callFunction never throws,
- * so this only fires for failures that never reach a function at all — there is
- * no structured body to show.
+ * so this only fires for failures that never reach a function at all.
  */
 function describeQueryError(error: unknown): string {
   const raw = (error instanceof Error ? error.message : String(error ?? "")).trim();
   const base = raw.length > 0 ? raw : "The dashboard could not get a reply from the server.";
-  return `${base} — the server did not return a readable answer, so this is usually a sign-in or configuration problem rather than something you did. Use “Check connection” for the details.`;
+  return `${base} The server did not return a readable answer, so this is usually a sign-in or configuration problem rather than something you did. Use "Check connection" for the details.`;
 }
 
 const keyOf = (sectionKey: string, fieldKey: string) => `${sectionKey}.${fieldKey}`;
@@ -66,11 +71,7 @@ function liveHref(liveUrl: string | null, path: string): string | null {
 /** Read one field out of a content tree into the editor's per-field state. */
 function stateFromValue(field: PageField, value: unknown): FieldState {
   if (field.type === "list") {
-    return {
-      text: "",
-      href: "",
-      list: Array.isArray(value) ? (value as Record<string, string>[]) : [],
-    };
+    return { text: "", href: "", list: Array.isArray(value) ? (value as Record<string, string>[]) : [] };
   }
   if (field.type === "link") {
     const link = (value ?? {}) as Partial<LinkValue>;
@@ -97,6 +98,23 @@ function moveItem<T>(list: T[], from: number, to: number): T[] {
   return next;
 }
 
+function fieldIcon(type: PageField["type"]): ReactNode {
+  switch (type) {
+    case "textarea":
+      return <IconParagraph size={16} />;
+    case "image":
+      return <IconImage size={16} />;
+    case "link":
+    case "url":
+    case "video":
+      return <IconLink size={16} />;
+    case "list":
+      return <IconLayers size={16} />;
+    default:
+      return <IconHeading size={16} />;
+  }
+}
+
 // --- field controls -----------------------------------------------------------
 
 function ListEditor({
@@ -113,45 +131,27 @@ function ListEditor({
   onChange: (list: Record<string, string>[]) => void;
 }) {
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {list.map((item, index) => (
-        <div key={index} className="rounded-lg border border-line bg-ground p-3">
+        <div key={index} className="rounded-[10px] border border-line bg-ground p-3">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium text-muted">Item {index + 1}</span>
-            <div className="flex flex-wrap gap-1">
-              <Button
-                variant="ghost"
-                className="min-w-11"
-                aria-label={`Move item ${index + 1} up`}
-                disabled={index === 0}
-                onClick={() => onChange(moveItem(list, index, index - 1))}
-              >
-                <ArrowUp className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button
-                variant="ghost"
-                className="min-w-11"
-                aria-label={`Move item ${index + 1} down`}
-                disabled={index === list.length - 1}
-                onClick={() => onChange(moveItem(list, index, index + 1))}
-              >
-                <ArrowDown className="h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button
-                variant="ghost"
-                aria-label={`Remove item ${index + 1}`}
-                className="min-w-11 hover:bg-danger-soft hover:text-danger"
-                onClick={() => onChange(list.filter((_, i) => i !== index))}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
+            <span className="text-[12px] font-semibold text-muted">Item {index + 1}</span>
+            <div className="flex gap-0.5 rounded-control border border-line bg-panel p-0.5">
+              <IconButton size="sm" label={`Move item ${index + 1} up`} disabled={index === 0} onClick={() => onChange(moveItem(list, index, index - 1))}>
+                <IconArrowUp size={16} />
+              </IconButton>
+              <IconButton size="sm" label={`Move item ${index + 1} down`} disabled={index === list.length - 1} onClick={() => onChange(moveItem(list, index, index + 1))}>
+                <IconArrowDown size={16} />
+              </IconButton>
+              <IconButton size="sm" label={`Remove item ${index + 1}`} className="hover:bg-red-soft hover:text-red" onClick={() => onChange(list.filter((_, i) => i !== index))}>
+                <IconTrash size={16} />
+              </IconButton>
             </div>
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2.5">
             {itemFields.map((itemField) => {
               const itemId = `${id}-${index}-${itemField.key}`;
-              const set = (next: string) =>
-                onChange(list.map((entry, i) => (i === index ? { ...entry, [itemField.key]: next } : entry)));
+              const set = (next: string) => onChange(list.map((entry, i) => (i === index ? { ...entry, [itemField.key]: next } : entry)));
               return (
                 <Field
                   key={itemField.key}
@@ -159,7 +159,7 @@ function ListEditor({
                   label={
                     <>
                       <SrOnly>
-                        {fieldLabel}, item {index + 1} —{" "}
+                        {fieldLabel}, item {index + 1},{" "}
                       </SrOnly>
                       {itemField.label}
                     </>
@@ -182,12 +182,11 @@ function ListEditor({
           </div>
         </div>
       ))}
-      <Button
-        variant="secondary"
-        onClick={() => onChange([...list, Object.fromEntries(itemFields.map((itemField) => [itemField.key, ""]))])}
-      >
-        <Plus className="h-4 w-4" aria-hidden="true" /> Add item
-      </Button>
+      <div>
+        <Button variant="secondary" size="sm" onClick={() => onChange([...list, Object.fromEntries(itemFields.map((itemField) => [itemField.key, ""]))])}>
+          <IconPlus size={16} /> Add item
+        </Button>
+      </div>
     </div>
   );
 }
@@ -214,61 +213,64 @@ function ImageControl({
   onAttach: (file: File) => void;
 }) {
   const existingPreview = !pending && value.startsWith("/assets/") ? liveHref(liveUrl, value) : null;
+  const [broken, setBroken] = useState<string | null>(null);
 
   return (
-    <div className="space-y-3">
-      <Field
-        htmlFor={id}
-        label={
-          <>
-            <SrOnly>{fieldLabel} — </SrOnly>Image path
-          </>
-        }
-        hint={pending ? "The path is chosen for you when the new image is published." : undefined}
-      >
-        <Input
-          id={id}
-          placeholder="/assets/example.webp"
-          value={pending ? "" : value}
-          disabled={Boolean(pending)}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </Field>
-      <Field
-        htmlFor={`${id}-file`}
-        label={
-          <>
-            <SrOnly>{fieldLabel} — </SrOnly>Upload a new image
-          </>
-        }
-        hint="PNG, JPEG or WebP. It is resized in your browser before it is published."
-        error={imageError ?? null}
-      >
-        <Input
-          id={`${id}-file`}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          disabled={preparing}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) onAttach(file);
-            event.target.value = "";
-          }}
-        />
-      </Field>
-      {preparing && <Spinner label="Preparing image…" />}
-      {pending ? (
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-accent">
+    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_180px]">
+      <div className="flex flex-col gap-3">
+        <Field
+          htmlFor={id}
+          label={
+            <>
+              <SrOnly>{fieldLabel}: </SrOnly>Image path
+            </>
+          }
+          hint={pending ? "The path is chosen for you when the new image is published." : undefined}
+        >
+          <Input id={id} placeholder="/assets/example.webp" value={pending ? "" : value} disabled={Boolean(pending)} onChange={(event) => onChange(event.target.value)} className="font-mono text-[13px]" />
+        </Field>
+        <Field
+          htmlFor={`${id}-file`}
+          label={
+            <>
+              <SrOnly>{fieldLabel}: </SrOnly>Upload a new image
+            </>
+          }
+          hint="PNG, JPEG or WebP. It is resized in your browser before it is published."
+          error={imageError ?? null}
+        >
+          <input
+            id={`${id}-file`}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            disabled={preparing}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onAttach(file);
+              event.target.value = "";
+            }}
+            className="block w-full rounded-control border border-line bg-panel px-3 py-2 text-[13px] text-text file:mr-3 file:h-7 file:rounded-sm file:border-0 file:bg-ground file:px-3 file:text-[13px] file:font-semibold file:text-text disabled:bg-ground disabled:text-muted"
+          />
+        </Field>
+        {preparing && <p className="text-[13px] text-muted">Preparing the image…</p>}
+        {pending && (
+          <p className="text-[13px] font-medium text-accent">
             New image ready to publish: {pending.file.name} ({Math.round(pending.bytes / 1024)} KB, {pending.width}×{pending.height})
           </p>
-          <img src={pending.previewUrl} alt="" className="max-h-40 rounded-lg border border-accent object-cover" />
-        </div>
-      ) : existingPreview ? (
-        <img src={existingPreview} alt="" loading="lazy" className="max-h-40 rounded-lg border border-line object-cover" />
-      ) : (
-        !pending && value.startsWith("/assets/") && <p className="break-all text-sm text-muted">{value}</p>
-      )}
+        )}
+      </div>
+      <div className="flex h-36 items-center justify-center overflow-hidden rounded-[10px] border border-line bg-ground">
+        {pending ? (
+          <img src={pending.previewUrl} alt="" className="h-full w-full object-cover" />
+        ) : existingPreview && broken !== existingPreview ? (
+          <img src={existingPreview} alt="" loading="lazy" className="h-full w-full object-cover" onError={() => setBroken(existingPreview)} />
+        ) : (
+          <span className="flex flex-col items-center gap-1 text-[12px] text-muted">
+            <IconImage size={20} />
+            {value ? "No preview" : "No image yet"}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -316,12 +318,7 @@ function FieldCard({
     case "url":
       control = (
         <Field label={hiddenLabel} htmlFor={id}>
-          <Input
-            id={id}
-            inputMode={field.type === "url" ? "url" : undefined}
-            value={value.text}
-            onChange={(event) => onChange({ text: event.target.value })}
-          />
+          <Input id={id} inputMode={field.type === "url" ? "url" : undefined} value={value.text} onChange={(event) => onChange({ text: event.target.value })} />
         </Field>
       );
       break;
@@ -339,7 +336,7 @@ function FieldCard({
             htmlFor={`${id}-label`}
             label={
               <>
-                <SrOnly>{field.label} — </SrOnly>Button label
+                <SrOnly>{field.label}: </SrOnly>Button label
               </>
             }
           >
@@ -349,7 +346,7 @@ function FieldCard({
             htmlFor={`${id}-href`}
             label={
               <>
-                <SrOnly>{field.label} — </SrOnly>Destination
+                <SrOnly>{field.label}: </SrOnly>Destination
               </>
             }
           >
@@ -374,35 +371,33 @@ function FieldCard({
       );
       break;
     case "list":
-      control = (
-        <ListEditor
-          id={id}
-          fieldLabel={field.label}
-          itemFields={field.itemFields ?? DEFAULT_ITEM_FIELDS}
-          list={value.list}
-          onChange={(list) => onChange({ list })}
-        />
-      );
+      control = <ListEditor id={id} fieldLabel={field.label} itemFields={field.itemFields ?? DEFAULT_ITEM_FIELDS} list={value.list} onChange={(list) => onChange({ list })} />;
       break;
   }
 
   return (
-    <section
-      aria-labelledby={`${id}-heading`}
-      className={clsx("rounded-card border border-line bg-panel p-4 sm:p-5", isChanged && "border-accent")}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id={`${id}-heading`} className="flex flex-wrap items-center gap-2 text-base font-semibold text-ink">
-          {field.label}
-          {isChanged && <Pill tone="accent">Changed</Pill>}
-        </h3>
-        <Button variant="ghost" disabled={!isChanged || busy} onClick={onRevert}>
-          <RotateCcw className="h-4 w-4" aria-hidden="true" /> Revert
+    <section aria-labelledby={`${id}-heading`} className={clsx("rounded-card border border-line bg-panel", isChanged && "wire")}>
+      {isChanged && <span className="wire-handles" aria-hidden="true" />}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 sm:px-5">
+        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <span className="text-muted">{fieldIcon(field.type)}</span>
+          <h3 id={`${id}-heading`} className="font-sans text-[14px] font-bold tracking-normal text-text">
+            {field.label}
+          </h3>
+          <span className="rounded-sm bg-ground px-2 py-1 font-mono text-[11px] text-muted">
+            {section.key}.{field.key}
+          </span>
+          {isChanged && <Pill tone="blue">Changed</Pill>}
+        </div>
+        <Button variant="ghost" size="sm" disabled={!isChanged || busy} onClick={onRevert}>
+          <IconUndo size={16} /> Revert
           <SrOnly> {field.label}</SrOnly>
         </Button>
       </div>
-      {field.help && <p className="mt-1 text-sm text-muted">{field.help}</p>}
-      <div className="mt-3">{control}</div>
+      <div className="px-4 py-4 sm:px-5">
+        {field.help && <p className="mb-3 text-[12px] leading-relaxed text-muted">{field.help}</p>}
+        {control}
+      </div>
     </section>
   );
 }
@@ -418,6 +413,7 @@ export function PageEditor() {
 function Editor({ slug }: { slug: string }) {
   const { site } = useSite();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const published = useSiteContent(site.id);
 
   const loaded = published.data?.ok === true ? published.data : undefined;
@@ -456,27 +452,16 @@ function Editor({ slug }: { slug: string }) {
     };
   }, [published.isFetching]);
 
-  /**
-   * Exactly one of three states, always. Deriving the status from `published.data`
-   * alone would leave a rejected request with no branch rendered and the bar silent.
-   */
+  /** Exactly one of three states, always. */
   const connection: ConnectionState = useMemo(() => {
-    if (loaded && loaded.commitSha) {
-      return { kind: "connected", branch: loaded.branch, repo: loaded.repo, commitSha: loaded.commitSha };
-    }
-    if (loaded) {
-      return {
-        kind: "error",
-        message: `GitHub did not report a current commit for ${loaded.branch}, so there is nothing safe to publish against.`,
-      };
-    }
+    if (loaded && loaded.commitSha) return { kind: "connected", branch: loaded.branch, repo: loaded.repo, commitSha: loaded.commitSha };
+    if (loaded) return { kind: "error", message: `GitHub did not report a current commit for ${loaded.branch}, so there is nothing safe to publish against.` };
     if (loadFailure) return { kind: "error", message: loadFailure.message };
     if (published.isError) return { kind: "error", message: describeQueryError(published.error) };
     if (waitedTooLong) {
       return {
         kind: "error",
-        message:
-          "The dashboard has been waiting more than 15 seconds for the server to reply. It may still arrive, but something is probably wrong. Try Check connection, or Retry.",
+        message: "The dashboard has been waiting more than 15 seconds for the server to reply. It may still arrive, but something is probably wrong. Try Check connection, or Retry.",
       };
     }
     return { kind: "connecting" };
@@ -506,7 +491,7 @@ function Editor({ slug }: { slug: string }) {
   const isDirty = changed.size > 0;
   const canPublish = connection.kind === "connected" && isDirty;
 
-  // Warn before leaving — in-app navigation here, browser close/reload below.
+  // Warn before leaving: in-app navigation here, browser close/reload below.
   const blocker = useBlocker(
     useCallback(
       ({ currentLocation, nextLocation }: { currentLocation: { pathname: string; search: string }; nextLocation: { pathname: string; search: string } }) =>
@@ -537,10 +522,7 @@ function Editor({ slug }: { slug: string }) {
   const valueFor = useCallback((key: string): FieldState => overlay[key] ?? baseline[key] ?? EMPTY, [overlay, baseline]);
 
   const setField = (key: string, patch: Partial<FieldState>) =>
-    setOverlay((current) => ({
-      ...current,
-      [key]: { ...(current[key] ?? baseline[key] ?? EMPTY), ...patch },
-    }));
+    setOverlay((current) => ({ ...current, [key]: { ...(current[key] ?? baseline[key] ?? EMPTY), ...patch } }));
 
   const dropPendingImage = (key: string) => {
     const pending = pendingImages[key];
@@ -609,7 +591,6 @@ function Editor({ slug }: { slug: string }) {
         setReport({ allPassed: result.allPassed, checks: result.checks });
         return;
       }
-      // Even the diagnostic failed: show what it said rather than nothing.
       setReport({
         allPassed: false,
         checks: [
@@ -618,7 +599,7 @@ function Editor({ slug }: { slug: string }) {
             label: "The connection check could not run",
             status: "fail",
             detail: result.message,
-            fix: "Reload the page and try again. If it keeps failing, the dashboard's server functions are not deployed or not answering — ask the agency to check the deployment (docs/SETUP.md, part C).",
+            fix: "Reload the page and try again. If it keeps failing, the dashboard's server functions are not deployed or not answering. Ask the agency to check the deployment (docs/SETUP.md, part C).",
           },
         ],
       });
@@ -646,9 +627,7 @@ function Editor({ slug }: { slug: string }) {
 
       const fieldByKey = new Map<string, { section: PageSection; field: PageField }>();
       for (const section of page.sections) {
-        for (const field of section.fields) {
-          fieldByKey.set(keyOf(section.key, field.key), { section, field });
-        }
+        for (const field of section.fields) fieldByKey.set(keyOf(section.key, field.key), { section, field });
       }
 
       const fields: FieldUpdate[] = [];
@@ -657,11 +636,7 @@ function Editor({ slug }: { slug: string }) {
         if (pendingImages[key]) continue;
         const entry = fieldByKey.get(key);
         if (!entry) continue;
-        fields.push({
-          section: entry.section.key,
-          field: entry.field.key,
-          value: valueFromState(entry.field, valueFor(key)),
-        });
+        fields.push({ section: entry.section.key, field: entry.field.key, value: valueFromState(entry.field, valueFor(key)) });
       }
 
       const images: ImageUpload[] = [];
@@ -691,6 +666,7 @@ function Editor({ slug }: { slug: string }) {
         setPendingImages({});
         setImageErrors({});
         setLastPublish({ commitUrl: result.commitUrl, commitSha: result.commitSha });
+        toast.show("Published. Live in about 2 minutes.");
         await published.refetch();
         void queryClient.invalidateQueries({ queryKey: ["publishes"] });
         void queryClient.invalidateQueries({ queryKey: ["site-publishes"] });
@@ -714,21 +690,24 @@ function Editor({ slug }: { slug: string }) {
       ? null
       : connection.kind === "connecting"
         ? "Publish is off until the dashboard finishes connecting to GitHub."
-        : "Publish is off because the dashboard is not connected to GitHub. Use “Check connection” below to see which step is failing.";
+        : 'Publish is off because the dashboard is not connected to GitHub. Use "Check connection" to see which step is failing.';
 
   const pagesPath = `/sites/${site.id}/pages`;
+  const backLink = (
+    <Link to={pagesPath} className="inline-flex h-11 items-center gap-2 text-[13px] font-medium text-muted hover:text-text">
+      <IconArrowLeft size={16} /> All pages
+    </Link>
+  );
 
   if (source && !page) {
     return (
-      <div className="space-y-6">
-        <Link to={pagesPath} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-text">
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All pages
-        </Link>
+      <div className="flex flex-col gap-5">
+        {backLink}
         <Notice
           kind="warning"
           title="Page not found"
           action={
-            <LinkButton to={pagesPath} variant="secondary">
+            <LinkButton to={pagesPath} variant="secondary" size="sm">
               Back to pages
             </LinkButton>
           }
@@ -744,98 +723,134 @@ function Editor({ slug }: { slug: string }) {
   const live = page ? liveHref(site.live_url, page.path) : null;
   const warnings = source?.warnings ?? [];
 
-  const checkConnectionButton = (variant: "primary" | "secondary") => (
-    <Button variant={variant} loading={diagnose.isPending} onClick={() => diagnose.mutate()}>
-      {!diagnose.isPending && <Stethoscope className="h-4 w-4" aria-hidden="true" />}
-      {diagnose.isPending ? "Checking..." : "Check connection"}
+  const checkConnectionButton = (variant: "primary" | "secondary" | "ghost", size: "sm" | "bar" = "bar") => (
+    <Button variant={variant} size={size} loading={diagnose.isPending} onClick={() => diagnose.mutate()}>
+      {!diagnose.isPending && <IconStethoscope size={16} />}
+      {diagnose.isPending ? "Checking…" : "Check connection"}
     </Button>
   );
 
+  const sectionList = page ? (
+    <nav aria-label="Sections" className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+      {page.sections.map((item) => {
+        const count = changedInSection(item);
+        const active = item.key === section?.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            aria-pressed={active}
+            onClick={() => setActiveSection(item.key)}
+            className={clsx(
+              "flex h-11 shrink-0 items-center justify-between gap-2 rounded-sm px-2.5 text-[13px] lg:h-9 lg:w-full",
+              active ? "bg-blue-soft font-semibold text-blue" : "font-medium text-text hover:bg-ground",
+            )}
+          >
+            <span className="flex items-center gap-2">
+              <IconLayers size={15} className={active ? "text-blue" : "text-muted"} />
+              <span className="whitespace-nowrap">{item.label}</span>
+            </span>
+            {count > 0 && (
+              <Pill tone="blue">
+                {count}
+                <SrOnly> changed</SrOnly>
+              </Pill>
+            )}
+          </button>
+        );
+      })}
+    </nav>
+  ) : null;
+
   return (
-    <div className="space-y-6">
-      <Link to={pagesPath} className="inline-flex min-h-11 items-center gap-2 text-sm text-muted hover:text-text">
-        <ArrowLeft className="h-4 w-4" aria-hidden="true" /> All pages
-      </Link>
+    <div className="flex flex-col gap-4">
+      {backLink}
 
       <PageHeader
         title={page?.label ?? slug}
-        description={page ? `${page.description ? `${page.description} ` : ""}Live at ${page.path}` : undefined}
-        action={
-          live ? (
-            <LinkButton to={live} external variant="secondary">
-              View live page
-              <ExternalLink className="h-4 w-4" aria-hidden="true" />
-              <SrOnly>(opens in a new tab)</SrOnly>
-            </LinkButton>
+        description={page?.description}
+        meta={
+          page ? (
+            <>
+              <span className="font-mono text-[13px]">{page.path}</span>
+              {live && (
+                <a href={live} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-text underline-offset-2 hover:underline">
+                  View live page <IconExternal size={13} />
+                  <SrOnly>(opens in a new tab)</SrOnly>
+                </a>
+              )}
+            </>
           ) : undefined
         }
       />
 
-      {/* Publish bar */}
-      <Card className="sticky top-0 z-10 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-            <span className={isDirty ? "font-medium text-accent" : "text-muted"}>
+      {/* Publish bar: exactly one connection state always renders. */}
+      <div className="sticky top-14 z-20 -mx-4 border-y border-line bg-panel px-4 py-2.5 sm:-mx-6 sm:px-6 shell:top-0 shell:-mx-8 shell:px-8">
+        <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+            <span className={clsx("font-semibold", isDirty ? "text-accent" : "text-muted")}>
               {isDirty ? `${changed.size} unpublished ${changed.size === 1 ? "change" : "changes"}` : "No unpublished changes"}
             </span>
-            {/* Exactly one of these three always renders. */}
-            {connection.kind === "connecting" && <Spinner label="Connecting to GitHub..." />}
+            <span className="hidden h-6 w-px bg-line sm:block" aria-hidden="true" />
+            {connection.kind === "connecting" && (
+              <span className="inline-flex items-center gap-2 text-muted" role="status">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-amber" /> Connecting to GitHub…
+              </span>
+            )}
             {connection.kind === "connected" && (
-              <span className="text-muted">
-                editing {connection.branch} @ {shortSha(connection.commitSha)}
+              <span className="inline-flex items-center gap-2 text-muted">
+                <span className="h-2 w-2 rounded-full bg-green" />
+                editing {connection.branch} @ <span className="font-mono">{shortSha(connection.commitSha)}</span>
               </span>
             )}
             {connection.kind === "error" && (
-              <span className="inline-flex items-center gap-1.5 font-medium text-warning">
-                <TriangleAlert className="h-4 w-4" aria-hidden="true" /> Not connected to GitHub
+              <span className="inline-flex items-center gap-1.5 font-semibold text-amber">
+                <IconAlert size={16} /> Not connected to GitHub
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {checkConnectionButton("secondary")}
-            <Button variant="secondary" disabled={!isDirty || publish.isPending} onClick={discardAll}>
-              <RotateCcw className="h-4 w-4" aria-hidden="true" /> Discard all changes
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <div className="hidden sm:block">{checkConnectionButton("ghost")}</div>
+            <IconButton label={diagnose.isPending ? "Checking the connection" : "Check connection"} size="md" className="sm:hidden" onClick={() => diagnose.mutate()} disabled={diagnose.isPending}>
+              <IconStethoscope size={18} />
+            </IconButton>
+            <Button variant="secondary" size="bar" disabled={!isDirty || publish.isPending} onClick={discardAll}>
+              <IconUndo size={16} /> Discard all
             </Button>
-            <Button disabled={!canPublish} loading={publish.isPending} onClick={() => publish.mutate()}>
-              {publish.isPending ? "Publishing..." : "Publish changes"}
+            <Button size="bar" className="flex-1 sm:flex-none" disabled={!canPublish} loading={publish.isPending} onClick={() => publish.mutate()}>
+              {publish.isPending ? "Publishing…" : "Publish"}
             </Button>
           </div>
         </div>
-
-        {publishBlockedReason && <p className="mt-3 text-sm text-warning">{publishBlockedReason}</p>}
-
+        {publishBlockedReason && <p className="mx-auto mt-2 max-w-[1180px] text-[13px] text-amber">{publishBlockedReason}</p>}
         {publish.isPending && (
-          <p className="mt-3 text-sm text-muted" role="status">
-            Committing your changes to the site repository. This triggers a rebuild — keep this tab open until it finishes.
+          <p className="mx-auto mt-2 max-w-[1180px] text-[13px] text-muted" role="status">
+            Committing your changes to the site repository. This triggers a rebuild; keep this tab open until it finishes.
           </p>
         )}
-
         {isDirty && !publish.isPending && !publishBlockedReason && (
-          <p className="mt-3 text-sm text-muted">Nothing is live until you press Publish. Your changes are only in this browser.</p>
+          <p className="mx-auto mt-2 max-w-[1180px] text-[13px] text-muted">Nothing is live until you press Publish. Your changes are only in this browser.</p>
         )}
-      </Card>
+      </div>
 
-      {/* Publishing not available — shown for EVERY way the connection can fail */}
+      {/* Publishing not available: shown for EVERY way the connection can fail */}
       {connection.kind === "error" && (
         <Notice
           kind="warning"
-          title={
-            <span className="inline-flex items-center gap-2">
-              <TriangleAlert className="h-4 w-4" aria-hidden="true" /> Publishing is unavailable
-            </span>
-          }
+          title="Publishing is unavailable"
           action={
             <>
-              {checkConnectionButton("primary")}
+              {checkConnectionButton("primary", "sm")}
               <Button
                 variant="secondary"
+                size="sm"
                 disabled={published.isFetching}
                 onClick={() => {
                   setWaitedTooLong(false);
                   void published.refetch();
                 }}
               >
-                <RotateCcw className="h-4 w-4" aria-hidden="true" /> Retry
+                <IconUndo size={16} /> Retry
               </Button>
             </>
           }
@@ -849,37 +864,26 @@ function Editor({ slug }: { slug: string }) {
         </Notice>
       )}
 
-      {/* Connection checklist */}
       {report && <CheckList report={report} onHide={() => setReport(null)} />}
 
-      {/* Published confirmation */}
       {lastPublish && !isDirty && (
         <Notice kind="success" title="Published. Your changes will be live in about 2 minutes.">
-          <a
-            href={lastPublish.commitUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-11 items-center gap-2 underline underline-offset-2"
-          >
+          <a href={lastPublish.commitUrl} target="_blank" rel="noreferrer" className="inline-flex min-h-6 items-center gap-1.5 font-mono underline underline-offset-2">
             View the commit ({shortSha(lastPublish.commitSha)})
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+            <IconExternal size={13} />
             <SrOnly>(opens in a new tab)</SrOnly>
           </a>
         </Notice>
       )}
 
-      {/* Conflict */}
       {conflict && (
         <Notice
           kind="danger"
-          title={
-            <span className="inline-flex items-center gap-2">
-              <TriangleAlert className="h-4 w-4" aria-hidden="true" /> Nothing was published
-            </span>
-          }
+          title="Nothing was published"
           action={
             <>
               <Button
+                size="sm"
                 onClick={() => {
                   setConflict(null);
                   void published.refetch();
@@ -889,6 +893,7 @@ function Editor({ slug }: { slug: string }) {
               </Button>
               <Button
                 variant="secondary"
+                size="sm"
                 onClick={() => {
                   discardAll();
                   void published.refetch();
@@ -910,47 +915,38 @@ function Editor({ slug }: { slug: string }) {
         </Notice>
       )}
 
-      {/* Other publish failure */}
       {failure && (
-        <Notice
-          kind="danger"
-          title={
-            <span className="inline-flex items-center gap-2">
-              <TriangleAlert className="h-4 w-4" aria-hidden="true" /> Nothing was published
-            </span>
-          }
-        >
+        <Notice kind="danger" title="Nothing was published">
           {failure.message}
         </Notice>
       )}
 
-      {/* Leave-page confirmation */}
-      {blocker.state === "blocked" && (
-        <Notice
-          kind="warning"
-          title="You have unpublished changes"
-          action={
-            <>
-              <Button variant="secondary" onClick={() => blocker.reset()}>
-                Stay on this page
-              </Button>
-              <Button variant="danger" onClick={() => blocker.proceed()}>
-                Leave and discard
-              </Button>
-            </>
-          }
-        >
+      <Modal
+        open={blocker.state === "blocked"}
+        onClose={() => blocker.reset?.()}
+        title="You have unpublished changes"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => blocker.reset?.()}>
+              Stay on this page
+            </Button>
+            <Button variant="danger" onClick={() => blocker.proceed?.()}>
+              Leave and discard
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-relaxed text-text">
           Leaving this page will discard {plural(changed.size, "change")} that {changed.size === 1 ? "has" : "have"} not been published.
-        </Notice>
-      )}
+        </p>
+      </Modal>
 
-      {/* Notes from the content check */}
       {warnings.length > 0 && (
         <Notice
           kind="warning"
           title="Notes about this site's content"
           action={
-            <Button variant="secondary" aria-expanded={showWarnings} onClick={() => setShowWarnings((current) => !current)}>
+            <Button variant="secondary" size="sm" aria-expanded={showWarnings} onClick={() => setShowWarnings((current) => !current)}>
               {showWarnings ? "Hide notes" : `Show ${plural(warnings.length, "note")}`}
             </Button>
           }
@@ -966,35 +962,16 @@ function Editor({ slug }: { slug: string }) {
       )}
 
       {page && section ? (
-        <>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Sections">
-            {page.sections.map((item) => {
-              const count = changedInSection(item);
-              const active = item.key === section.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setActiveSection(item.key)}
-                  className={clsx(
-                    "inline-flex min-h-11 items-center gap-2 rounded-lg border px-3 text-sm font-medium transition-colors",
-                    active ? "border-accent bg-accent-soft text-accent" : "border-line bg-panel text-muted hover:text-text",
-                  )}
-                >
-                  {item.label}
-                  {count > 0 && (
-                    <Pill tone="accent">
-                      {count}
-                      <SrOnly> changed</SrOnly>
-                    </Pill>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="space-y-4">
+        <div className="grid items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
+          <aside className="rounded-card border border-line bg-panel p-2 lg:sticky lg:top-[68px]">
+            <div className="mb-1 hidden px-2.5 pt-1 text-[12px] font-semibold text-muted lg:block">Sections</div>
+            {sectionList}
+          </aside>
+          <div className="flex min-w-0 flex-col gap-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2 px-1">
+              <h2 className="font-display text-[18px] font-semibold text-text">{section.label}</h2>
+              <span className="text-[12px] text-muted">{plural(section.fields.length, "field")}</span>
+            </div>
             {section.fields.length === 0 && <Notice title="Nothing to edit in this section">This section has no editable fields.</Notice>}
             {section.fields.map((field) => {
               const key = keyOf(section.key, field.key);
@@ -1017,11 +994,27 @@ function Editor({ slug }: { slug: string }) {
               );
             })}
           </div>
-        </>
+        </div>
       ) : page ? (
         <Notice title="Nothing to edit on this page">This page has no editable sections.</Notice>
       ) : connection.kind === "connecting" ? (
-        <Spinner label="Loading content..." />
+        <div className="grid items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]" role="status" aria-label="Loading content">
+          <div className="space-y-2 rounded-card border border-line bg-panel p-3">
+            <Skeleton className="w-24" />
+            <Skeleton className="w-32" />
+            <Skeleton className="w-20" />
+          </div>
+          <div className="space-y-4">
+            <div className="space-y-3 rounded-card border border-line bg-panel p-5">
+              <Skeleton className="w-40" />
+              <Skeleton className="h-11" />
+            </div>
+            <div className="space-y-3 rounded-card border border-line bg-panel p-5">
+              <Skeleton className="w-32" />
+              <Skeleton className="h-28" />
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

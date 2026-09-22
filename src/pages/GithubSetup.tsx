@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import type { GithubSetupResponse } from "@shared/publishTypes.ts";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { LinkButton, Notice, PageHeader, Spinner } from "@/components/ui.tsx";
+import { LinkButton, Notice, PageHeader, Skeleton } from "@/components/ui.tsx";
 import { callFunction } from "@/lib/functions.ts";
 
 const addSiteLink = (label: string) => <LinkButton to="/sites/new">{label}</LinkButton>;
@@ -28,7 +28,14 @@ function SetupOutcome({ agencyId, installationId }: { agencyId: string; installa
       }),
   });
 
-  if (link.isPending) return <Spinner label="Linking your GitHub installation" />;
+  if (link.isPending) {
+    return (
+      <div className="space-y-3" role="status" aria-label="Linking your GitHub installation">
+        <Skeleton className="w-64" />
+        <Skeleton lines={2} />
+      </div>
+    );
+  }
   if (link.isError) {
     return (
       <Notice kind="danger" title="The installation could not be linked" action={addSiteLink("Back to Add a site")}>
@@ -95,7 +102,7 @@ export function GithubSetup() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader
         title="GitHub setup"
         eyebrow={agency ? agency.name : undefined}

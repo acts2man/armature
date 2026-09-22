@@ -1,42 +1,24 @@
 /**
  * Every change request across the agency's sites, newest activity first, with a
- * status filter. Rows link into the site's own request page.
+ * status filter. Rows open the site's own request page.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { Link } from "react-router";
-import { Card, EmptyState, Field, Notice, PageHeader, Pill, Select, Spinner } from "@/components/ui.tsx";
+import { Link, useNavigate } from "react-router";
+import { IconBranch } from "@/components/icons.tsx";
+import { RequestStatusPill } from "@/components/RequestStatus.tsx";
+import { Cell, DataRow, DataTable, EmptyState, Monogram, Notice, PageHeader, Panel, Segmented, Select, SkeletonRows } from "@/components/ui.tsx";
 import { relativeTime } from "@/lib/format.ts";
 import { supabase } from "@/lib/supabase.ts";
-import {
-  CHANGE_REQUEST_STATUSES,
-  CHANGE_REQUEST_STATUS_LABELS,
-  OPEN_CHANGE_REQUEST_STATUSES,
-  type ChangeRequest,
-  type ChangeRequestStatus,
-} from "@/lib/types.ts";
-
-const STATUS_TONES: Record<ChangeRequestStatus, "accent" | "warning" | "success" | "neutral"> = {
-  new: "accent",
-  in_progress: "warning",
-  ready_for_review: "accent",
-  done: "success",
-  declined: "neutral",
-};
-
-function RequestStatusPill({ status }: { status: ChangeRequestStatus }) {
-  return <Pill tone={STATUS_TONES[status]}>{CHANGE_REQUEST_STATUS_LABELS[status]}</Pill>;
-}
+import { CHANGE_REQUEST_STATUSES, CHANGE_REQUEST_STATUS_LABELS, OPEN_CHANGE_REQUEST_STATUSES, type ChangeRequest, type ChangeRequestStatus } from "@/lib/types.ts";
 
 type Filter = "open" | "all" | ChangeRequestStatus;
-
 type AgencyRequest = ChangeRequest & { site: { id: string; name: string } | null };
 
+const COLUMNS = "1.4fr 2fr 1.1fr 0.9fr 0.9fr";
+
 async function loadAgencyRequests(): Promise<AgencyRequest[]> {
-  const { data, error } = await supabase
-    .from("change_requests")
-    .select("*, site:sites(id, name)")
-    .order("updated_at", { ascending: false });
+  const { data, error } = await supabase.from("change_requests").select("*, site:sites(id, name)").order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as AgencyRequest[];
 }
@@ -51,141 +33,133 @@ function matches(request: AgencyRequest, filter: Filter): boolean {
   return request.status === filter;
 }
 
-function TitleLink({ request }: { request: AgencyRequest }) {
-  return (
-    <Link
-      to={`/sites/${request.site_id}/requests/${request.id}`}
-      className="inline-flex min-h-11 items-center font-medium text-text underline-offset-2 hover:underline"
-    >
-      {request.title}
-    </Link>
-  );
-}
-
-function siteName(request: AgencyRequest): string {
-  return request.site?.name ?? "—";
-}
+const siteName = (request: AgencyRequest): string => request.site?.name ?? "Unknown site";
 
 function RequestsTable({ rows }: { rows: AgencyRequest[] }) {
+  const navigate = useNavigate();
   return (
-    <div className="hidden overflow-x-auto rounded-card border border-line bg-panel sm:block">
-      <table className="w-full border-collapse text-left text-sm">
-        <thead>
-          <tr className="border-b border-line text-xs uppercase tracking-wide text-muted">
-            <th scope="col" className="px-4 py-3 font-medium">
-              Site
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Title
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Status
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Opened
-            </th>
-            <th scope="col" className="px-4 py-3 font-medium">
-              Updated
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+    <>
+      <div className="hidden sm:block">
+        <DataTable columns={COLUMNS} label="Change requests" head={["Site", "Request", "Status", "Opened", "Updated"]}>
           {rows.map((request) => (
-            <tr key={request.id} className="border-b border-line align-middle last:border-b-0">
-              <td className="px-4 py-3 text-text">{siteName(request)}</td>
-              <td className="px-4 py-3">
-                <TitleLink request={request} />
-              </td>
-              <td className="px-4 py-3">
+            <DataRow key={request.id} columns={COLUMNS} onClick={() => navigate(`/sites/${request.site_id}/requests/${request.id}`)}>
+              <Cell>
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <Monogram name={siteName(request)} />
+                  <span className="truncate text-[14px] font-semibold">{siteName(request)}</span>
+                </span>
+              </Cell>
+              <Cell>
+                <Link to={`/sites/${request.site_id}/requests/${request.id}`} className="block truncate text-[14px] font-semibold text-text hover:underline">
+                  {request.title}
+                </Link>
+              </Cell>
+              <Cell>
                 <RequestStatusPill status={request.status} />
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-muted">{relativeTime(request.created_at)}</td>
-              <td className="px-4 py-3 whitespace-nowrap text-muted">{relativeTime(request.updated_at)}</td>
-            </tr>
+              </Cell>
+              <Cell muted>{relativeTime(request.created_at)}</Cell>
+              <Cell muted>{relativeTime(request.updated_at)}</Cell>
+            </DataRow>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function RequestsCards({ rows }: { rows: AgencyRequest[] }) {
-  return (
-    <ul className="space-y-3 sm:hidden">
-      {rows.map((request) => (
-        <li key={request.id}>
-          <Card as="article">
-            <p className="text-xs uppercase tracking-wide text-muted">{siteName(request)}</p>
-            <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-              <TitleLink request={request} />
-              <RequestStatusPill status={request.status} />
-            </div>
-            <p className="mt-2 text-sm text-muted">
-              Opened {relativeTime(request.created_at)} · Updated {relativeTime(request.updated_at)}
-            </p>
-          </Card>
-        </li>
-      ))}
-    </ul>
+        </DataTable>
+      </div>
+      <ul className="sm:hidden">
+        {rows.map((request) => (
+          <li key={request.id} className="border-b border-line last:border-b-0">
+            <Link to={`/sites/${request.site_id}/requests/${request.id}`} className="flex flex-col gap-1 px-4 py-3">
+              <span className="text-[12px] font-semibold text-muted">{siteName(request)}</span>
+              <span className="flex items-start justify-between gap-2">
+                <span className="text-[14px] font-semibold text-text">{request.title}</span>
+                <RequestStatusPill status={request.status} />
+              </span>
+              <span className="text-[12px] text-muted">
+                Opened {relativeTime(request.created_at)} · Updated {relativeTime(request.updated_at)}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
 export function AgencyRequests() {
   const [filter, setFilter] = useState<Filter>("open");
-
   const query = useQuery({ queryKey: ["agency-requests"], queryFn: loadAgencyRequests });
 
   let body: ReactNode;
   if (query.isPending) {
-    body = <Spinner label="Loading change requests" />;
+    body = <SkeletonRows rows={4} label="Loading change requests" />;
   } else if (query.isError) {
     body = (
-      <Notice kind="danger" title="Change requests could not be loaded">
-        {query.error.message}
-      </Notice>
+      <div className="p-4">
+        <Notice kind="danger" title="Change requests could not be loaded">
+          {query.error.message}
+        </Notice>
+      </div>
     );
   } else {
     const rows = query.data.filter((request) => matches(request, filter));
     if (rows.length === 0) {
       body = (
-        <EmptyState title={filter === "open" ? "No open requests" : "No requests match this filter"}>
-          {filter === "open"
-            ? "Requests clients file from their site dashboards will appear here."
-            : "Try a different status, or “All”."}
-        </EmptyState>
+        <div className="p-5">
+          <EmptyState title={filter === "open" ? "No open requests" : "No requests match this filter"} icon={<IconBranch size={18} />}>
+            {filter === "open" ? "Requests clients file from their site dashboards will appear here." : 'Try a different status, or "All".'}
+          </EmptyState>
+        </div>
       );
     } else {
-      body = (
-        <>
-          <RequestsTable rows={rows} />
-          <RequestsCards rows={rows} />
-        </>
-      );
+      body = <RequestsTable rows={rows} />;
     }
   }
 
+  const count = query.data ? query.data.filter((request) => matches(request, filter)).length : undefined;
+
   return (
-    <div className="space-y-6">
-      <PageHeader title="Change requests" description="Across every site your agency looks after." />
-      <Field label="Status" htmlFor="request-filter" className="max-w-xs">
-        <Select
-          id="request-filter"
-          value={filter}
-          onChange={(event) => {
-            const value = event.target.value;
-            if (isFilter(value)) setFilter(value);
-          }}
-        >
-          <option value="open">Open</option>
-          {CHANGE_REQUEST_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {CHANGE_REQUEST_STATUS_LABELS[status]}
-            </option>
-          ))}
-          <option value="all">All</option>
-        </Select>
-      </Field>
-      {body}
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Change requests" description="Across every site your agency looks after, newest activity first." />
+      <Panel
+        title={count === undefined ? "Requests" : `${count} ${count === 1 ? "request" : "requests"}`}
+        aside={
+          <>
+            <Segmented
+              label="Show"
+              value={filter === "open" || filter === "all" ? filter : "status"}
+              onChange={(next) => {
+                if (next === "open" || next === "all") setFilter(next);
+              }}
+              options={[
+                { value: "open", label: "Open" },
+                { value: "all", label: "All" },
+                { value: "status", label: "By status" },
+              ]}
+              className="hidden sm:inline-flex"
+            />
+            <label htmlFor="request-filter" className="sr-only">
+              Status
+            </label>
+            <Select
+              id="request-filter"
+              value={filter}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (isFilter(value)) setFilter(value);
+              }}
+              className="h-9 w-44 text-[13px]"
+            >
+              <option value="open">Open</option>
+              {CHANGE_REQUEST_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {CHANGE_REQUEST_STATUS_LABELS[status]}
+                </option>
+              ))}
+              <option value="all">All</option>
+            </Select>
+          </>
+        }
+      >
+        {body}
+      </Panel>
     </div>
   );
 }

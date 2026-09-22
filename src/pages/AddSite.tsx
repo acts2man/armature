@@ -6,7 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { CheckList } from "@/components/CheckList.tsx";
-import { Button, Card, Field, Input, LinkButton, Notice, PageHeader, Pill, Select, Spinner, SrOnly } from "@/components/ui.tsx";
+import { IconGithub, IconRefresh } from "@/components/icons.tsx";
+import { Button, Field, Input, LinkButton, Notice, PageHeader, Panel, Pill, Select, Skeleton, SrOnly } from "@/components/ui.tsx";
 import { callFunction } from "@/lib/functions.ts";
 import type { GithubSetupResponse, SiteConnectRequest, SiteConnectResponse } from "@shared/publishTypes.ts";
 
@@ -40,20 +41,17 @@ type FormErrors = Partial<Record<keyof FormState, string>>;
 
 const EMPTY_FORM: FormState = { repo: "", branch: "main", name: "", liveUrl: "" };
 
-function SectionHeading({ number, id, children }: { number: number; id: string; children: ReactNode }) {
+function StepTitle({ number, children }: { number: number; children: ReactNode }) {
   return (
-    <h2 id={id} className="flex items-center gap-3 text-lg font-semibold text-ink">
-      <span
-        aria-hidden="true"
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent"
-      >
+    <span className="flex items-center gap-2.5">
+      <span aria-hidden="true" className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-soft text-[12px] font-bold text-blue">
         {number}
       </span>
       <span>
         <SrOnly>Step {number}: </SrOnly>
         {children}
       </span>
-    </h2>
+    </span>
   );
 }
 
@@ -69,10 +67,7 @@ export function AddSite() {
     enabled: agencyId.length > 0,
     retry: false,
     queryFn: async () => {
-      const result = await callFunction<InstallationsResponse>("github-setup", {
-        action: "list_installations",
-        agency_id: agencyId,
-      });
+      const result = await callFunction<InstallationsResponse>("github-setup", { action: "list_installations", agency_id: agencyId });
       if (!result.ok) throw new Error(result.message);
       return result.installations;
     },
@@ -108,11 +103,7 @@ export function AddSite() {
     event.preventDefault();
     const next: FormErrors = {};
     const repo = parseRepo(form.repo);
-    if (!repo) {
-      next.repo = form.repo.trim()
-        ? 'Enter the repository as "owner/name", or paste its GitHub URL.'
-        : "Enter the repository.";
-    }
+    if (!repo) next.repo = form.repo.trim() ? 'Enter the repository as "owner/name", or paste its GitHub URL.' : "Enter the repository.";
     const branch = form.branch.trim();
     if (!branch) next.branch = "Enter the branch the site is built from.";
     const liveUrl = form.liveUrl.trim();
@@ -146,7 +137,7 @@ export function AddSite() {
 
   let installationsBlock: ReactNode;
   if (installations.isPending) {
-    installationsBlock = <Spinner label="Checking linked GitHub accounts" />;
+    installationsBlock = <Skeleton className="w-56" />;
   } else if (installations.isError) {
     installationsBlock = (
       <Notice kind="danger" title="Linked GitHub accounts could not be loaded">
@@ -154,19 +145,17 @@ export function AddSite() {
       </Notice>
     );
   } else if (installations.data.length === 0) {
-    installationsBlock = <p className="text-[15px] text-text">No GitHub account linked yet.</p>;
+    installationsBlock = <p className="text-[14px] text-text">No GitHub account linked yet.</p>;
   } else {
     installationsBlock = (
       <div>
-        <p className="text-sm font-medium text-text">Linked GitHub accounts</p>
+        <p className="text-[13px] font-semibold text-text">Linked GitHub accounts</p>
         <ul className="mt-2 flex flex-wrap gap-2">
           {installations.data.map((installation) => (
-            <li
-              key={installation.installation_id}
-              className="inline-flex items-center gap-2 rounded-lg border border-line bg-ground px-3 py-2 text-sm"
-            >
+            <li key={installation.installation_id} className="inline-flex h-9 items-center gap-2 rounded-control border border-line bg-ground px-3 text-[13px]">
+              <IconGithub size={16} />
               <span className="font-mono text-text">{installation.account_login}</span>
-              <Pill>{installation.account_type}</Pill>
+              <Pill tone="grey">{installation.account_type}</Pill>
             </li>
           ))}
         </ul>
@@ -176,7 +165,12 @@ export function AddSite() {
 
   let resultBlock: ReactNode;
   if (connect.isPending) {
-    resultBlock = <Spinner label="Checking the repository" />;
+    resultBlock = (
+      <div className="space-y-3" role="status" aria-label="Checking the repository">
+        <Skeleton className="w-64" />
+        <Skeleton lines={4} />
+      </div>
+    );
   } else if (connect.isError) {
     resultBlock = (
       <Notice kind="danger" title="The check could not run">
@@ -186,21 +180,23 @@ export function AddSite() {
   } else if (connect.data) {
     const data = connect.data;
     resultBlock = (
-      <>
+      <div className="flex flex-col gap-4">
         {data.site ? (
           <Notice
             kind="success"
             title={`${data.site.name} is connected`}
             action={
               <>
-                <LinkButton to={`/sites/${data.site.id}`}>Open the site</LinkButton>
-                <Button variant="secondary" onClick={startAgain}>
+                <LinkButton to={`/sites/${data.site.id}`} size="sm">
+                  Open the site
+                </LinkButton>
+                <Button variant="secondary" size="sm" onClick={startAgain}>
                   Add another
                 </Button>
               </>
             }
           >
-            The site is ready to edit. Invite the client from its Team tab.
+            The site is ready to edit. Add the client from its Team tab.
           </Notice>
         ) : data.allPassed ? (
           <Notice kind="warning" title="Every check passed, but the site was not saved">
@@ -211,139 +207,91 @@ export function AddSite() {
             Your entries are kept above, so change only what the checklist points at and press "Check and connect" again.
           </Notice>
         )}
-        <CheckList
-          report={{ allPassed: data.allPassed, checks: data.checks }}
-          title={data.allPassed ? "Repository check: everything passed" : "Repository check: something needs fixing"}
-        />
-      </>
+        <CheckList report={{ allPassed: data.allPassed, checks: data.checks }} title="Repository check" />
+      </div>
     );
   } else {
-    resultBlock = <p className="text-sm text-muted">Press "Check and connect" above and the checklist will appear here.</p>;
+    resultBlock = <p className="text-[13px] text-muted">Press "Check and connect" above and the checklist will appear here.</p>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       <PageHeader title="Add a site" description="Connect a site's GitHub repository so its pages can be edited here." />
 
-      <section aria-labelledby="add-site-step-1">
-        <Card>
-          <SectionHeading number={1} id="add-site-step-1">
-            Connect GitHub
-          </SectionHeading>
-          <p className="mt-2 text-[15px] text-muted">
-            Install the GitHub App on the account or organisation that owns the site's repository and choose that
-            repository. GitHub will bring you back here when it is done.
+      <Panel title={<StepTitle number={1}>Connect GitHub</StepTitle>}>
+        <div className="flex flex-col gap-4 p-4 sm:p-5">
+          <p className="text-[14px] leading-relaxed text-muted">
+            Install the GitHub App on the account or organisation that owns the site's repository and choose that repository. GitHub brings you back here when it is done.
           </p>
-          <div className="mt-4">{installationsBlock}</div>
+          {installationsBlock}
           {install.isError && (
-            <Notice kind="danger" title="The install link could not be created" className="mt-4">
+            <Notice kind="danger" title="The install link could not be created">
               {install.error.message}
             </Notice>
           )}
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button onClick={() => install.mutate()} loading={install.isPending}>
-              Install the GitHub App
+              <IconGithub size={16} /> Install the GitHub App
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => void installations.refetch()}
-              loading={installations.isFetching && !installations.isPending}
-            >
-              Refresh list
+            <Button variant="secondary" onClick={() => void installations.refetch()} loading={installations.isFetching && !installations.isPending}>
+              <IconRefresh size={16} /> Refresh list
             </Button>
           </div>
-          <p className="mt-3 text-sm text-muted">
-            Already installed? Open the App on GitHub and press Configure — it brings you back here too.
-          </p>
-        </Card>
-      </section>
+          <p className="text-[13px] text-muted">Already installed? Open the App on GitHub and press Configure. It brings you back here too.</p>
+        </div>
+      </Panel>
 
-      <section aria-labelledby="add-site-step-2">
-        <Card>
-          <SectionHeading number={2} id="add-site-step-2">
-            Which repository?
-          </SectionHeading>
-          <form onSubmit={onSubmit} noValidate className="mt-4 space-y-4">
-            {agencies.length > 1 && (
-              <Field label="Agency" htmlFor="add-site-agency" hint="The agency this site belongs to.">
-                <Select id="add-site-agency" value={agencyId} onChange={(event) => setAgencyId(event.target.value)}>
-                  {agencies.map((membership) => (
-                    <option key={membership.agency.id} value={membership.agency.id}>
-                      {membership.agency.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            )}
-            <Field
-              label="Repository"
-              htmlFor="add-site-repo"
-              error={errors.repo ?? null}
-              hint={
-                parsed ? (
-                  <>
-                    Owner <span className="font-mono text-text">{parsed.owner}</span>, repository{" "}
-                    <span className="font-mono text-text">{parsed.name}</span>
-                  </>
-                ) : (
-                  'Either "owner/name" or the repository\'s GitHub URL.'
-                )
-              }
-            >
-              <Input
-                id="add-site-repo"
-                value={form.repo}
-                onChange={update("repo")}
-                placeholder="acme/acme-site or https://github.com/acme/acme-site"
-                autoComplete="off"
-                spellCheck={false}
-                required
-              />
+      <Panel title={<StepTitle number={2}>Which repository?</StepTitle>}>
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4 p-4 sm:p-5">
+          {agencies.length > 1 && (
+            <Field label="Agency" htmlFor="add-site-agency" hint="The agency this site belongs to.">
+              <Select id="add-site-agency" value={agencyId} onChange={(event) => setAgencyId(event.target.value)}>
+                {agencies.map((membership) => (
+                  <option key={membership.agency.id} value={membership.agency.id}>
+                    {membership.agency.name}
+                  </option>
+                ))}
+              </Select>
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">
-                <Input id="add-site-branch" value={form.branch} onChange={update("branch")} autoComplete="off" spellCheck={false} required />
-              </Field>
-              <Field
-                label="Site name"
-                htmlFor="add-site-name"
-                hint={`Shown to the client. Leave blank to use "${parsed?.name ?? "the repository name"}".`}
-              >
-                <Input id="add-site-name" value={form.name} onChange={update("name")} placeholder={parsed?.name ?? ""} />
-              </Field>
-            </div>
-            <Field
-              label="Live URL (optional)"
-              htmlFor="add-site-live-url"
-              error={errors.liveUrl ?? null}
-              hint="Where the published site can be seen. Must start with https://"
-            >
-              <Input
-                id="add-site-live-url"
-                type="url"
-                inputMode="url"
-                value={form.liveUrl}
-                onChange={update("liveUrl")}
-                placeholder="https://www.example.com"
-              />
+          )}
+          <Field
+            label="Repository"
+            htmlFor="add-site-repo"
+            error={errors.repo ?? null}
+            hint={
+              parsed ? (
+                <>
+                  Owner <span className="font-mono text-text">{parsed.owner}</span>, repository <span className="font-mono text-text">{parsed.name}</span>
+                </>
+              ) : (
+                'Either "owner/name" or the repository\'s GitHub URL.'
+              )
+            }
+          >
+            <Input id="add-site-repo" value={form.repo} onChange={update("repo")} placeholder="acme/acme-site or https://github.com/acme/acme-site" autoComplete="off" spellCheck={false} required />
+          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">
+              <Input id="add-site-branch" value={form.branch} onChange={update("branch")} autoComplete="off" spellCheck={false} required className="font-mono" />
             </Field>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" loading={connect.isPending}>
-                Check and connect
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </section>
+            <Field label="Site name" htmlFor="add-site-name" hint={`Shown to the client. Leave blank to use "${parsed?.name ?? "the repository name"}".`}>
+              <Input id="add-site-name" value={form.name} onChange={update("name")} placeholder={parsed?.name ?? ""} />
+            </Field>
+          </div>
+          <Field label="Live URL (optional)" htmlFor="add-site-live-url" error={errors.liveUrl ?? null} hint="Where the published site can be seen. Must start with https://">
+            <Input id="add-site-live-url" type="url" inputMode="url" value={form.liveUrl} onChange={update("liveUrl")} placeholder="https://www.example.com" />
+          </Field>
+          <div>
+            <Button type="submit" loading={connect.isPending}>
+              Check and connect
+            </Button>
+          </div>
+        </form>
+      </Panel>
 
-      <section aria-labelledby="add-site-step-3">
-        <Card>
-          <SectionHeading number={3} id="add-site-step-3">
-            Result
-          </SectionHeading>
-          <div className="mt-4 space-y-4">{resultBlock}</div>
-        </Card>
-      </section>
+      <Panel title={<StepTitle number={3}>Result</StepTitle>}>
+        <div className="p-4 sm:p-5">{resultBlock}</div>
+      </Panel>
     </div>
   );
 }
