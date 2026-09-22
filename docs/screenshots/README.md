@@ -18,6 +18,12 @@ edited), `agency-site-requests`, `agency-request-detail`, `agency-history`,
 `agency-site-team`, `agency-site-team-login` (Create client login with a generated
 password), `agency-github-setup`.
 
+Hosting and services (agency only): `agency-site-services` (the Hosting & services panel on a
+site overview), `agency-site-services-edit` (its edit drawer with the live yearly total),
+`agency-site-hosting-only` (a hosting-only site with Connect repository),
+`agency-add-site-hosting-only` (the Add a hosting-only client path). Fleet shows the yearly
+totals and renewals.
+
 Client screens (the agency's portal name, never Armature): `client-home`,
 `client-home-menu`, `client-pages`, `client-editor`, `client-requests`,
 `client-request-detail`, `client-request-new`, `client-history`, `client-account`,
