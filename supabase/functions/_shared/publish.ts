@@ -13,6 +13,10 @@
  * Everything here takes its dependencies as arguments (a `ContentRepo`, a clock), so
  * the whole flow is unit-testable without GitHub. All validation runs BEFORE the
  * first network call that could write, so an invalid publish never creates a commit.
+ *
+ * `runBatchPublish` is the engine: any number of pages, one commit. `runPublish` (the
+ * form editor, one page) is the same engine with a one-page batch, so the two can
+ * never enforce different rules.
  */
 import {
   CONTENT_PATH,
@@ -42,8 +46,11 @@ import {
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
   MAX_TOTAL_IMAGE_BYTES,
+  type BatchImageUpload,
+  type BatchPageUpdate,
   type FieldUpdate,
   type ImageUpload,
+  type PublishBatchRequest,
   type PublishRequest,
 } from "../../../shared/publishTypes.ts";
 import { ArmatureError } from "./errors.ts";
@@ -145,20 +152,24 @@ type PreparedImage = {
   key: string;
   url: string;
   file: CommitFile;
+  /** For a list item picture: which item and which of its fields. */
+  index?: number;
+  itemKey?: string;
 };
 
 /** Validate the uploads and decide where each one is committed. */
 function prepareImages(
   slug: string,
-  images: ImageUpload[],
+  images: BatchImageUpload[],
   timestamp: number,
-): { prepared: PreparedImage[]; errors: string[] } {
+  totalSoFar = 0,
+): { prepared: PreparedImage[]; errors: string[]; total: number } {
   const prepared: PreparedImage[] = [];
   const errors: string[] = [];
-  let total = 0;
+  let total = totalSoFar;
 
-  images.forEach((image, index) => {
-    const where = `image ${index + 1} (${image.filename || "unnamed"})`;
+  images.forEach((image, position) => {
+    const where = `image ${position + 1} (${image.filename || "unnamed"})`;
 
     const extension = IMAGE_EXTENSIONS[image.contentType?.toLowerCase() ?? ""];
     if (!extension) {
@@ -186,8 +197,9 @@ function prepareImages(
     }
     total += bytes;
 
-    const name = `${slug}-${timestamp}-${safeBaseName(image.filename)}.${extension}`;
-    prepared.push({
+    const suffix = prepared.length > 0 ? `-${prepared.length + 1}` : "";
+    const name = `${slug}-${timestamp}-${safeBaseName(image.filename)}${suffix}.${extension}`;
+    const item: PreparedImage = {
       key: `${image.section}.${image.field}`,
       url: `${UPLOAD_URL_PREFIX}/${name}`,
       file: {
@@ -195,7 +207,12 @@ function prepareImages(
         content: image.dataBase64.replace(/\s+/g, ""),
         encoding: "base64",
       },
-    });
+    };
+    if (typeof image.index === "number" && typeof image.itemKey === "string") {
+      item.index = image.index;
+      item.itemKey = image.itemKey;
+    }
+    prepared.push(item);
   });
 
   if (total > MAX_TOTAL_IMAGE_BYTES) {
@@ -208,33 +225,52 @@ function prepareImages(
     );
   }
 
-  return { prepared, errors };
+  return { prepared, errors, total };
 }
 
 // ---------------------------------------------------------------------------
 // The publish
 // ---------------------------------------------------------------------------
 
+export type BatchPublishInput = {
+  /** Commit sha the editor loaded its content from. */
+  baseCommitSha: string;
+  pages: BatchPageUpdate[];
+};
+
+export type BatchPublishOutcome = {
+  commitSha: string;
+  commitUrl: string;
+  /** "slug.section.field" keys written, in page order. */
+  fields: string[];
+  /** Public URLs of images added by this publish. */
+  images: string[];
+  /** Slugs of the pages the commit touched, in request order. */
+  slugs: string[];
+};
+
 /**
- * Merge the editor's changes into the committed content and write one commit.
+ * Merge every page's changes into the committed content and write ONE commit.
  *
  * Throws `ArmatureError` with a code the editor can act on:
  * - `invalid`   — bad input or content that would fail the whole-file check. Nothing committed.
- * - `conflict`  — someone else changed the same fields. Nothing committed.
+ * - `conflict`  — someone else changed the same fields (on any page). Nothing committed.
  * - `forbidden` / `not_configured` / `github_error` — see githubRepo.ts.
  */
-export async function runPublish(opts: {
+export async function runBatchPublish(opts: {
   repo: ContentRepo;
-  input: PublishInput;
+  input: BatchPublishInput;
   userEmail: string;
   now?: () => number;
-}): Promise<PublishOutcome> {
+  /** Prefix conflict labels with the page label ("Home → Hero → Headline"). */
+  labelPages?: boolean;
+}): Promise<BatchPublishOutcome> {
   const { repo, input, userEmail } = opts;
   const now = opts.now ?? (() => Date.now());
 
-  const fields = input.fields ?? [];
-  const images = input.images ?? [];
-  if (fields.length === 0 && images.length === 0) {
+  const pagesInput = (input.pages ?? []).filter((page) => page && typeof page.slug === "string");
+  const anyChange = pagesInput.some((page) => (page.fields ?? []).length > 0 || (page.images ?? []).length > 0);
+  if (!anyChange) {
     throw new ArmatureError("invalid", "There are no changes to publish.");
   }
 
@@ -251,34 +287,72 @@ export async function runPublish(opts: {
   const current = await loadSiteFiles(repo, head);
   const pages = current.pages;
 
-  const page = getPageDefinition(pages, input.slug);
-  if (!page) {
-    throw new ArmatureError("invalid", `"${input.slug}" is not a page this site can edit.`);
-  }
-
   // --- validate everything before touching anything that writes -----------
   const errors: string[] = [];
-  const updates = new Map<string, ContentValue>();
+  const timestamp = now();
+  type PagePlan = { page: PageDefinition; updates: Map<string, ContentValue>; prepared: PreparedImage[] };
+  const plans: PagePlan[] = [];
+  const seenSlugs = new Set<string>();
+  let imageTotal = 0;
 
-  for (const update of fields) {
-    const key = `${update.section}.${update.field}`;
-    if (updates.has(key)) {
-      errors.push(`${key}: sent twice in one publish`);
+  for (const pageInput of pagesInput) {
+    const page = getPageDefinition(pages, pageInput.slug);
+    if (!page) {
+      throw new ArmatureError("invalid", `"${pageInput.slug}" is not a page this site can edit.`);
+    }
+    if (seenSlugs.has(page.slug)) {
+      errors.push(`${page.slug}: sent twice in one publish`);
       continue;
     }
-    updates.set(key, update.value);
-  }
+    seenSlugs.add(page.slug);
 
-  const { prepared, errors: imageErrors } = prepareImages(input.slug, images, now());
-  errors.push(...imageErrors);
-  // An uploaded image decides its field's value, whatever the client sent for it.
-  for (const image of prepared) updates.set(image.key, image.url);
+    const updates = new Map<string, ContentValue>();
+    for (const update of pageInput.fields ?? []) {
+      const key = `${update.section}.${update.field}`;
+      if (updates.has(key)) {
+        errors.push(`${key}: sent twice in one publish`);
+        continue;
+      }
+      updates.set(key, update.value);
+    }
 
-  for (const [key, value] of updates) {
-    const [sectionKey, ...rest] = key.split(".");
-    const fieldKey = rest.join(".");
-    const result = validateFieldUpdate(pages, input.slug, sectionKey ?? "", fieldKey, value);
-    errors.push(...result.errors);
+    const images = prepareImages(page.slug, pageInput.images ?? [], timestamp, imageTotal);
+    imageTotal = images.total;
+    errors.push(...images.errors);
+
+    for (const image of images.prepared) {
+      if (image.index === undefined || image.itemKey === undefined) {
+        // An uploaded image decides its field's value, whatever the client sent for it.
+        updates.set(image.key, image.url);
+        continue;
+      }
+      // A list item picture: write the path into that item of the list being published
+      // (or of the committed list, if the list itself was not sent).
+      const [sectionKey = "", ...rest] = image.key.split(".");
+      const fieldKey = rest.join(".");
+      const existing = updates.get(image.key) ?? current.content[page.slug]?.[sectionKey]?.[fieldKey];
+      if (!Array.isArray(existing)) {
+        errors.push(`${page.slug}.${image.key}: is not a list, so it cannot take an item picture`);
+        continue;
+      }
+      const list = cloneContent(existing) as Record<string, string>[];
+      const item = list[image.index];
+      if (!item) {
+        errors.push(`${page.slug}.${image.key}[${image.index}]: there is no item ${image.index + 1} to attach the picture to`);
+        continue;
+      }
+      item[image.itemKey] = image.url;
+      updates.set(image.key, list);
+    }
+
+    for (const [key, value] of updates) {
+      const [sectionKey, ...rest] = key.split(".");
+      const fieldKey = rest.join(".");
+      const result = validateFieldUpdate(pages, page.slug, sectionKey ?? "", fieldKey, value);
+      errors.push(...result.errors);
+    }
+
+    plans.push({ page, updates, prepared: images.prepared });
   }
 
   if (errors.length > 0) {
@@ -298,13 +372,17 @@ export async function runPublish(opts: {
       );
     }
 
-    const theirChanges = changedFieldsForPage(pages, input.slug, base, current.content);
-    const overlap = [...updates.keys()].filter((key) => theirChanges.has(key));
-    if (overlap.length > 0) {
-      const labels = overlap.map((key) => {
+    const labels: string[] = [];
+    for (const plan of plans) {
+      const theirChanges = changedFieldsForPage(pages, plan.page.slug, base, current.content);
+      for (const key of plan.updates.keys()) {
+        if (!theirChanges.has(key)) continue;
         const [sectionKey, ...rest] = key.split(".");
-        return fieldLabel(pages, input.slug, sectionKey ?? "", rest.join("."));
-      });
+        const label = fieldLabel(pages, plan.page.slug, sectionKey ?? "", rest.join("."));
+        labels.push(opts.labelPages ? `${plan.page.label} → ${label}` : label);
+      }
+    }
+    if (labels.length > 0) {
       throw new ArmatureError(
         "conflict",
         `Someone else changed ${labels.length === 1 ? "this field" : "these fields"} while you were editing: ${labels.join(", ")}. Nothing was published. Reload to get their version, then reapply your change.`,
@@ -316,12 +394,14 @@ export async function runPublish(opts: {
 
   // --- merge ------------------------------------------------------------------
   const merged = cloneContent(current.content) as ContentTree;
-  for (const [key, value] of updates) {
-    const [sectionKey, ...rest] = key.split(".");
-    const fieldKey = rest.join(".");
-    const section = (merged[input.slug] ??= {});
-    const sectionContent = (section[sectionKey ?? ""] ??= {});
-    sectionContent[fieldKey] = value;
+  for (const plan of plans) {
+    for (const [key, value] of plan.updates) {
+      const [sectionKey, ...rest] = key.split(".");
+      const fieldKey = rest.join(".");
+      const section = (merged[plan.page.slug] ??= {});
+      const sectionContent = (section[sectionKey ?? ""] ??= {});
+      sectionContent[fieldKey] = value;
+    }
   }
 
   // --- the same whole-file check site-connect runs ----------------------------
@@ -333,19 +413,20 @@ export async function runPublish(opts: {
     );
   }
 
+  const allPrepared = plans.flatMap((plan) => plan.prepared);
   const nextText = serializeContent(merged);
-  if (nextText === current.contentText && prepared.length === 0) {
+  if (nextText === current.contentText && allPrepared.length === 0) {
     throw new ArmatureError("invalid", "There are no changes to publish.");
   }
 
   // --- one commit ---------------------------------------------------------------
   const files: CommitFile[] = [
     { path: CONTENT_PATH, content: utf8ToBase64(nextText), encoding: "base64" },
-    ...prepared.map((image) => image.file),
+    ...allPrepared.map((image) => image.file),
   ];
 
   const result = await repo.commit({
-    message: `Content: ${page.label} updated by ${userEmail}`,
+    message: `Content: ${plans.map((plan) => plan.page.label).join(", ")} updated by ${userEmail}`,
     files,
     parentCommitSha: head,
   });
@@ -353,47 +434,105 @@ export async function runPublish(opts: {
   return {
     commitSha: result.commitSha,
     commitUrl: result.commitUrl,
-    fields: [...updates.keys()],
-    images: prepared.map((image) => image.url),
+    fields: plans.flatMap((plan) => [...plan.updates.keys()].map((key) => `${plan.page.slug}.${key}`)),
+    images: allPrepared.map((image) => image.url),
+    slugs: plans.map((plan) => plan.page.slug),
+  };
+}
+
+/**
+ * Merge the editor's changes into the committed content and write one commit.
+ *
+ * Throws `ArmatureError` with a code the editor can act on:
+ * - `invalid`   — bad input or content that would fail the whole-file check. Nothing committed.
+ * - `conflict`  — someone else changed the same fields. Nothing committed.
+ * - `forbidden` / `not_configured` / `github_error` — see githubRepo.ts.
+ */
+export async function runPublish(opts: {
+  repo: ContentRepo;
+  input: PublishInput;
+  userEmail: string;
+  now?: () => number;
+}): Promise<PublishOutcome> {
+  const { input } = opts;
+  const outcome = await runBatchPublish({
+    repo: opts.repo,
+    userEmail: opts.userEmail,
+    now: opts.now,
+    input: {
+      baseCommitSha: input.baseCommitSha,
+      pages: [{ slug: input.slug, fields: input.fields ?? [], images: input.images ?? [] }],
+    },
+  });
+  const prefix = `${input.slug}.`;
+  return {
+    commitSha: outcome.commitSha,
+    commitUrl: outcome.commitUrl,
+    fields: outcome.fields.map((key) => (key.startsWith(prefix) ? key.slice(prefix.length) : key)),
+    images: outcome.images,
   };
 }
 
 // ---------------------------------------------------------------------------
 // Defensive shaping of the request body; the real rules live in contentValidation.ts.
 // ---------------------------------------------------------------------------
+function parseFields(raw: unknown): FieldUpdate[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry): FieldUpdate[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Record<string, unknown>;
+    if (typeof item["section"] !== "string" || typeof item["field"] !== "string") return [];
+    return [{ section: item["section"], field: item["field"], value: item["value"] as ContentValue }];
+  });
+}
+
+function parseImages(raw: unknown): BatchImageUpload[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry): BatchImageUpload[] => {
+    if (!entry || typeof entry !== "object") return [];
+    const item = entry as Record<string, unknown>;
+    if (typeof item["section"] !== "string" || typeof item["field"] !== "string") return [];
+    const image: BatchImageUpload = {
+      section: item["section"],
+      field: item["field"],
+      filename: typeof item["filename"] === "string" ? item["filename"] : "",
+      contentType: typeof item["contentType"] === "string" ? item["contentType"] : "",
+      dataBase64: typeof item["dataBase64"] === "string" ? item["dataBase64"] : "",
+    };
+    if (Number.isInteger(item["index"]) && (item["index"] as number) >= 0 && typeof item["itemKey"] === "string") {
+      image.index = item["index"] as number;
+      image.itemKey = item["itemKey"];
+    }
+    return [image];
+  });
+}
+
 export function parsePublishRequest(raw: Record<string, unknown>): PublishRequest {
   const siteId = typeof raw["site_id"] === "string" ? raw["site_id"] : "";
   const slug = typeof raw["slug"] === "string" ? raw["slug"] : "";
   const baseCommitSha = typeof raw["baseCommitSha"] === "string" ? raw["baseCommitSha"] : "";
-
-  const fields = Array.isArray(raw["fields"])
-    ? raw["fields"].flatMap((entry): FieldUpdate[] => {
-        if (!entry || typeof entry !== "object") return [];
-        const item = entry as Record<string, unknown>;
-        if (typeof item["section"] !== "string" || typeof item["field"] !== "string") return [];
-        return [
-          { section: item["section"], field: item["field"], value: item["value"] as ContentValue },
-        ];
-      })
-    : [];
-
-  const images = Array.isArray(raw["images"])
-    ? raw["images"].flatMap((entry): ImageUpload[] => {
-        if (!entry || typeof entry !== "object") return [];
-        const item = entry as Record<string, unknown>;
-        if (typeof item["section"] !== "string" || typeof item["field"] !== "string") return [];
-        return [
-          {
-            section: item["section"],
-            field: item["field"],
-            filename: typeof item["filename"] === "string" ? item["filename"] : "",
-            contentType: typeof item["contentType"] === "string" ? item["contentType"] : "",
-            dataBase64: typeof item["dataBase64"] === "string" ? item["dataBase64"] : "",
-          },
-        ];
-      })
-    : [];
-
+  const fields = parseFields(raw["fields"]);
+  const images: ImageUpload[] = parseImages(raw["images"]).map(({ section, field, filename, contentType, dataBase64 }) => ({
+    section,
+    field,
+    filename,
+    contentType,
+    dataBase64,
+  }));
   if (!ACCEPTED_IMAGE_TYPES.length) throw new Error("unreachable");
   return { site_id: siteId, slug, baseCommitSha, fields, images };
+}
+
+export function parseBatchPublishRequest(raw: Record<string, unknown>): PublishBatchRequest {
+  const siteId = typeof raw["site_id"] === "string" ? raw["site_id"] : "";
+  const baseCommitSha = typeof raw["baseCommitSha"] === "string" ? raw["baseCommitSha"] : "";
+  const pages: BatchPageUpdate[] = Array.isArray(raw["pages"])
+    ? raw["pages"].flatMap((entry): BatchPageUpdate[] => {
+      if (!entry || typeof entry !== "object") return [];
+      const item = entry as Record<string, unknown>;
+      if (typeof item["slug"] !== "string") return [];
+      return [{ slug: item["slug"], fields: parseFields(item["fields"]), images: parseImages(item["images"]) }];
+    })
+    : [];
+  return { site_id: siteId, baseCommitSha, pages };
 }

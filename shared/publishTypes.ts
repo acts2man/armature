@@ -93,6 +93,53 @@ export type PublishResponse = {
   images: string[];
 };
 
+// --- content-publish-batch (the visual editor) ----------------------------------
+
+/**
+ * A picture for one field, or for one item of a list field when `index` and
+ * `itemKey` are present. The function writes the committed path into that item.
+ */
+export type BatchImageUpload = ImageUpload & { index?: number; itemKey?: string };
+
+export type BatchPageUpdate = { slug: string; fields: FieldUpdate[]; images: BatchImageUpload[] };
+
+/** Every changed field and picture across every page, published as ONE commit. */
+export type PublishBatchRequest = {
+  site_id: string;
+  /** Commit sha the editor loaded its content from. */
+  baseCommitSha: string;
+  pages: BatchPageUpdate[];
+};
+
+export type PublishBatchResponse = {
+  ok: true;
+  commitSha: string;
+  commitUrl: string;
+  /** "slug.section.field" keys written. */
+  fields: string[];
+  /** Public URLs of images added by this publish. */
+  images: string[];
+  /** Slugs of the pages the commit touched, in request order. */
+  slugs: string[];
+};
+
+// --- site-embed-check (the visual editor's "why won't the site load" diagnostic) ---
+
+export type EmbedCheckRequest = { site_id: string };
+
+export type EmbedCheckResponse = {
+  ok: true;
+  url: string;
+  /** False when the live URL could not be fetched at all; `error` says why. */
+  reachable: boolean;
+  status: number | null;
+  /** The X-Frame-Options header the site sends, if any. */
+  xFrameOptions: string | null;
+  /** The frame-ancestors directive of the site's Content-Security-Policy, if any. */
+  frameAncestors: string | null;
+  error?: string;
+};
+
 // --- site-diagnose / site-connect --------------------------------------------
 
 export type CheckStatus = "ok" | "fail" | "skipped";

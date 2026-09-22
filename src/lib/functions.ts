@@ -22,7 +22,9 @@ export type FunctionName =
   | "invite-create"
   | "invite-accept"
   | "client-create"
-  | "password-set";
+  | "password-set"
+  | "content-publish-batch"
+  | "site-embed-check";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });
 

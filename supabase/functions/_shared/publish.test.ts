@@ -250,3 +250,150 @@ Deno.test("parsePublishRequest shapes the payload defensively", () => {
   assertEquals(parsed.images, [{ section: "hero", field: "image", filename: "", contentType: "image/png", dataBase64: "AAAA" }]);
   assertEquals(parsePublishRequest({}).fields, []);
 });
+
+// ---------------------------------------------------------------------------
+// Batch publishing (the visual editor): many pages, one commit
+// ---------------------------------------------------------------------------
+import { parseBatchPublishRequest, runBatchPublish } from "./publish.ts";
+
+const batch = (repo: ContentRepo, input: Parameters<typeof runBatchPublish>[0]["input"], now?: () => number) =>
+  runBatchPublish({ repo, input, userEmail: "owner@example.com", now, labelPages: true });
+
+Deno.test("batch: two pages, a picture and a list item picture in exactly one commit", async () => {
+  const { repo, commits } = fakeRepo({ head: BASE_SHA, byRef: { [BASE_SHA]: tree() } });
+  const outcome = await batch(
+    repo,
+    {
+      baseCommitSha: BASE_SHA,
+      pages: [
+        {
+          slug: "home",
+          fields: [{ section: "hero", field: "title", value: "Batch Headline" }],
+          images: [{ section: "hero", field: "image", filename: "hero.png", contentType: "image/png", dataBase64: pngBase64 }],
+        },
+        {
+          slug: "shared",
+          fields: [{ section: "footer", field: "copyright", value: "© 2027 Acme" }],
+          images: [{ section: "header", field: "nav", index: 1, itemKey: "href", filename: "icon.webp", contentType: "image/webp", dataBase64: pngBase64 }],
+        },
+      ],
+    },
+    () => 1700000000000,
+  );
+  assertEquals(commits.length, 1);
+  const commit = commits[0]!;
+  assertEquals(commit.parentCommitSha, BASE_SHA);
+  assertEquals(commit.message, "Content: Home, Header & footer updated by owner@example.com");
+  assertEquals(commit.files.map((file) => file.path).sort(), [
+    "content/pages.json",
+    "public/assets/uploads/home-1700000000000-hero.png",
+    "public/assets/uploads/shared-1700000000000-icon.webp",
+  ]);
+  const written = committedContent(commit);
+  assertEquals(written["home"]!["hero"]!["title"], "Batch Headline");
+  assertEquals(written["home"]!["hero"]!["image"], "/assets/uploads/home-1700000000000-hero.png");
+  assertEquals(written["shared"]!["footer"]!["copyright"], "© 2027 Acme");
+  assertEquals((written["shared"]!["header"]!["nav"] as { href: string }[])[1]!.href, "/assets/uploads/shared-1700000000000-icon.webp");
+  assertEquals(outcome.slugs, ["home", "shared"]);
+  assertEquals(outcome.fields, ["home.hero.title", "home.hero.image", "shared.footer.copyright", "shared.header.nav"]);
+  assertEquals(outcome.images.length, 2);
+});
+
+Deno.test("batch: a list item picture out of range is refused before anything is written", async () => {
+  const { repo, commits } = fakeRepo({ head: BASE_SHA, byRef: { [BASE_SHA]: tree() } });
+  await assertRejects(
+    () =>
+      batch(repo, {
+        baseCommitSha: BASE_SHA,
+        pages: [{ slug: "home", fields: [], images: [{ section: "faq", field: "items", index: 9, itemKey: "answer", filename: "a.png", contentType: "image/png", dataBase64: pngBase64 }] }],
+      }),
+    ArmatureError,
+    "no item 10",
+  );
+  assertEquals(commits.length, 0);
+});
+
+Deno.test("batch: an invalid field on the second page stops the whole publish", async () => {
+  const { repo, commits } = fakeRepo({ head: BASE_SHA, byRef: { [BASE_SHA]: tree() } });
+  await assertRejects(
+    () =>
+      batch(repo, {
+        baseCommitSha: BASE_SHA,
+        pages: [
+          { slug: "home", fields: [{ section: "hero", field: "title", value: "Fine" }], images: [] },
+          { slug: "shared", fields: [{ section: "footer", field: "privacy", value: { label: "x", href: "javascript:alert(1)" } }], images: [] },
+        ],
+      }),
+    ArmatureError,
+    "must start with https://",
+  );
+  await assertRejects(() => batch(repo, { baseCommitSha: BASE_SHA, pages: [] }), ArmatureError, "no changes to publish");
+  await assertRejects(() => batch(repo, { baseCommitSha: BASE_SHA, pages: [{ slug: "home", fields: [], images: [] }] }), ArmatureError, "no changes to publish");
+  await assertRejects(
+    () => batch(repo, { baseCommitSha: BASE_SHA, pages: [{ slug: "home", fields: [{ section: "hero", field: "title", value: "a" }], images: [] }, { slug: "home", fields: [{ section: "hero", field: "body", value: "b" }], images: [] }] }),
+    ArmatureError,
+    "sent twice",
+  );
+  assertEquals(commits.length, 0);
+});
+
+Deno.test("batch: branch moved on one page, different fields on another: merges onto the moved head", async () => {
+  const moved = tree();
+  moved["shared"]!["footer"]!["blurb"] = "Their new blurb.";
+  const { repo, commits } = fakeRepo({ head: MOVED_SHA, byRef: { [BASE_SHA]: tree(), [MOVED_SHA]: moved } });
+  await batch(repo, {
+    baseCommitSha: BASE_SHA,
+    pages: [
+      { slug: "home", fields: [{ section: "hero", field: "title", value: "Mine" }], images: [] },
+      { slug: "shared", fields: [{ section: "footer", field: "copyright", value: "© mine" }], images: [] },
+    ],
+  });
+  assertEquals(commits.length, 1);
+  const written = committedContent(commits[0]!);
+  assertEquals(written["home"]!["hero"]!["title"], "Mine");
+  assertEquals(written["shared"]!["footer"]!["blurb"], "Their new blurb.");
+  assertEquals(written["shared"]!["footer"]!["copyright"], "© mine");
+  assertEquals(commits[0]!.parentCommitSha, MOVED_SHA);
+});
+
+Deno.test("batch: conflicts on two pages are named with their page, nothing committed", async () => {
+  const moved = tree();
+  moved["home"]!["hero"]!["title"] = "Their Headline";
+  moved["shared"]!["footer"]!["copyright"] = "© theirs";
+  const { repo, commits } = fakeRepo({ head: MOVED_SHA, byRef: { [BASE_SHA]: tree(), [MOVED_SHA]: moved } });
+  let caught: unknown;
+  try {
+    await batch(repo, {
+      baseCommitSha: BASE_SHA,
+      pages: [
+        { slug: "home", fields: [{ section: "hero", field: "title", value: "Mine" }, { section: "hero", field: "body", value: "Body is fine" }], images: [] },
+        { slug: "shared", fields: [{ section: "footer", field: "copyright", value: "© mine" }], images: [] },
+      ],
+    });
+  } catch (error) {
+    caught = error;
+  }
+  assert(caught instanceof ArmatureError);
+  assertEquals(caught.code, "conflict");
+  assertEquals(caught.fields, ["Home → Hero → Headline", "Header & footer → Footer → Copyright line"]);
+  assertEquals(commits.length, 0);
+});
+
+Deno.test("parseBatchPublishRequest shapes the payload defensively", () => {
+  const parsed = parseBatchPublishRequest({
+    site_id: "s",
+    baseCommitSha: "abc",
+    pages: [
+      { slug: "home", fields: [{ section: "hero", field: "title", value: "x" }, "junk"], images: [{ section: "faq", field: "items", index: 2, itemKey: "answer", filename: "a.png", contentType: "image/png", dataBase64: "AAAA" }] },
+      { nope: true },
+      { slug: "shared", images: [{ section: "header", field: "logo", index: -1, itemKey: 3, contentType: "image/png", dataBase64: "AAAA" }] },
+    ],
+  });
+  assertEquals(parsed.pages.length, 2);
+  assertEquals(parsed.pages[0]!.fields, [{ section: "hero", field: "title", value: "x" }]);
+  assertEquals(parsed.pages[0]!.images[0]!.index, 2);
+  assertEquals(parsed.pages[0]!.images[0]!.itemKey, "answer");
+  assertEquals(parsed.pages[1]!.fields, []);
+  assertEquals(parsed.pages[1]!.images[0]!.index, undefined);
+  assertEquals(parseBatchPublishRequest({}).pages, []);
+});
