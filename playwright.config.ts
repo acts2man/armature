@@ -34,7 +34,11 @@ export default defineConfig({
       timeout: 60_000,
     },
     {
-      command: "npx vite --port 5174 --strictPort",
+      // --host binds every interface (Node listens on :: in dual-stack mode) so the
+      // demo site answers on both localhost and 127.0.0.1. One bridge test loads it
+      // through a 127.0.0.1 parent as a second origin; on CI runners localhost
+      // resolves to ::1, so without this the 127.0.0.1 request is refused.
+      command: "npx vite --port 5174 --strictPort --host",
       cwd: "examples/demo-site",
       url: DEMO_SITE,
       reuseExistingServer: !process.env["CI"],

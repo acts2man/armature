@@ -3,7 +3,7 @@
  * Style and Advanced tabs and rich text. schema.ts (layouts, elements, the kit) and
  * widgetSchemas.ts (the widget library) both build on these.
  */
-import { z } from "zod";
+import { z } from "./zod.ts";
 import type {
   Advanced,
   Background,

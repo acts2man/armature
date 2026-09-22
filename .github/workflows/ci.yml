@@ -7,10 +7,10 @@ on:
 
 jobs:
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -22,10 +22,10 @@ jobs:
       - run: npm run check:secrets
 
   end-to-end:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -33,7 +33,7 @@ jobs:
       - run: npm ci --prefix examples/demo-site
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: playwright-report
@@ -41,18 +41,26 @@ jobs:
           retention-days: 7
 
   functions:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    # The functions import the repo-root shared/ folder but are deployed (and must
+    # therefore be checked) from supabase/functions with that folder's deno.json:
+    # from the repo root the package.json turns on Node resolution and the check
+    # fails to find @supabase/supabase-js's npm dependencies. deno task runs the
+    # check/test/lint exactly as the deploy bundles them.
+    defaults:
+      run:
+        working-directory: supabase/functions
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - run: deno check supabase/functions/*/index.ts
-      - run: deno test --allow-env --allow-read supabase/functions
-      - run: deno lint supabase/functions
+      - run: deno task check
+      - run: deno task test
+      - run: deno task lint
 
   database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -65,6 +73,6 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - run: DATABASE_URL=postgresql://postgres@localhost:5432/postgres bash scripts/db-test.sh

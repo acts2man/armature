@@ -8,11 +8,15 @@ import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@shared": fileURLToPath(new URL("./shared", import.meta.url)),
-      "@kit": fileURLToPath(new URL("./kit", import.meta.url)),
-    },
+    alias: [
+      // shared/builder imports zod through an `npm:` specifier so Deno and the
+      // Supabase edge-function bundler resolve it without an import map; here it
+      // resolves to the npm package like any other dependency.
+      { find: /^npm:zod(@.*)?$/, replacement: "zod" },
+      { find: "@shared", replacement: fileURLToPath(new URL("./shared", import.meta.url)) },
+      { find: "@kit", replacement: fileURLToPath(new URL("./kit", import.meta.url)) },
+      { find: "@", replacement: fileURLToPath(new URL("./src", import.meta.url)) },
+    ],
   },
   build: {
     sourcemap: false,

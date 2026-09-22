@@ -7,7 +7,7 @@
  * The TypeScript types live in kit/types.ts (dependency-free, copied into sites); every
  * schema here is annotated with the matching type so the two cannot drift.
  */
-import { z } from "zod";
+import { z } from "./zod.ts";
 import type {
   ButtonPreset,
   ButtonProps,

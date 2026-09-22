@@ -3,7 +3,7 @@
  * folds these into PROPS_SCHEMAS, so the editor and the publish function validate
  * them exactly like the core widgets. Types live in kit/types.ts.
  */
-import { z } from "zod";
+import { z } from "./zod.ts";
 import type {
   AccordionProps,
   AlertProps,
