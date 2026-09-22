@@ -236,6 +236,15 @@ The migration for this is `supabase/migrations/20260922000100_hosting_and_servic
 
 ---
 
+## Part F7 — Turn on visual editing for a site
+
+The visual editor ("Edit site visually") shows the live website inside the dashboard. A site supports it once its developer has done two things, described in full in [SITE_CONTRACT.md](SITE_CONTRACT.md) under "Site contract v1.1":
+
+1. Copied `bridge/armature-bridge.ts` from this repository into the site and read every editable value through it, with the dashboard's address in `allowedOrigins` (for example `https://armature-sites.netlify.app`, exactly as it appears in the browser, no trailing slash).
+2. Made the site allow the dashboard to frame it: no `X-Frame-Options`, and a `Content-Security-Policy` header with `frame-ancestors 'self' https://armature-sites.netlify.app`.
+
+Then open the site in the dashboard and press **Edit site visually**. If the editor says "This site isn't set up for visual editing yet", the site has no bridge or the wrong origin in its allowlist; if it says the site refuses to be shown, it prints the exact header to add. Either way the page editor keeps working. A site that never adds the bridge simply keeps the form editor.
+
 ## Part G — If something goes wrong
 
 **Running a migration says "already exists".** You ran the file before. Nothing is broken; move on to the next file.

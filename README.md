@@ -25,6 +25,14 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 - **Agency settings**: portal name, logo and accent colour. Clients see the agency's brand and never the word Armature.
 - **Publish history** for every site, with a link to each commit.
 
+**For everyone who edits: the visual editor**
+
+- **Edit site visually** opens the live website inside the dashboard. Click a headline and type on the page, click a picture to replace it (or drop a file onto it), click a button to change its label and link, and add, reorder (drag) and delete FAQ or list items in the inspector while the page updates live.
+- Desktop, tablet and phone views; undo and redo (Ctrl/Cmd+Z); one draft per site across every page, saved in the browser and offered back with Keep / Discard; keyboard shortcuts (`?` lists them); a three-step first-run tour; Preview mode; a "Need something bigger?" bar that files a change request with the page and field already filled in.
+- One Publish commits every changed field and picture on every page in one commit, with a summary grouped by page, then "Published. Live in about 2 minutes" and the commit link. Conflicts name the fields someone else changed and offer to reload while keeping the rest of the draft.
+- Every connection state is spelled out: loading, connecting, a site that has no bridge ("use the page editor"), a site that blocks framing (with the exact header to add), a different protocol version.
+- A site opts in by copying one dependency-free file (`bridge/armature-bridge.ts`) and allowing the dashboard's origin: site contract v1.1 in [docs/SITE_CONTRACT.md](docs/SITE_CONTRACT.md). Sites without it keep the form editor.
+
 **For the client**
 
 - A home page with their site, recent publishes and their change requests.
@@ -36,15 +44,18 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 
 - No AI features. Nothing is generated, suggested or rewritten.
 - No email sending. Invite links are shown to the agency to copy and send by hand; the link is also written to the function logs.
-- No preview of unpublished changes; the feedback loop is publish, wait for the rebuild, look.
-- Publishing is per page. Editing the home page and the footer is two publishes.
+- The visual editor edits words, pictures, links and lists (Stage 1). Colours and fonts from design tokens (Stage 2) and adding, moving or hiding sections (Stage 3) are designed for but not built: the protocol reserves `armature:tokens:*` and `armature:sections:*`, and the draft store has room for those change kinds.
+- The form editor still publishes one page at a time; the visual editor publishes every page in one commit.
 - Sign-up confirmation and password-reset emails come from Supabase's built-in templates.
 
 ## Where things are
 
 | Folder | What is in it |
 | --- | --- |
-| `src/` | The dashboard: a Vite + React + TypeScript single-page app, hosted on Netlify. |
+| `src/` | The dashboard: a Vite + React + TypeScript single-page app, hosted on Netlify. `src/visual/` is the visual editor. |
+| `bridge/` | `armature-bridge.ts`, the one dependency-free file a site copies in to support visual editing, with its README. |
+| `examples/demo-site/` | A tiny Vite + React site that follows the contract, including the bridge. The end-to-end tests run the editor against it. |
+| `tests/e2e/` | Playwright tests of the visual editor against the demo site, with Supabase mocked and GitHub never touched. |
 | `shared/` | The site contract as code: schema types, the content serializer and validation. Imported by both the dashboard and the edge functions so they can never disagree. |
 | `supabase/migrations/` | The database: tables, row-level security, helper functions. Applied by hand in the Supabase SQL editor. |
 | `supabase/tests/` | A plain-SQL proof that a client of one site cannot read another site, and that one agency cannot read another. |
@@ -66,8 +77,9 @@ A site needs `content/schema.json`, `content/pages.json` and a `public/assets/up
 ```bash
 npm install
 npm run verify          # typecheck, lint, unit tests, build, secret grep on dist/
+npm run test:e2e        # Playwright: the visual editor against examples/demo-site (npm install there first; npx playwright install chromium)
 npm run check:functions # needs Deno 2: type-checks the edge functions
-npm run test:functions  # needs Deno 2: runs the edge function tests (GitHub mocked)
+npm run test:functions  # needs Deno 2: runs the edge function tests (GitHub mocked, including batch publishes with conflicts)
 npm run db:test         # needs psql + a scratch Postgres in DATABASE_URL: applies migrations, runs the RLS proof
 ```
 
@@ -76,5 +88,6 @@ npm run db:test         # needs psql + a scratch Postgres in DATABASE_URL: appli
 - The browser bundle contains only the Supabase project URL and the publishable key. `scripts/check-secrets.sh` greps every build for the GitHub App variables, private-key markers, `api.github.com` and the service-role key name.
 - GitHub is reached only from the edge functions, through a GitHub App with **Contents: read and write** and **Metadata: read-only** and nothing else. A one-hour installation token is minted per request and scoped to the one repository being edited.
 - Every table has row-level security. Agency staff see their agency; clients see only the sites they were invited to; nobody sees another agency. `supabase/tests/rls.test.sql` asserts this.
-- Edge functions authorize with the caller's own sign-in token. The service-role key is used in exactly three places, each documented in the function: writing the publish history row (so history cannot be forged), storing a site's derived connected / needs-attention status, and accepting an invite (the invitee is not yet a member of anything).
+- Edge functions authorize with the caller's own sign-in token. The service-role key is used in exactly three kinds of place, each documented in the function: writing the publish history row (so history cannot be forged; `content-publish` and `content-publish-batch`), storing a site's derived connected / needs-attention status, and accepting an invite (the invitee is not yet a member of anything). `site-embed-check` uses no secrets at all: it fetches a site's public live URL without credentials and refuses private addresses.
+- The visual editor talks to a site only through `postMessage` to an exact origin with a per-load nonce; the bridge inside the site answers only allowlisted origins, never evaluates code and never injects HTML. The dashboard keeps its own `X-Frame-Options: DENY`; it is the parent, never the frame.
 - Every publish is validated twice: each changed field against the site's schema, and the whole merged file before the commit is created. Links may only use `https:`, `http:`, `mailto:`, `tel:` or a site-relative path; images must live under `/assets/`.

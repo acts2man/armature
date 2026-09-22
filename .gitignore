@@ -9,3 +9,7 @@ coverage
 .supabase
 supabase/.temp
 .netlify
+playwright-report
+test-results
+.dash.log
+.shots

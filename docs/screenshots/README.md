@@ -10,6 +10,7 @@ The two screens with an approved design file to compare against:
 | --- | --- | --- |
 | Agency fleet | `docs/4-agency-fleet.html` | `agency-fleet-desktop.png` |
 | Client home | `docs/2-client-dashboard.html` | `client-home-desktop.png` |
+| Visual editor | `docs/1-visual-editor.html` | `visual-editor-text-selected.png` |
 
 Agency screens: `agency-fleet`, `agency-fleet-menu` (the phone drawer), `agency-add-site`,
 `agency-requests`, `agency-team`, `agency-settings`, `agency-site-overview` (with a
@@ -34,3 +35,11 @@ Signed out: `signin`, `invite`.
 To regenerate: run the dashboard with `VITE_SUPABASE_URL=https://mock.supabase.co` and
 any publishable key, then drive it with a browser that fakes the session and answers
 the Supabase requests; the harness used for these lives outside the repository.
+
+The visual editor (against `examples/demo-site`, mocked Supabase, 1440×900; captured by
+`npx tsx tests/e2e/screenshots.ts` with both dev servers running): `visual-editor-text-selected`
+(a headline typed on the page, the wire selection and its toolbar), `visual-editor-image-selected`
+(a picture selected, Replace in the inspector), `visual-editor-list-selected` (the FAQ list
+with a new item, the page following), `visual-editor-publish` (the publish summary grouped
+by page), `visual-editor-phone` (the 390px view), `visual-editor-connection-error` (a site
+that sends `X-Frame-Options: DENY`, with the header to add).
