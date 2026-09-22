@@ -321,7 +321,16 @@ by-id access is O(1) without a separate normalized copy; commands return new tre
 structural sharing, and each history entry keeps the state before and after (an O(1) swap
 for undo, redo and click-to-jump). Coded pages without a layout are seeded from their
 slot's sections with stable ids, outside the history, and enter the draft on the first edit.
-Keyboard: ↑/↓ walk siblings, ← selects the parent, → the first child, Alt-click the parent. Connection states never silent. Under 900px, the friendly note and the
+Keyboard: ↑/↓ walk siblings, ← selects the parent, → the first child, Alt-click the parent.
+**Decision (M3):** every inspector and Site settings control is a spec (`src/builder/controls/`)
+rendered against a target that reads and writes paths, so elements and the kit share one
+control library; a unit test writes every control of every core widget on every device
+and validates the result with the shared schema. A widget's Style tab lands on what the
+visitor sees (a button styles its link, an image its picture). Locked elements keep their
+words editable for clients; their place and design stay the agency's. A kit change that
+would make the kit invalid is dropped rather than saved. A Google font chosen anywhere joins
+the kit's font list, the only list the site loads fonts from (one stylesheet link in the
+head). Connection states never silent. Under 900px, the friendly note and the
 form editor. Security: no eval, no innerHTML in site or editor, everything sanitized,
 all URLs validated, secrets server-side only, RLS on every new table, rate limits on the
 form endpoint. The form editor and Stage 1 keep working as the fallback.
@@ -345,7 +354,7 @@ dialog) compared against the design.
 - [x] **M2 Canvas.** Normalized store and command/undo system, element overlays, drag and
       drop (panel and move), structure picker, context menu, copy/paste/duplicate/delete,
       Navigator, keyboard shortcuts, History.
-- [ ] **M3 Inspector.** Schema-driven control library, Content/Style/Advanced for the M1
+- [x] **M3 Inspector.** Schema-driven control library, Content/Style/Advanced for the M1
       widgets, responsive per-device values, hover states, units, scrubbing, Site settings
       (kit) panel with global references.
 - [ ] **M4 Direct manipulation.** Inline rich text with the floating toolbar, image resize

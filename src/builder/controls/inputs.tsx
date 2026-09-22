@@ -5,7 +5,7 @@
  * opacity and the global link, and the per-device switch with its override dot.
  */
 import { clsx } from "clsx";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
 import { IconDesktop, IconGlobe, IconPhone, IconTablet, IconX } from "@/components/icons.tsx";
 import type { Device, Size, SiteKit, Unit } from "@shared/builder/index.ts";
 import { isColorLiteral, parseKitRef, parseSize, resolveKitColor, sizeToCss } from "@kit/values.ts";
@@ -69,7 +69,9 @@ export function NumberInput({
   className,
   suffix,
   label,
+  ariaLabel,
 }: {
+  ariaLabel?: string;
   id?: string;
   value: number | undefined;
   inherited?: number;
@@ -84,11 +86,9 @@ export function NumberInput({
   /** When given, the label itself scrubs. */
   label?: ReactNode;
 }) {
-  const [text, setText] = useState(value === undefined ? "" : String(value));
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    if (!focused) setText(value === undefined ? "" : String(value));
-  }, [value, focused]);
+  // While the field has focus it shows what is typed; otherwise it shows the value.
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = draft ?? (value === undefined ? "" : String(value));
   const clamp = (next: number) => Math.min(max, Math.max(min, next));
   const commit = (raw: string) => {
     const parsed = Number.parseFloat(raw);
@@ -131,18 +131,19 @@ export function NumberInput({
       )}
       <input
         id={id}
+        aria-label={ariaLabel}
         type="text"
         inputMode="decimal"
         value={text}
         placeholder={placeholder ?? (inherited !== undefined ? String(inherited) : undefined)}
-        onFocus={() => setFocused(true)}
+        onFocus={() => setDraft(text)}
         onBlur={() => {
-          setFocused(false);
+          setDraft(null);
           commit(text);
           onCommit?.();
         }}
         onChange={(event) => {
-          setText(event.target.value);
+          setDraft(event.target.value);
           if (event.target.value.trim() !== "" && Number.isFinite(Number.parseFloat(event.target.value))) commit(event.target.value);
         }}
         onKeyDown={(event) => {
@@ -150,7 +151,7 @@ export function NumberInput({
             event.preventDefault();
             const base = value ?? inherited ?? 0;
             const next = round(clamp(base + (event.key === "ArrowUp" ? 1 : -1) * step * (event.shiftKey ? 10 : 1)), step);
-            setText(String(next));
+            setDraft(String(next));
             onChange(next);
           }
           if (event.key === "Enter") (event.target as HTMLInputElement).blur();
@@ -281,13 +282,13 @@ const withAlpha = (hex: string, alpha: number): string => (alpha >= 0.995 ? hex 
  * A colour: kit swatches (the globe marks a linked value), the browser's picker, opacity,
  * and Unlink to copy the kit value into the element.
  */
-export function ColorInput({ id, value, inherited, kit, onChange, onCommit, allowClear = true }: { id?: string; value: string | undefined; inherited?: string; kit: SiteKit; onChange: (value: string | undefined) => void; onCommit?: () => void; allowClear?: boolean }) {
+export function ColorInput({ id, value, inherited, kit, onChange, onCommit, allowClear = true, siteColors = true }: { id?: string; value: string | undefined; inherited?: string; kit: SiteKit; onChange: (value: string | undefined) => void; onCommit?: () => void; allowClear?: boolean; /** Offer the kit's colours as swatches (not when editing the kit's own colours). */ siteColors?: boolean }) {
   const shown = value ?? inherited;
   const ref = parseKitRef(shown);
   const literal = ref ? (resolveKitColor(kit, shown) ?? "#000000") : (shown ?? "");
   const { hex, alpha } = hexParts(isColorLiteral(literal) && literal.startsWith("#") ? literal : "#000000");
   const isTransparent = shown === "transparent";
-  const swatches = [...KIT_COLORS, ...kit.colors.custom.map((color) => ({ key: color.id, label: color.label, ref: `kit:color.custom.${color.id}` }))];
+  const swatches = !siteColors ? [] : [...KIT_COLORS, ...kit.colors.custom.map((color) => ({ key: color.id, label: color.label, ref: `kit:color.custom.${color.id}` }))];
   const inputId = useId();
   return (
     <div className="flex flex-col gap-2" data-testid="color-control">

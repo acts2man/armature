@@ -112,6 +112,20 @@ export function fontFamilyCss(family: string): string {
   return /[\s'"]/.test(trimmed) ? `"${trimmed.replace(/"/g, "")}", sans-serif` : `${trimmed}, sans-serif`;
 }
 
+/** A Google Fonts family name the kit will request: letters, digits and spaces only. */
+export const isSafeFontFamily = (family: string): boolean => /^[A-Za-z0-9 ]{1,60}$/.test(family.trim());
+
+/**
+ * One Google Fonts stylesheet for every kit font marked "google" (the only fonts the kit
+ * ever loads from elsewhere), or null when there are none.
+ */
+export function googleFontsHref(kit: SiteKit): string | null {
+  const families = Array.from(new Set(kit.fonts.custom.filter((font) => font.source === "google" && isSafeFontFamily(font.family)).map((font) => font.family.trim())));
+  if (families.length === 0) return null;
+  const query = families.map((family) => `family=${family.replace(/ /g, "+")}:wght@300;400;500;600;700;800`).join("&");
+  return `https://fonts.googleapis.com/css2?${query}&display=swap`;
+}
+
 /** A CSS identifier (id, class, custom property piece) with anything unsafe removed. */
 export const cssIdent = (value: string): string => value.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64);
 

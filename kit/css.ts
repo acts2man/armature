@@ -360,16 +360,33 @@ function dividerRules(sheet: Sheet, selector: string, props: DividerProps): void
 
 // --- elements ------------------------------------------------------------------------------------------
 
+/**
+ * Where a widget's Style tab lands. Most widgets style their own box; a button styles
+ * the link inside it and an image the picture, so a background or a border sits on
+ * what the visitor sees. Widgets added later register theirs.
+ */
+const styleTargets = new Map<string, string>([
+  ["button", ".ae-btn"],
+  ["image", "img"],
+]);
+export function registerStyleTarget(type: string, inner: string): void {
+  styleTargets.set(type, inner);
+}
+export const styleTargetOf = (type: string): string | undefined => styleTargets.get(type);
+
 export function elementRules(sheet: Sheet, element: Element, kit: SiteKit, options: CssOptions): void {
   const selector = `.ae-root .ae-${cssIdent(element.id)}`;
+  const inner = styleTargets.get(element.type);
+  const styleSelector = inner ? `${selector} ${inner}` : selector;
+  const hoverSelector = inner ? `${selector}:hover ${inner}` : `${selector}:hover`;
   const normal = styleDecls(element.style);
   for (const device of ["desktop", "tablet", "mobile"] as Device[]) {
-    for (const [property, value] of normal[device]) sheet.add(bucketFor(device), selector, property, value);
+    for (const [property, value] of normal[device]) sheet.add(bucketFor(device), styleSelector, property, value);
   }
   if (element.style.hover) {
     const hover = styleDecls(element.style.hover);
     for (const device of ["desktop", "tablet", "mobile"] as Device[]) {
-      for (const [property, value] of hover[device]) sheet.add(bucketFor(device), `${selector}:hover`, property, value);
+      for (const [property, value] of hover[device]) sheet.add(bucketFor(device), hoverSelector, property, value);
     }
   }
   sheet.responsive(`${selector}::before`, element.style.backgroundOverlay, overlayDecls);

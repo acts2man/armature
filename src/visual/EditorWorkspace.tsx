@@ -33,12 +33,16 @@ import {
   removeElement,
   seedLayout,
   setElementPath,
+  setKit,
+  setKitPath,
   setLayout,
   updateElement,
   type BuilderBaseline,
   type BuilderState,
 } from "@/builder/store.ts";
+import { SiteSettingsPanel } from "@/builder/SiteSettingsPanel.tsx";
 import { StructurePicker } from "@/builder/StructurePicker.tsx";
+import { withKitFont } from "@/builder/fonts.ts";
 import { useDrag, type DragSource } from "@/builder/useDrag.ts";
 import { createStructure, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
 import { IconCopy, IconEraser, IconEye, IconEyeOff, IconLock, IconPaste, IconPencil, IconTemplate, IconTrash, IconTree, IconUnlock } from "@/components/icons.tsx";
@@ -47,7 +51,7 @@ import { Button, Modal, useToast } from "@/components/ui.tsx";
 import { callFunction, type Failure } from "@/lib/functions.ts";
 import { fileToBase64, prepareImage } from "@/lib/resizeImage.ts";
 import type { Agency, Site } from "@/lib/types.ts";
-import { defaultSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
+import { defaultSiteKit, validateSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
 import type { ContentValue } from "@shared/contentFile.ts";
 import type { ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
 import type { PageDefinition, PageSection, SiteSchema } from "@shared/schema.ts";
@@ -391,6 +395,50 @@ export function EditorWorkspace({
   );
   /** For event handlers: the latest state through the ref. */
   const isLockedForMe = useCallback((id: string): boolean => lockedIn(builderRef.current, id), [lockedIn]);
+
+  const onModelDevice = useCallback((next: "desktop" | "tablet" | "mobile") => setDevice(next === "mobile" ? "phone" : next), []);
+
+  const inspectorActions = useMemo(
+    () => ({
+      onSelect: (id: string) => selectElement(id),
+      onSetPath: (id: string, path: string[], value: unknown, label: string, group?: string) => {
+        // A locked element keeps its words editable; its place and design are the agency's.
+        if (isLockedForMe(id) && (path[0] === "style" || path[0] === "advanced")) return;
+        builderCommand(
+          label,
+          pageSlug,
+          (current) => {
+            const next = setElementPath(current, id, pageSlug, path, value);
+            if (!next) return null;
+            // A Google font chosen for an element joins the kit's font list, which the site loads.
+            return path[path.length - 1] === "fontFamily" ? setKit(next, withKitFont(next.kit, value)) : next;
+          },
+          group,
+        );
+      },
+      onEditOnPage: (id: string) => send({ type: "armature:element:edit:start", id }),
+      onRename: (id: string, label: string) => builderCommand("Renamed element", pageSlug, (current) => setElementPath(current, id, pageSlug, ["label"], label || undefined), `rename:${id}`),
+    }),
+    [builderCommand, isLockedForMe, pageSlug, selectElement, send],
+  );
+
+  /** A change to the site kit (Site settings). An edit that would make the kit invalid is dropped. */
+  const writeKit = useCallback(
+    (path: readonly string[], value: unknown, label: string, group?: string) =>
+      builderCommand(
+        label,
+        pageSlug,
+        (current) => {
+          let next = setKitPath(current, path, value);
+          const last = path[path.length - 1];
+          if (last === "fontFamily" || (path[0] === "fonts" && (last === "heading" || last === "body"))) next = setKit(next, withKitFont(next.kit, value));
+          if (next === current) return null;
+          return validateSiteKit(next.kit).errors.length === 0 ? next : null;
+        },
+        group ? `kit:${group}` : undefined,
+      ),
+    [builderCommand, pageSlug],
+  );
 
   const insertAt = useCallback(
     (element: Element, target: { parentId: string | null; index: number }, label: string) => {
@@ -947,7 +995,7 @@ export function EditorWorkspace({
       <div className="flex min-h-0 flex-1">
         <IconRail siteId={site.id} isStaff={isStaff} />
         {builder ? (
-          <BuilderPanel tab={builderTab} tabs={["elements", "navigator", "pages", "history"]} onTab={setBuilderTab}>
+          <BuilderPanel tab={builderTab} tabs={["elements", "navigator", "pages", "site"]} onTab={setBuilderTab}>
             {builderTab === "elements" && (
               <ElementsPanel
                 isStaff={isStaff}
@@ -988,6 +1036,7 @@ export function EditorWorkspace({
               </div>
             )}
             {builderTab === "history" && <HistoryPanel history={history} onJump={(steps) => setHistory((current) => jumpTo(current, steps))} />}
+            {builderTab === "site" && <SiteSettingsPanel kit={builderView.kit} write={writeKit} device={modelDevice(device)} onDevice={onModelDevice} isStaff={isStaff} />}
           </BuilderPanel>
         ) : (
           <LeftPanel
@@ -1109,15 +1158,11 @@ export function EditorWorkspace({
                 locked={lockedIn(builderView, selectedId)}
                 agencyName={agencyName}
                 requestChange={() => requestChange("")}
-                actions={{
-                  onSelect: (id) => selectElement(id),
-                  onSetPath: (id, path, value, label, group) => {
-                    if (isLockedForMe(id) && path[0] !== "label") return;
-                    builderCommand(label, pageSlug, (current) => setElementPath(current, id, pageSlug, path, value), group);
-                  },
-                  onEditOnPage: (id) => send({ type: "armature:element:edit:start", id }),
-                  onRename: (id, label) => builderCommand("Renamed element", pageSlug, (current) => setElementPath(current, id, pageSlug, ["label"], label || undefined), `rename:${id}`),
-                }}
+                device={modelDevice(device)}
+                onDevice={onModelDevice}
+                kit={builderView.kit}
+                isStaff={isStaff}
+                actions={inspectorActions}
               />
             ) : undefined
           }

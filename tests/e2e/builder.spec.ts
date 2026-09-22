@@ -301,3 +301,123 @@ function lockedLayouts(): Record<string, unknown> {
   walk(layouts["home"]!.root);
   return layouts;
 }
+
+// --- milestone 3: the inspector ----------------------------------------------------------------
+
+test.describe("the inspector", () => {
+  test("a tablet value overrides desktop, mobile inherits it, and the dot resets it", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const heading = frame.locator(".ae-hdbuilds");
+    await heading.click();
+    await page.getByTestId("inspector-tab-style").click();
+    await page.getByRole("button", { name: /Desktop view/ }).click();
+    const typography = page.getByTestId("group-typography");
+    const size = typography.getByLabel("Size", { exact: true });
+    await size.fill("40");
+    await size.press("Tab");
+    await expect(heading).toHaveCSS("font-size", "40px");
+    // The device icon on the control switches the whole editor to the next device.
+    await typography.getByTestId("device-switch").first().click();
+    await expect(page.getByRole("button", { name: /Tablet view/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(size).toHaveValue("");
+    await expect(size).toHaveAttribute("placeholder", "40");
+    await size.fill("30");
+    await size.press("Tab");
+    await expect(heading).toHaveCSS("font-size", "30px");
+    await expect(typography.getByTestId("override-dot")).toHaveCount(1);
+    await page.getByRole("button", { name: /Phone view/ }).click();
+    await expect(heading).toHaveCSS("font-size", "30px");
+    await expect(size).toHaveAttribute("placeholder", "30");
+    await expect(typography.getByTestId("override-dot")).toHaveCount(0);
+    await page.getByRole("button", { name: /Desktop view/ }).click();
+    await expect(heading).toHaveCSS("font-size", "40px");
+    await page.getByRole("button", { name: /Tablet view/ }).click();
+    await typography.getByTestId("override-dot").click();
+    await expect(heading).toHaveCSS("font-size", "40px");
+    await expect(page.getByTestId("draft-status")).toContainText("unpublished change");
+  });
+
+  test("hover styles, spacing on the Advanced tab, and the agency-only groups", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "btnbuild");
+    await page.getByTestId("inspector-tab-style").click();
+    await page.getByTestId("style-state-hover").click();
+    const background = page.getByTestId("group-background");
+    await background.getByTestId("background-kind").selectOption("color");
+    // A new colour background starts linked to the site's primary colour; unlink to type one.
+    await expect(background.getByTestId("color-text")).toHaveValue("primary (site)");
+    await background.getByTestId("unlink-color").click();
+    await background.getByTestId("color-text").fill("#cc0000");
+    await page.getByLabel("Transition (ms)").fill("0");
+    await page.getByLabel("Transition (ms)").press("Tab");
+    await expect.poll(() => frame.locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain(".ae-btnbuild:hover .ae-btn { background-color: #cc0000");
+    await frame.locator(".ae-btnbuild .ae-btn").hover();
+    await expect(frame.locator(".ae-btnbuild .ae-btn")).toHaveCSS("background-color", "rgb(204, 0, 0)");
+
+    await page.getByTestId("inspector-tab-advanced").click();
+    const top = page.getByLabel("Padding top");
+    await top.fill("24");
+    await top.press("Tab");
+    // Linked sides: one value sets all four.
+    await expect(frame.locator(".ae-btnbuild")).toHaveCSS("padding-left", "24px");
+    await expect(frame.locator(".ae-btnbuild")).toHaveCSS("padding-top", "24px");
+    await expect(page.getByTestId("group-custom-css")).toBeVisible();
+    await expect(page.getByTestId("group-attributes")).toBeVisible();
+  });
+
+  test("a client does not see the agency-only groups", async ({ page }) => {
+    await openEditor(page, { role: "client", editingLevel: "builder" });
+    await waitForReady(page);
+    await siteFrame(page).locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await page.getByTestId("inspector-tab-advanced").click();
+    await expect(page.getByTestId("group-layout")).toBeVisible();
+    await expect(page.getByTestId("group-custom-css")).toHaveCount(0);
+    await expect(page.getByTestId("group-attributes")).toHaveCount(0);
+  });
+
+  test("changing a site colour restyles everything linked to it, and undo brings it back", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const button = frame.locator(".ae-btnbuild .ae-btn");
+    await expect(button).toHaveCSS("background-color", "rgb(31, 58, 46)");
+    await page.getByTestId("tab-site").click();
+    const colours = page.getByTestId("group-global-colours");
+    await colours.getByTestId("color-text").first().fill("#aa0000");
+    await expect(button).toHaveCSS("background-color", "rgb(170, 0, 0)");
+    await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
+    await page.getByTestId("add-colour").click();
+    await expect(page.getByTestId("custom-colours").getByLabel("Colour name")).toHaveCount(2);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(button).toHaveCSS("background-color", "rgb(31, 58, 46)");
+  });
+
+  test("the icon picker loads the icon set on demand and saves the icon into the button", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await page.getByTestId("group-icon").getByRole("button", { name: "Icon" }).click();
+    await page.getByRole("button", { name: "Choose an icon" }).click();
+    await page.getByLabel("Search icons").fill("arrow right");
+    await page.getByRole("option", { name: "ArrowRight", exact: true }).click();
+    await expect(frame.locator(".ae-btnbuild svg")).toHaveCount(1);
+    await expect(page.getByTestId("icon-picker")).toContainText("ArrowRight");
+  });
+
+  test("a Google font chosen for an element joins the site's fonts and loads on the site", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-hdbuilds").click();
+    await page.getByTestId("inspector-tab-style").click();
+    await page.getByTestId("group-typography").getByTestId("font-picker").locator("button").first().click();
+    await page.getByLabel("Search fonts").fill("Fraunces");
+    await page.getByRole("option", { name: /Fraunces/ }).click();
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("font-family", /Fraunces/);
+    await expect(frame.locator("link[data-armature-fonts]")).toHaveAttribute("href", /family=Fraunces/);
+    await page.getByTestId("tab-site").click();
+    await expect(page.getByTestId("custom-fonts")).toContainText("Fraunces");
+  });
+});

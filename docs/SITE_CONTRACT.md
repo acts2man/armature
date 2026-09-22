@@ -533,6 +533,14 @@ skipped, never silently.
   element and stripped of `@import`, `javascript:`, `expression(` and off-site `url()`.
 - Rich text is stored as TipTap-compatible JSON and rendered by the kit's own small
   whitelist renderer. Icons are saved as SVG nodes, so the site needs no icon library.
+- Fonts: the kit loads the fonts listed in `site-kit.json` under `fonts.custom` with
+  `"source": "google"` as one `<link rel="stylesheet">` to `fonts.googleapis.com` in the
+  document head (family names of letters, digits and spaces only). A site with a
+  Content-Security-Policy must allow `https://fonts.googleapis.com` in `style-src` and
+  `https://fonts.gstatic.com` in `font-src`, or list no Google fonts and load its own.
+- A widget's Style values land on what the visitor sees: a button's on its link
+  (`.ae-<id> .ae-btn`), an image's on the picture (`.ae-<id> img`), everything else on the
+  element's own box. Advanced spacing and size always apply to the element's box.
 - Images carry `width` and `height`; the first picture on a page is eager with a high
   fetch priority, the rest lazy. Entrance animations use an IntersectionObserver and are
   skipped under `prefers-reduced-motion`.

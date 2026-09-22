@@ -10,7 +10,7 @@ import { installEntranceAnimations } from "./motion.ts";
 import { safeAttributeName } from "./sanitize.ts";
 import type { KitSnapshot, KitStore } from "./store.ts";
 import type { Element, LayoutDoc, SiteSectionProps } from "./types.ts";
-import { cssIdent } from "./values.ts";
+import { cssIdent, googleFontsHref } from "./values.ts";
 import { getWidget } from "./widgets.tsx";
 
 export type KitRuntime = {
@@ -152,12 +152,36 @@ function usePageSeo(layout: LayoutDoc | undefined, builderPage: boolean) {
   }, [layout, builderPage]);
 }
 
+/**
+ * The kit's Google fonts as one <link> in the document head (created with the DOM API,
+ * updated in place when the kit's font list changes, removed when it empties).
+ */
+function useKitFonts(kit: KitSnapshot["kit"]): void {
+  const href = useMemo(() => googleFontsHref(kit), [kit]);
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    let link = document.head.querySelector<HTMLLinkElement>("link[data-armature-fonts]");
+    if (!href) {
+      link?.remove();
+      return;
+    }
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.setAttribute("data-armature-fonts", "");
+      document.head.appendChild(link);
+    }
+    if (link.getAttribute("href") !== href) link.setAttribute("href", href);
+  }, [href]);
+}
+
 /** Render one layout by slug (or a layout object) inside the kit's scope. */
 export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: LayoutDoc }) {
   const snapshot = useKitSnapshot();
   const layout = given ?? snapshot.layouts[slug];
   const builderPage = !getKitRuntime().codedSlugs.has(slug);
   const css = useMemo(() => (layout ? pageCss(layout, snapshot.kit, { editMode: snapshot.editMode }) : ""), [layout, snapshot.kit, snapshot.editMode]);
+  useKitFonts(snapshot.kit);
   const root = useRef<HTMLDivElement>(null);
   usePageSeo(layout, builderPage);
   useEffect(() => {

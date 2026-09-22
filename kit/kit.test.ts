@@ -137,7 +137,7 @@ describe("the CSS generator", () => {
   it("generates hover rules, hidden rules per device and the editor's 40% variant", () => {
     const button = element({ id: "hoverbtn", type: "button", props: { text: "Go" }, style: { background: { kind: "color", color: "#000000" }, hover: { background: { kind: "color", color: "kit:color.accent" }, opacity: 0.8 }, transition: 300 }, advanced: { hidden: { mobile: true, desktop: true } } });
     const css = elementsCss([button], kit);
-    expect(css).toContain(".ae-root .ae-hoverbtn:hover { background-color: var(--ae-color-accent); background-image: none; opacity: 0.8; }");
+    expect(css).toContain(".ae-root .ae-hoverbtn:hover .ae-btn { background-color: var(--ae-color-accent); background-image: none; opacity: 0.8; }");
     expect(css).toContain("transition: all 300ms ease");
     expect(css).toMatch(/@media \(min-width: 1025px\) \{\n\s+\.ae-root \.ae-hoverbtn \{ display: none; \}/);
     expect(css).toMatch(/@media \(max-width: 767px\) \{\n\s+\.ae-root \.ae-hoverbtn \{ display: none; \}/);

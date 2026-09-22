@@ -26,7 +26,7 @@ export default defineConfig([
   },
   {
     // The site kit is copied into other projects and mixes components with helpers on purpose.
-    files: ["kit/**/*.{ts,tsx}", "src/builder/widgets/**/*.{ts,tsx}"],
+    files: ["kit/**/*.{ts,tsx}", "src/builder/widgets/**/*.{ts,tsx}", "src/builder/controls/**/*.{ts,tsx}"],
     rules: { "react-refresh/only-export-components": "off" },
   },
   {
