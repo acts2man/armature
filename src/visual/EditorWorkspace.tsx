@@ -30,6 +30,8 @@ import {
   changedPages,
   findElement,
   insertElement,
+  kitChanged,
+  mediaChanged,
   isContainerType,
   moveElement,
   removeElement,
@@ -56,7 +58,8 @@ import { fileToBase64, prepareImage } from "@/lib/resizeImage.ts";
 import type { Agency, Site } from "@/lib/types.ts";
 import { defaultSiteKit, setAt, validateSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
 import type { ContentValue } from "@shared/contentFile.ts";
-import type { ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
+import type { BuilderPublishRequest, BuilderPublishResponse, ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
+import type { Resolution } from "@shared/builder/merge.ts";
 import type { PageDefinition, PageSection, SiteSchema } from "@shared/schema.ts";
 import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type MappedField, type RichTextState, type ShortcutKey } from "@shared/visualProtocol.ts";
 import { Canvas } from "./Canvas.tsx";
@@ -142,7 +145,7 @@ function rootsForLabels(schema: SiteSchema, labels: string[]): FieldPath[] {
 
 type Selection = { kind: "field"; path: FieldPath } | { kind: "element"; id: string; slug: string } | null;
 
-const initialState = (baseline: BuilderBaseline): EditorState => ({ content: emptyDraft(), builder: { layouts: baseline.layouts, deletedPages: [], kit: baseline.kit } });
+const initialState = (baseline: BuilderBaseline): EditorState => ({ content: emptyDraft(), builder: { layouts: baseline.layouts, deletedPages: [], kit: baseline.kit, media: baseline.media } });
 
 export function EditorWorkspace({
   site,
@@ -174,7 +177,10 @@ export function EditorWorkspace({
   const mod = modKey();
 
   // --- the baseline: what is published --------------------------------------------------------
-  const baseline = useMemo<BuilderBaseline>(() => ({ layouts: content.layouts ?? {}, kit: content.siteKit ?? defaultSiteKit() }), [content.layouts, content.siteKit]);
+  const baseline = useMemo<BuilderBaseline>(
+    () => ({ layouts: content.layouts ?? {}, kit: content.siteKit ?? defaultSiteKit(), media: Object.fromEntries((content.media ?? []).filter((file) => file.alt).map((file) => [file.path, { alt: file.alt }])) }),
+    [content.layouts, content.siteKit, content.media],
+  );
   const editingLevel = content.editingLevel ?? "content";
   const canBuild = isStaff || editingLevel === "builder";
 
@@ -257,10 +263,17 @@ export function EditorWorkspace({
 
   // Fresh content (after a publish or a reload) may already carry some of the draft: rebase it.
   const [seen, setSeen] = useState({ commit: content.commitSha, baseline });
+  // The commit a builder publish just made: when it arrives, the published state is the new baseline.
+  const [publishedCommit, setPublishedCommit] = useState<string | null>(null);
   if (seen.commit !== content.commitSha) {
     const stored = parseEditorDraft(serializeEditorDraft(state, seen.baseline));
     setSeen({ commit: content.commitSha, baseline });
-    setHistory(reset(stored ? restoreEditorDraft(stored, baseline, published, schema) : initialState(baseline)));
+    if (publishedCommit && publishedCommit === content.commitSha) {
+      setPublishedCommit(null);
+      setHistory(reset(initialState(baseline)));
+    } else {
+      setHistory(reset(stored ? restoreEditorDraft(stored, baseline, published, schema) : initialState(baseline)));
+    }
     setSeeds({});
   }
 
@@ -907,17 +920,34 @@ export function EditorWorkspace({
   const [publishState, setPublishState] = useState<PublishState>({ step: "summary" });
   const summary = useMemo(() => summarizeDraft(draft, schema), [draft, schema]);
   const publish = useMutation({
-    mutationFn: async (): Promise<PublishBatchResponse | Failure> => {
+    mutationFn: async (resolutions: Record<string, Resolution> = {}): Promise<PublishBatchResponse | BuilderPublishResponse | Failure> => {
       setPublishState({ step: "publishing", stage: "Checking your changes against the site's rules…" });
       const request = toPublishRequest(draft, schema, site.id, content.commitSha);
       window.setTimeout(() => setPublishState((current) => (current.step === "publishing" ? { step: "publishing", stage: "Committing to the site's repository…" } : current)), 900);
+      // Layouts, the kit or media metadata changed: the builder publish carries everything in one commit.
+      const builderChanges = layoutChanges.length > 0 || kitChanged(state.builder, baseline) || mediaChanged(state.builder, baseline);
+      if (protocol === 2 && builderChanges) {
+        const layouts: Record<string, LayoutDoc | null> = {};
+        for (const change of layoutChanges) layouts[change.slug] = change.kind === "deleted" ? null : (state.builder.layouts[change.slug] ?? null);
+        const builderRequest: BuilderPublishRequest = {
+          site_id: site.id,
+          baseCommitSha: content.commitSha,
+          pages: request.pages,
+          layouts,
+          kit: kitChanged(state.builder, baseline) ? state.builder.kit : null,
+          media: mediaChanged(state.builder, baseline) ? state.builder.media : null,
+          resolutions,
+        };
+        return callFunction<BuilderPublishResponse>("builder-publish", builderRequest);
+      }
       return callFunction<PublishBatchResponse>("content-publish-batch", request);
     },
     onSuccess: async (result) => {
       if (result.ok) {
-        const publishedCount = changed.size;
+        const publishedCount = count;
+        if ("layouts" in result) setPublishedCommit(result.commitSha);
         setHistory((current) => reset({ ...current.present, content: emptyDraft() }));
-        setPublishState({ step: "done", commitSha: result.commitSha, commitUrl: result.commitUrl, count: publishedCount });
+        setPublishState({ step: "done", commitSha: result.commitSha, commitUrl: result.commitUrl, count: publishedCount, merged: "merged" in result && result.merged });
         await refetchContent();
         void queryClient.invalidateQueries({ queryKey: ["publishes"] });
         void queryClient.invalidateQueries({ queryKey: ["site-publishes"] });
@@ -1249,7 +1279,8 @@ export function EditorWorkspace({
         summary={summary}
         siteName={site.name}
         onClose={() => setPublishOpen(false)}
-        onPublish={() => publish.mutate()}
+        onPublish={() => publish.mutate({})}
+        onPublishWithChoices={(choices: Record<string, Resolution>) => publish.mutate(choices)}
         onReloadKeepRest={() => {
           const failure = publishState.step === "conflict" ? publishState.failure : null;
           const roots = rootsForLabels(schema, failure?.fields ?? []);
@@ -1260,10 +1291,19 @@ export function EditorWorkspace({
         }}
         onDiscardAndReload={() => {
           contentCommand("Discarded changes", discardAll);
+          setHistory(reset(initialState(baseline)));
           setPublishOpen(false);
           void refetchContent();
         }}
-        layoutChanges={layoutChanges.length}
+        builder={
+          protocol === 2
+            ? {
+                pages: layoutChanges.map((change) => ({ ...change, label: builderView.layouts[change.slug]?.label ?? schema.pages.find((item) => item.slug === change.slug)?.label ?? baseline.layouts[change.slug]?.label ?? change.slug })),
+                kit: kitChanged(state.builder, baseline),
+                media: mediaChanged(state.builder, baseline),
+              }
+            : undefined
+        }
       />
       <ShortcutsSheet open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} builder={builder} />
       <RestorePrompt

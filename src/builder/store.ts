@@ -9,6 +9,7 @@
  * object, so an unchanged page costs nothing. Every command returns a new state and
  * never mutates; unchanged branches are shared.
  */
+import type { MediaMeta } from "@shared/publishTypes.ts";
 import { CONTAINER_TYPES, newElementId, withFreshIds, type Advanced, type Element, type LayoutDoc, type SiteKit, type Style } from "@shared/builder/index.ts";
 import { deepEqual } from "@shared/contentFile.ts";
 import type { SlotInfo } from "@shared/visualProtocol.ts";
@@ -18,6 +19,8 @@ export type BuilderState = {
   /** Builder pages removed in the draft (their layout file is deleted on publish). */
   deletedPages: string[];
   kit: SiteKit;
+  /** Alt text per picture (content/media.json), used as the default when a picture is inserted. */
+  media?: MediaMeta;
 };
 
 /** Where an element sits: its parent element id, or the page root. */
@@ -290,7 +293,7 @@ export function createElement(type: string, props: Record<string, unknown>, extr
 
 // --- comparing with what is published ---------------------------------------------------------------------
 
-export type BuilderBaseline = { layouts: Record<string, LayoutDoc>; kit: SiteKit };
+export type BuilderBaseline = { layouts: Record<string, LayoutDoc>; kit: SiteKit; media?: MediaMeta };
 
 /** Pages whose layout differs from the published one (or is new), plus deleted pages and the kit. */
 export function changedPages(state: BuilderState, baseline: BuilderBaseline): { slug: string; kind: "changed" | "new" | "deleted" }[] {
@@ -306,6 +309,15 @@ export function changedPages(state: BuilderState, baseline: BuilderBaseline): { 
 }
 
 export const kitChanged = (state: BuilderState, baseline: BuilderBaseline): boolean => !deepEqual(state.kit, baseline.kit);
+export const mediaChanged = (state: BuilderState, baseline: BuilderBaseline): boolean => !deepEqual(state.media ?? {}, baseline.media ?? {});
+
+/** Set (or clear) one picture's default alt text. */
+export function setMediaAlt(state: BuilderState, path: string, alt: string): BuilderState {
+  const media = { ...(state.media ?? {}) };
+  if (alt.trim() === "") delete media[path];
+  else media[path] = { alt: alt.slice(0, 500) };
+  return deepEqual(media, state.media ?? {}) ? state : { ...state, media };
+}
 
 /** A seeded layout the person never touched: only site sections in their default order, nothing else. */
 export function isSeedOnly(layout: LayoutDoc): boolean {

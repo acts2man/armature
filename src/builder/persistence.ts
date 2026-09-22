@@ -9,7 +9,8 @@ import type { SiteSchema } from "@shared/schema.ts";
 import { emptyDraft, isEmptyDraft, parseStoredDraft, reconcile, type Draft } from "@/visual/draftStore.ts";
 import type { ContentTree } from "@shared/contentFile.ts";
 import type { EditorState } from "./history.ts";
-import { changedPages, stripMeta, type BuilderBaseline, type BuilderState } from "./store.ts";
+import { changedPages, mediaChanged, stripMeta, type BuilderBaseline, type BuilderState } from "./store.ts";
+import type { MediaMeta } from "@shared/publishTypes.ts";
 
 export const DRAFT_VERSION = 2;
 export const draftKey = (siteId: string, userId: string): string => `armature:builder:draft:${siteId}:${userId}`;
@@ -22,26 +23,27 @@ export type StoredEditorDraft = {
   content: Draft;
   layouts: Record<string, LayoutDoc | null>;
   kit?: SiteKit;
+  media?: MediaMeta;
 };
 
 /** Only what differs from the baseline, so the stored draft stays small and merges cleanly. */
-export function diffBuilder(state: BuilderState, baseline: BuilderBaseline): { layouts: Record<string, LayoutDoc | null>; kit?: SiteKit } {
+export function diffBuilder(state: BuilderState, baseline: BuilderBaseline): { layouts: Record<string, LayoutDoc | null>; kit?: SiteKit; media?: MediaMeta } {
   const layouts: Record<string, LayoutDoc | null> = {};
   for (const change of changedPages(state, baseline)) {
     layouts[change.slug] = change.kind === "deleted" ? null : (state.layouts[change.slug] ?? null);
   }
-  return deepEqual(state.kit, baseline.kit) ? { layouts } : { layouts, kit: state.kit };
+  return { layouts, ...(deepEqual(state.kit, baseline.kit) ? {} : { kit: state.kit }), ...(mediaChanged(state, baseline) ? { media: state.media ?? {} } : {}) };
 }
 
 export function serializeEditorDraft(state: EditorState, baseline: BuilderBaseline, savedAt = new Date()): string {
   const diff = diffBuilder(state.builder, baseline);
-  const stored: StoredEditorDraft = { version: DRAFT_VERSION, savedAt: savedAt.toISOString(), content: state.content, layouts: diff.layouts, ...(diff.kit ? { kit: diff.kit } : {}) };
+  const stored: StoredEditorDraft = { version: DRAFT_VERSION, savedAt: savedAt.toISOString(), content: state.content, layouts: diff.layouts, ...(diff.kit ? { kit: diff.kit } : {}), ...(diff.media ? { media: diff.media } : {}) };
   return JSON.stringify(stored);
 }
 
 export const isEmptyEditorDraft = (state: EditorState, baseline: BuilderBaseline): boolean => {
   const diff = diffBuilder(state.builder, baseline);
-  return isEmptyDraft(state.content) && Object.keys(diff.layouts).length === 0 && !diff.kit;
+  return isEmptyDraft(state.content) && Object.keys(diff.layouts).length === 0 && !diff.kit && !diff.media;
 };
 
 /** Every change in the draft, for the status line and the restore prompt. */
@@ -49,10 +51,20 @@ export function draftChangeCount(state: EditorState, baseline: BuilderBaseline):
   const diff = diffBuilder(state.builder, baseline);
   const fields = new Set(Object.keys(state.content.fields));
   for (const path of Object.keys(state.content.images)) fields.add(path.replace(/\[\d+\]\.[a-z0-9_]+$/, ""));
-  return fields.size + Object.keys(diff.layouts).length + (diff.kit ? 1 : 0);
+  return fields.size + Object.keys(diff.layouts).length + (diff.kit ? 1 : 0) + (diff.media ? 1 : 0);
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Alt text per picture path, keeping only well-formed entries. */
+function parseMedia(raw: unknown): MediaMeta | undefined {
+  if (!isRecord(raw)) return undefined;
+  const out: MediaMeta = {};
+  for (const [path, entry] of Object.entries(raw)) {
+    if (/^\/assets\/[A-Za-z0-9._\-/]+$/.test(path) && isRecord(entry) && typeof entry["alt"] === "string") out[path] = { alt: entry["alt"].slice(0, 500) };
+  }
+  return out;
+}
 
 /** A stored draft (v2, or a Stage 1 v1 draft lifted into v2), or null. Never throws. */
 export function parseEditorDraft(raw: string | null): StoredEditorDraft | null {
@@ -76,8 +88,9 @@ export function parseEditorDraft(raw: string | null): StoredEditorDraft | null {
       }
     }
     const kit = parsed.kit ? validateSiteKit(parsed.kit).value : undefined;
-    if (isEmptyDraft(content) && Object.keys(layouts).length === 0 && !kit) return null;
-    return { version: DRAFT_VERSION, savedAt: parsed.savedAt, content, layouts, ...(kit ? { kit } : {}) };
+    const media = parseMedia(parsed.media);
+    if (isEmptyDraft(content) && Object.keys(layouts).length === 0 && !kit && !media) return null;
+    return { version: DRAFT_VERSION, savedAt: parsed.savedAt, content, layouts, ...(kit ? { kit } : {}), ...(media ? { media } : {}) };
   } catch {
     return null;
   }
@@ -99,6 +112,6 @@ export function restoreEditorDraft(stored: StoredEditorDraft, baseline: BuilderB
   }
   return {
     content: reconcile(stored.content, published, schema),
-    builder: { layouts, deletedPages, kit: stored.kit && !deepEqual(stored.kit, baseline.kit) ? stored.kit : baseline.kit },
+    builder: { layouts, deletedPages, kit: stored.kit && !deepEqual(stored.kit, baseline.kit) ? stored.kit : baseline.kit, media: stored.media ?? baseline.media },
   };
 }

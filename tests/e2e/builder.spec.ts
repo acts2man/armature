@@ -697,3 +697,53 @@ test.describe("the widget library in the editor", () => {
     await expect(page.getByTestId("element-html")).toHaveCount(0);
   });
 });
+
+// --- milestone 6: pages and platform ----------------------------------------------------------------
+
+test.describe("the builder publish", () => {
+  test("layouts and site settings go out in one publish, and the canvas keeps them", async ({ page }) => {
+    const state = await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-hdbuilds").dblclick();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" this year");
+    await page.keyboard.press("Enter");
+    await page.getByTestId("tab-site").click();
+    await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#aa0000");
+    await expect(page.getByTestId("draft-status")).toContainText("2 unpublished changes");
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    const builderList = page.getByTestId("publish-builder");
+    await expect(builderList).toContainText("Home");
+    await expect(builderList).toContainText("Layout changed");
+    await expect(builderList).toContainText("Site settings");
+    await page.getByTestId("publish-confirm").click();
+    await expect(page.getByTestId("publish-done")).toContainText("Published 2 changes");
+    expect(state.builderPublishRequests).toHaveLength(1);
+    const request = state.builderPublishRequests[0] as { layouts: Record<string, { root: unknown[] }>; kit: { colors: { primary: string } }; baseCommitSha: string };
+    expect(Object.keys(request.layouts)).toEqual(["home"]);
+    expect(JSON.stringify(request.layouts["home"])).toContain("Recent builds this year");
+    expect(request.kit.colors.primary).toBe("#aa0000");
+    expect(request.baseCommitSha).toMatch(/^[0-9a-f]{40}$/);
+    await page.getByRole("button", { name: "Done" }).click();
+    await expect(page.getByTestId("draft-status")).toContainText("Nothing to publish");
+    await expect(frame.locator(".ae-hdbuilds")).toHaveText("Recent builds this year");
+  });
+
+  test("a layout conflict names the element and publishes with the person's choice", async ({ page }) => {
+    const state = await openBuilder(page, { builderPublish: "conflict-once" });
+    const frame = siteFrame(page);
+    await frame.locator(".ae-hdbuilds").dblclick();
+    await page.keyboard.press("End");
+    await page.keyboard.type("!");
+    await page.keyboard.press("Enter");
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await page.getByTestId("publish-confirm").click();
+    const conflict = page.getByTestId("publish-conflict");
+    await expect(conflict).toContainText('Both you and someone else changed heading "Recent builds"');
+    await expect(page.getByTestId("publish-with-choices")).toBeDisabled();
+    await conflict.getByLabel("Keep mine").check();
+    await page.getByTestId("publish-with-choices").click();
+    await expect(page.getByTestId("publish-done")).toContainText("merged with theirs");
+    expect((state.builderPublishRequests[1] as { resolutions: Record<string, string> }).resolutions).toEqual({ "layout:home:hdbuilds": "mine" });
+  });
+});

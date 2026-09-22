@@ -44,11 +44,16 @@ export type MockOptions = {
   editingLevel?: "content" | "style" | "builder";
   /** Layouts returned by content-get; defaults to the demo site's files. */
   layouts?: Record<string, unknown>;
+  /** builder-publish: "ok" (default), or "conflict-once" (a layout conflict until the person chooses). */
+  builderPublish?: "ok" | "conflict-once";
 };
 
 export type MockState = {
   publishRequests: unknown[];
+  builderPublishRequests: Record<string, unknown>[];
   contentGets: number;
+  /** Rows written to REST tables (drafts, templates), by table. */
+  rows: Record<string, Record<string, unknown>[]>;
 };
 
 const base64url = (value: string) => Buffer.from(value).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -85,7 +90,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     created_at: "2026-09-01T00:00:00Z",
   };
 
-  const state: MockState = { publishRequests: [], contentGets: 0 };
+  const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: {} };
   // The content "in the repository": a batch publish updates it, as a real one would.
   const content = JSON.parse(JSON.stringify(options.content ?? demoContent)) as Record<string, Record<string, Record<string, unknown>>>;
   const layouts = JSON.parse(JSON.stringify(options.layouts ?? demoLayouts)) as Record<string, unknown>;
@@ -94,6 +99,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     { path: "/assets/team.svg", bytes: 1800, kind: "image", alt: "" },
   ];
   let commitSha = COMMIT_SHA;
+  let siteKit: unknown = demoKit;
 
   // Nothing in these tests may leave the machine (fonts and the like).
   if (!options.allowFonts) await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
@@ -156,7 +162,31 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
       switch (name) {
         case "content-get":
           state.contentGets += 1;
-          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], layouts, siteKit: demoKit, media, editingLevel: options.editingLevel ?? "content" });
+          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], layouts, siteKit, media, editingLevel: options.editingLevel ?? "content" });
+        case "builder-publish": {
+          state.builderPublishRequests.push(body);
+          const resolutions = (body["resolutions"] ?? {}) as Record<string, string>;
+          if (options.builderPublish === "conflict-once" && !resolutions["layout:home:hdbuilds"]) {
+            return json(route, {
+              ok: false,
+              code: "conflict",
+              message: "Someone else published changes to the same thing while you were editing.",
+              fields: ['Both you and someone else changed heading "Recent builds"'],
+              conflicts: [{ key: "layout:home:hdbuilds", page: "home", elementId: "hdbuilds", label: 'Both you and someone else changed heading "Recent builds"' }],
+            });
+          }
+          for (const page of (body["pages"] ?? []) as { slug: string; fields: { section: string; field: string; value: unknown }[] }[]) {
+            for (const field of page.fields) ((content[page.slug] ??= {})[field.section] ??= {})[field.field] = field.value;
+          }
+          const written = Object.keys((body["layouts"] ?? {}) as Record<string, unknown>);
+          for (const [slug, layout] of Object.entries((body["layouts"] ?? {}) as Record<string, unknown>)) {
+            if (layout === null) delete layouts[slug];
+            else layouts[slug] = layout;
+          }
+          if (body["kit"]) siteKit = body["kit"];
+          commitSha = "b0b0b0b0b1b1b1b1b2b2b2b2b3b3b3b3b4b4b4b4";
+          return json(route, { ok: true, commitSha, commitUrl: `https://github.com/acme/alder-stone/commit/${commitSha}`, fields: [], images: [], slugs: written, layouts: written, kit: !!body["kit"], media: !!body["media"], merged: options.builderPublish === "conflict-once" });
+        }
         case "content-publish-batch":
           state.publishRequests.push(body);
           if (options.publish === "conflict") {

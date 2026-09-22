@@ -24,7 +24,8 @@ export type FunctionName =
   | "client-create"
   | "password-set"
   | "content-publish-batch"
-  | "site-embed-check";
+  | "site-embed-check"
+  | "builder-publish";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });
 

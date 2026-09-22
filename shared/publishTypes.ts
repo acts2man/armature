@@ -25,7 +25,12 @@ export type Failure = {
   message: string;
   /** For conflicts: the human labels of the fields someone else changed. */
   fields?: string[];
+  /** Builder publish conflicts: what both sides changed, keyed for a "mine" / "theirs" choice. */
+  conflicts?: ConflictItem[];
 };
+
+/** One element (or kit value, or page) both the editor and someone else changed. */
+export type ConflictItem = { key: string; label: string; page?: string; elementId?: string };
 
 export const isFailure = (value: unknown): value is Failure =>
   typeof value === "object" &&
@@ -278,3 +283,37 @@ export type ClientCreateResponse = {
 export type PasswordSetRequest = { password: string };
 
 export type PasswordSetResponse = { ok: true };
+
+// --- builder-publish (the page builder) -------------------------------------------
+
+/**
+ * Everything a page builder draft changes, published as ONE commit: content fields and
+ * their pictures (as content-publish-batch), layouts (null deletes a page's layout),
+ * the site kit and media metadata. Pictures added in the editor travel inside the
+ * layouts as data: URLs; the function commits each under public/assets/uploads/.
+ */
+export type BuilderPublishRequest = {
+  site_id: string;
+  baseCommitSha: string;
+  pages: BatchPageUpdate[];
+  layouts: Record<string, unknown>;
+  kit: unknown;
+  media: unknown;
+  /** Choices for earlier conflicts: key -> "mine" | "theirs". */
+  resolutions: Record<string, "mine" | "theirs">;
+};
+
+export type BuilderPublishResponse = {
+  ok: true;
+  commitSha: string;
+  commitUrl: string;
+  fields: string[];
+  images: string[];
+  slugs: string[];
+  /** Page slugs whose layout was written or removed. */
+  layouts: string[];
+  kit: boolean;
+  media: boolean;
+  /** True when someone else had published in between and the draft was merged onto it. */
+  merged: boolean;
+};

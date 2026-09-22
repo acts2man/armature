@@ -34,5 +34,8 @@ verify_jwt = true
 [functions.password-set]
 verify_jwt = true
 
+[functions.builder-publish]
+verify_jwt = true
+
 [functions.form-submit]
 verify_jwt = false
