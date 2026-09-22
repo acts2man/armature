@@ -40,7 +40,9 @@ export function apply(history: EditorHistory, command: Command, now = Date.now()
   const next = command.run(history.present);
   if (next === null || next === history.present) return history;
   const last = history.past[history.past.length - 1];
-  if (command.group && last && last.group === command.group && now - last.at < GROUP_MS) {
+  // A "drag:" group (one resize or spacing drag, keyed by its start) merges however long the
+  // pointer rests; other groups merge only while the changes keep coming.
+  if (command.group && last && last.group === command.group && (command.group.startsWith("drag:") || now - last.at < GROUP_MS)) {
     const merged: HistoryEntry = { ...last, after: next, at: now };
     return { present: next, past: [...history.past.slice(0, -1), merged], future: [] };
   }
@@ -79,4 +81,11 @@ export function breakGroup(history: EditorHistory): EditorHistory {
   const last = history.past[history.past.length - 1];
   if (!last || !last.group) return history;
   return { ...history, past: [...history.past.slice(0, -1), { ...last, group: undefined }] };
+}
+
+/** Esc during a drag: remove the drag's step entirely (the page returns to where it was, and redo cannot bring it back). */
+export function dropGroup(history: EditorHistory, group: string): EditorHistory {
+  const last = history.past[history.past.length - 1];
+  if (!last || last.group !== group) return history;
+  return { present: last.before, past: history.past.slice(0, -1), future: history.future };
 }

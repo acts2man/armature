@@ -16,6 +16,10 @@ export type KitSnapshot = {
   layouts: Record<string, LayoutDoc>;
   kit: SiteKit;
   editMode: boolean;
+  /** The element being typed into on the page: the renderer leaves its DOM alone meanwhile. */
+  editing: string | null;
+  /** Bumped when an edit on the page ends, so the renderer remounts that element from the saved value. */
+  editEpoch: Record<string, number>;
 };
 
 export type SiteSectionRegistration = SiteSectionInfo & { component: unknown };
@@ -59,10 +63,12 @@ export function createKitStore(config: { content?: ContentTree; layouts?: Record
   let draftLayouts: Record<string, LayoutDoc | null> | null = null;
   let draftKit: SiteKit | null = null;
   let editMode = false;
+  let editing: string | null = null;
+  let editEpoch: Record<string, number> = {};
 
   const sections = new Map<string, SiteSectionRegistration>();
   const listeners = new Set<() => void>();
-  let snapshot: KitSnapshot = { content: baseContent, layouts: baseLayouts, kit: baseKit, editMode };
+  let snapshot: KitSnapshot = { content: baseContent, layouts: baseLayouts, kit: baseKit, editMode, editing, editEpoch };
 
   const rebuild = () => {
     let content = baseContent;
@@ -84,7 +90,7 @@ export function createKitStore(config: { content?: ContentTree; layouts?: Record
         else layouts[slug] = layout;
       }
     }
-    snapshot = { content, layouts, kit: draftKit ?? baseKit, editMode };
+    snapshot = { content, layouts, kit: draftKit ?? baseKit, editMode, editing, editEpoch };
     for (const listener of listeners) listener();
   };
 
@@ -122,6 +128,42 @@ export function createKitStore(config: { content?: ContentTree; layouts?: Record
     setEditMode(next: boolean) {
       if (editMode === next) return;
       editMode = next;
+      rebuild();
+    },
+    /**
+     * Set one prop of one element in the draft (the value typed on the page), so the
+     * element remounts showing it before the editor's next full draft arrives.
+     */
+    patchElementProp(id: string, key: string, value: unknown) {
+      const patch = (elements: LayoutDoc["root"]): LayoutDoc["root"] => {
+        let changed = false;
+        const next = elements.map((element) => {
+          if (element.id === id) {
+            changed = true;
+            return { ...element, props: { ...element.props, [key]: value } };
+          }
+          if (!element.children) return element;
+          const children = patch(element.children);
+          if (children === element.children) return element;
+          changed = true;
+          return { ...element, children };
+        });
+        return changed ? next : elements;
+      };
+      for (const [slug, layout] of Object.entries(snapshot.layouts)) {
+        const root = patch(layout.root);
+        if (root !== layout.root) {
+          draftLayouts = { ...(draftLayouts ?? {}), [slug]: { ...layout, root } };
+          rebuild();
+          return;
+        }
+      }
+    },
+    /** The bridge marks the element being typed into; clearing it remounts that element. */
+    setEditing(id: string | null) {
+      if (editing === id) return;
+      if (editing) editEpoch = { ...editEpoch, [editing]: (editEpoch[editing] ?? 0) + 1 };
+      editing = id;
       rebuild();
     },
     registerSection(key: string, registration: Omit<SiteSectionRegistration, "key">) {

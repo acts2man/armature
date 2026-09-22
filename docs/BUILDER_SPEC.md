@@ -330,7 +330,14 @@ visitor sees (a button styles its link, an image its picture). Locked elements k
 words editable for clients; their place and design stay the agency's. A kit change that
 would make the kit invalid is dropped rather than saved. A Google font chosen anywhere joins
 the kit's font list, the only list the site loads fonts from (one stylesheet link in the
-head). Connection states never silent. Under 900px, the friendly note and the
+head).
+**Decision (M4):** handles are drawn in the editor above the frame from the kit's rect
+map; each pointer frame is one command in a `drag:` group keyed by the drag's start, so a
+drag is one undo step however long the pointer rests, and Esc drops the step entirely.
+Handles write the device being edited (a tablet drag never touches desktop) and start from
+the element's own pixel value when it has one, else from what the page measured. While an
+element is typed into, the kit freezes its rendering and remounts it from the stored value
+when the edit ends. Connection states never silent. Under 900px, the friendly note and the
 form editor. Security: no eval, no innerHTML in site or editor, everything sanitized,
 all URLs validated, secrets server-side only, RLS on every new table, rate limits on the
 form endpoint. The form editor and Stage 1 keep working as the fallback.
@@ -357,7 +364,7 @@ dialog) compared against the design.
 - [x] **M3 Inspector.** Schema-driven control library, Content/Style/Advanced for the M1
       widgets, responsive per-device values, hover states, units, scrubbing, Site settings
       (kit) panel with global references.
-- [ ] **M4 Direct manipulation.** Inline rich text with the floating toolbar, image resize
+- [x] **M4 Direct manipulation.** Inline rich text with the floating toolbar, image resize
       handles, column resize, padding/margin handles, spacer/min-height drag.
 - [ ] **M5 Widget library.** Every remaining widget in section 3 (Form last), motion
       effects, background gradient/image/video/overlay, icon picker.

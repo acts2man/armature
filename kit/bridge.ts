@@ -225,8 +225,10 @@ export function createBridge(config: BridgeConfig): Bridge {
   let selectedElement: Element | null = null;
   let hoveredElement: Element | null = null;
 
-  type Editing = { host: HTMLElement; path?: string; elementId?: string; kind: "field" | "plain" | "rich"; original: string; multiline: boolean; cleanup: () => void };
+  type Editing = { host: HTMLElement; path?: string; elementId?: string; kind: "field" | "plain" | "rich"; original: string; multiline: boolean; cleanup: () => void; /** The element prop being typed into, and its value before the edit. */ prop?: { key: string; before: unknown } };
   let editing: Editing | null = null;
+  /** The last selection inside the rich text being edited, restored before a toolbar command. */
+  let savedRange: Range | null = null;
   let heldBack = new Map<string, unknown>();
 
   const fieldTypeOfPath = (path: string): FieldType | ItemFieldType | undefined => {
@@ -499,6 +501,9 @@ export function createBridge(config: BridgeConfig): Bridge {
     } else if (session.elementId) {
       const value = session.kind === "rich" ? serializeRichText(host) : readText(host);
       send(commit ? { type: `${PREFIX}element:edit:commit`, id: session.elementId, value } : { type: `${PREFIX}element:edit:cancel`, id: session.elementId });
+      // Remount the element from the value (the browser's editing markup is discarded).
+      if (session.prop) store.patchElementProp(session.elementId, session.prop.key, commit ? value : session.prop.before);
+      store.setEditing(null);
     }
     host.blur();
     if (heldBack.size > 0) {
@@ -572,15 +577,33 @@ export function createBridge(config: BridgeConfig): Bridge {
       range.collapse(false);
       onInput();
     };
-    const onBlur = () => finishEdit(true);
+    const onBlur = () => {
+      // Rich text keeps editing while focus is in the editor around the frame (its
+      // formatting toolbar, the link field); the editor ends it with element:edit:stop.
+      if (editing?.kind === "rich") {
+        window.setTimeout(() => {
+          if (editing?.host === host && document.hasFocus() && document.activeElement !== host) finishEdit(true);
+        }, 0);
+        return;
+      }
+      finishEdit(true);
+    };
     const onSelectionChange = () => {
-      if (editing?.kind === "rich") sendRichState();
+      if (editing?.kind !== "rich") return;
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0 && host.contains(selection.getRangeAt(0).commonAncestorContainer)) savedRange = selection.getRangeAt(0).cloneRange();
+      sendRichState();
+    };
+    // A click elsewhere on the page ends a rich edit that the frame no longer has focus for.
+    const onPointerDownOutside = (event: PointerEvent) => {
+      if (editing?.host === host && !(event.target instanceof Node && host.contains(event.target))) finishEdit(true);
     };
     host.addEventListener("input", onInput);
     host.addEventListener("keydown", onKeydown);
     host.addEventListener("paste", onPaste);
     host.addEventListener("blur", onBlur);
     document.addEventListener("selectionchange", onSelectionChange);
+    if (!plain) document.addEventListener("pointerdown", onPointerDownOutside, true);
     editing = {
       ...session,
       host,
@@ -590,6 +613,8 @@ export function createBridge(config: BridgeConfig): Bridge {
         host.removeEventListener("paste", onPaste);
         host.removeEventListener("blur", onBlur);
         document.removeEventListener("selectionchange", onSelectionChange);
+        document.removeEventListener("pointerdown", onPointerDownOutside, true);
+        savedRange = null;
       },
     };
     host.focus({ preventScroll: true });
@@ -635,8 +660,10 @@ export function createBridge(config: BridgeConfig): Bridge {
     if (editing?.host === target.host) return;
     const id = elementId(element) ?? "";
     const original = readText(target.host);
-    attachEditing(target.host, { elementId: id, kind: target.kind, original, multiline: target.kind === "rich" }, target.kind === "plain");
-    send({ type: `${PREFIX}element:edit:start`, id, value: target.kind === "rich" ? serializeRichText(target.host) : original });
+    const before = target.kind === "rich" ? serializeRichText(target.host) : original;
+    attachEditing(target.host, { elementId: id, kind: target.kind, original, multiline: target.kind === "rich", prop: { key: target.kind === "rich" ? "doc" : "text", before } }, target.kind === "plain");
+    store.setEditing(id);
+    send({ type: `${PREFIX}element:edit:start`, id, value: before });
     if (target.kind === "rich") sendRichState();
   };
 
@@ -679,7 +706,13 @@ export function createBridge(config: BridgeConfig): Bridge {
 
   const richCommand = (command: string, value?: string) => {
     if (!editing || editing.kind !== "rich") return;
+    const range = savedRange;
     editing.host.focus({ preventScroll: true });
+    if (range && editing.host.contains(range.commonAncestorContainer)) {
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    }
     switch (command) {
       case "bold":
       case "italic":
@@ -980,7 +1013,7 @@ export function createBridge(config: BridgeConfig): Bridge {
         if (protocol < 2) return;
         const layouts = data.layouts && typeof data.layouts === "object" ? (data.layouts as Record<string, LayoutDoc | null>) : null;
         const kit = data.kit && typeof data.kit === "object" ? (data.kit as SiteKit) : null;
-        if (editing && editing.kind !== "field") finishEdit(true);
+        // The element being typed into is frozen in the renderer, so the edit carries on.
         store.applyLayouts(layouts, kit);
         scheduleFrame(true);
         return;

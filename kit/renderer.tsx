@@ -34,7 +34,7 @@ export function getKitRuntime(): KitRuntime {
 }
 
 const noop = () => () => undefined;
-const emptySnapshot: KitSnapshot = { content: {}, layouts: {}, kit: null as unknown as KitSnapshot["kit"], editMode: false };
+const emptySnapshot: KitSnapshot = { content: {}, layouts: {}, kit: null as unknown as KitSnapshot["kit"], editMode: false, editing: null, editEpoch: {} };
 
 export function useKitSnapshot(): KitSnapshot {
   const store = runtime?.store;
@@ -66,8 +66,30 @@ function imageOrderOf(root: Element[]): Map<string, number> {
   return order;
 }
 
+/**
+ * One element. While it is being typed into on the page the renderer hands React the very
+ * same output as before, so React leaves the edited DOM alone; when the edit ends the
+ * element remounts (a new key) from the saved value, discarding the browser's markup.
+ */
 function ElementView({ element, state }: { element: Element; state: RenderState }) {
   const snapshot = useKitSnapshot();
+  return <ElementBody key={snapshot.editEpoch[element.id] ?? 0} element={element} state={state} />;
+}
+
+function ElementBody({ element, state }: { element: Element; state: RenderState }) {
+  const snapshot = useKitSnapshot();
+  const frozen = snapshot.editing === element.id;
+  // While frozen the inputs read as null, so the memo keeps returning the output from the
+  // moment the edit began (the same element object, which React skips).
+  const liveElement = frozen ? null : element;
+  const liveState = frozen ? null : state;
+  const liveKit = frozen ? null : snapshot.kit;
+  const liveMode = frozen ? null : snapshot.editMode;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally stale while the element is being edited
+  return useMemo(() => renderElement(element, state, snapshot), [liveElement, liveState, liveKit, liveMode]);
+}
+
+function renderElement(element: Element, state: RenderState, snapshot: KitSnapshot): ReactNode {
   const render = getWidget(element.type);
   if (element.type === "site-section") return <SiteSectionView element={element} state={state} />;
   if (!render) {
@@ -95,6 +117,7 @@ function ElementView({ element, state }: { element: Element; state: RenderState 
   const children = element.children?.map((child) => <ElementView key={child.id} element={child} state={state} />);
   return <>{render({ element, common, children, kit: snapshot.kit, editMode: snapshot.editMode, imageIndex })}</>;
 }
+
 
 function SiteSectionView({ element }: { element: Element; state: RenderState }) {
   const snapshot = useKitSnapshot();

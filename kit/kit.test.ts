@@ -280,3 +280,24 @@ describe("protocol pins", () => {
     for (const type of ["armature:elements:map", "armature:element:hover", "armature:element:select", "armature:slot", "armature:element:edit:commit", "armature:richtext:state"]) expect(BRIDGE_MESSAGE_TYPES).toContain(type);
   });
 });
+
+describe("the kit store while an element is typed into", () => {
+  it("marks the element, patches its prop into the draft, and bumps its epoch when the edit ends", async () => {
+    const { createKitStore } = await import("./store.ts");
+    const layout = { version: 1, pageSlug: "home", path: "/", root: [{ id: "hd000001", type: "heading", props: { text: "Old" }, style: {}, advanced: {}, meta: { createdBy: "t", updatedAt: "2026-09-22T00:00:00.000Z" } }] };
+    const store = createKitStore({ layouts: [layout as never] });
+    store.setEditing("hd000001");
+    expect(store.getSnapshot().editing).toBe("hd000001");
+    expect(store.getSnapshot().editEpoch["hd000001"]).toBeUndefined();
+    store.patchElementProp("hd000001", "text", "New");
+    store.setEditing(null);
+    const snapshot = store.getSnapshot();
+    expect(snapshot.editing).toBeNull();
+    expect(snapshot.editEpoch["hd000001"]).toBe(1);
+    expect((snapshot.layouts["home"]?.root[0]?.props as { text: string }).text).toBe("New");
+    // The built layouts are untouched; only the draft carries the edit.
+    expect((store.baseLayouts["home"]?.root[0]?.props as { text: string }).text).toBe("Old");
+    store.patchElementProp("missing1", "text", "x");
+    expect(store.getSnapshot()).toBe(snapshot);
+  });
+});

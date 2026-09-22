@@ -565,6 +565,13 @@ of v1):
 | `armature:element:edit:start` / `input` / `commit` / `cancel` | kit → editor | In-place editing of a heading or button (a string) or the Text Editor (a rich-text document). |
 | `armature:element:edit:start` / `armature:element:edit:stop` | editor → kit | Begin or end in-place editing. |
 | `armature:richtext:command` / `armature:richtext:state` | both ways | Formatting commands from the floating toolbar and the marks in force at the caret. |
+
+While an element is typed into, the kit's renderer leaves that element's DOM alone (layout
+updates keep arriving and render everywhere else), and a rich-text edit stays open while
+focus is in the editor's toolbar; the kit restores the last selection before each command.
+When the edit ends the kit writes the value into its draft and remounts the element from
+it, so the browser's editing markup never survives: what the page shows is always the
+stored document rendered by the kit.
 | `armature:scroll` | editor → kit | Scroll the frame (auto-scroll while dragging). |
 | `armature:key` | kit → editor | Adds copy, paste, paste style, duplicate, delete, preview and arrow keys. |
 

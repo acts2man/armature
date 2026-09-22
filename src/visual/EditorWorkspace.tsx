@@ -19,7 +19,9 @@ import type { DropTarget } from "@/builder/dnd.ts";
 import { ElementInspector } from "@/builder/ElementInspector.tsx";
 import { ElementOverlays } from "@/builder/ElementOverlays.tsx";
 import { ElementsPanel } from "@/builder/ElementsPanel.tsx";
-import { apply, breakGroup, canRedo, canUndo, createHistory, jumpTo, redo, reset, undo, type Command, type EditorHistory, type EditorState } from "@/builder/history.ts";
+import { readAt } from "@/builder/controls/path.ts";
+import type { HandleActions } from "@/builder/Handles.tsx";
+import { apply, breakGroup, canRedo, canUndo, createHistory, dropGroup, jumpTo, redo, reset, undo, type Command, type EditorHistory, type EditorState } from "@/builder/history.ts";
 import { HistoryPanel } from "@/builder/HistoryPanel.tsx";
 import { Navigator } from "@/builder/Navigator.tsx";
 import { draftChangeCount, draftKey, isEmptyEditorDraft, legacyDraftKey, parseEditorDraft, restoreEditorDraft, serializeEditorDraft, type StoredEditorDraft } from "@/builder/persistence.ts";
@@ -51,11 +53,11 @@ import { Button, Modal, useToast } from "@/components/ui.tsx";
 import { callFunction, type Failure } from "@/lib/functions.ts";
 import { fileToBase64, prepareImage } from "@/lib/resizeImage.ts";
 import type { Agency, Site } from "@/lib/types.ts";
-import { defaultSiteKit, validateSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
+import { defaultSiteKit, setAt, validateSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
 import type { ContentValue } from "@shared/contentFile.ts";
 import type { ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
 import type { PageDefinition, PageSection, SiteSchema } from "@shared/schema.ts";
-import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type MappedField, type ShortcutKey } from "@shared/visualProtocol.ts";
+import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type MappedField, type RichTextState, type ShortcutKey } from "@shared/visualProtocol.ts";
 import { Canvas } from "./Canvas.tsx";
 import {
   addListItem,
@@ -273,6 +275,7 @@ export function EditorWorkspace({
   const selectedId = selection?.kind === "element" ? selection.id : null;
   const [editingPath, setEditingPath] = useState<FieldPath | null>(null);
   const [editingElement, setEditingElement] = useState<string | null>(null);
+  const [richState, setRichState] = useState<RichTextState | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
@@ -438,6 +441,44 @@ export function EditorWorkspace({
         group ? `kit:${group}` : undefined,
       ),
     [builderCommand, pageSlug],
+  );
+
+  // A press anywhere in the editor outside the formatting toolbar ends an edit on the page
+  // (a rich-text edit stays open while its toolbar is used).
+  useEffect(() => {
+    if (!editingElement) return;
+    const onDown = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest("[data-testid='richtext-toolbar']")) return;
+      send({ type: "armature:element:edit:stop", commit: true });
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    return () => window.removeEventListener("pointerdown", onDown, true);
+  }, [editingElement, send]);
+
+  /** Handles on the canvas: each pointer frame is one command in the drag's group (one undo step per drag). */
+  const handleActions = useMemo<HandleActions>(
+    () => ({
+      onWrite: (writes, label, group) =>
+        builderCommand(
+          label,
+          pageSlug,
+          (current) => {
+            let next: BuilderState = current;
+            for (const write of writes) {
+              if (isLockedForMe(write.id)) return null;
+              const entry = findElement(next, write.id, pageSlug);
+              if (!entry) return null;
+              const value = write.responsive ? setAt(readAt(entry.element, write.path) as never, modelDevice(device), write.value as never) : write.value;
+              // A write that changes nothing (the value is already there) is skipped, not fatal.
+              next = setElementPath(next, write.id, pageSlug, write.path, value) ?? next;
+            }
+            return next === current ? null : next;
+          },
+          group,
+        ),
+      onCancel: (group) => setHistory((current) => dropGroup(current, group)),
+    }),
+    [builderCommand, device, isLockedForMe, pageSlug],
   );
 
   const insertAt = useCallback(
@@ -785,7 +826,11 @@ export function EditorWorkspace({
         editStartValue.current = null;
         return;
       }
+      case "armature:richtext:state":
+        setRichState(message.state);
+        return;
       case "armature:element:edit:start":
+        setRichState(null);
         setEditingElement(message.id);
         editStartElement.current = message.value;
         return;
@@ -1108,6 +1153,13 @@ export function EditorWorkspace({
                   editing={editingElement !== null}
                   drag={drag}
                   changedIds={changedIds}
+                  handleActions={handleActions}
+                  richText={{
+                    state: richState,
+                    kit: builderView.kit,
+                    onCommand: (command, value) => send({ type: "armature:richtext:command", command, value }),
+                    onDone: () => send({ type: "armature:element:edit:stop", commit: true }),
+                  }}
                   actions={{
                     onSelect: (id) => selectElement(id, false),
                     onEdit: (id) => send({ type: "armature:element:edit:start", id }),

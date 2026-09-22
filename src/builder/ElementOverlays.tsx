@@ -9,11 +9,13 @@
 import { clsx } from "clsx";
 import { useEffect, useState, type ReactNode } from "react";
 import { IconCopy, IconEyeOff, IconLock, IconMove, IconPencil, IconPlus, IconTrash } from "@/components/icons.tsx";
-import type { Device, Element } from "@shared/builder/index.ts";
-import type { ElementRect, Rect } from "@shared/visualProtocol.ts";
+import type { Device, Element, SiteKit } from "@shared/builder/index.ts";
+import type { ElementRect, Rect, RichTextCommand, RichTextState } from "@shared/visualProtocol.ts";
 import { useGeometry, type GeometryStore } from "@/visual/geometry.ts";
 import type { DragState } from "./useDrag.ts";
 import { sectionGapAt } from "./dnd.ts";
+import { Handles, type HandleActions } from "./Handles.tsx";
+import { RichTextToolbar } from "./RichTextToolbar.tsx";
 import { findElement, isContainerType, type BuilderState } from "./store.ts";
 import { widgetLabel } from "./widgets/registry.ts";
 
@@ -55,6 +57,8 @@ export function ElementOverlays({
   drag,
   changedIds,
   actions,
+  handleActions,
+  richText,
 }: {
   store: GeometryStore;
   scale: number;
@@ -69,6 +73,9 @@ export function ElementOverlays({
   drag: DragState | null;
   changedIds: Set<string>;
   actions: ElementActions;
+  handleActions?: HandleActions;
+  /** While a Text Editor is edited on the page: its toolbar's state and commands. */
+  richText?: { state: RichTextState | null; kit: SiteKit; onCommand: (command: RichTextCommand, value?: string) => void; onDone: () => void };
 }) {
   const geometry = useGeometry(store);
   const layout = state.layouts[slug];
@@ -95,6 +102,16 @@ export function ElementOverlays({
     window.addEventListener("pointermove", onMove, { passive: true });
     return () => window.removeEventListener("pointermove", onMove);
   }, [layout, slug, scale, store, drag]);
+
+  // A column boundary: the selected element and its next sibling sit side by side in a flex row.
+  const parentRect = selectedEntry?.parentId ? rects.get(selectedEntry.parentId) : undefined;
+  const parentElement = selectedEntry?.parentId ? findElement(state, selectedEntry.parentId, slug)?.element : undefined;
+  const nextElement = parentElement?.type === "container" && selectedEntry ? parentElement.children?.[selectedEntry.index + 1] : undefined;
+  const nextRect = nextElement ? rects.get(nextElement.id) : undefined;
+  const besideNext =
+    selected && nextElement && nextRect && nextRect.rect.x >= selected.rect.x + selected.rect.width - 2 && nextRect.rect.y < selected.rect.y + selected.rect.height && nextRect.rect.y + nextRect.rect.height > selected.rect.y && !(nextElement.locked && !isStaff)
+      ? { rect: nextRect, element: nextElement }
+      : undefined;
 
   const label = (element: Element | undefined, rect: ElementRect): string => (element?.label ? element.label : element?.type === "site-section" ? `${rect.section ?? "Section"} (site section)` : widgetLabel(rect.type));
   const isLocked = (entry: { element: Element; ancestors: string[] } | undefined): boolean => !!entry && !isStaff && (entry.element.locked === true || entry.ancestors.some((id) => findElement(state, id, slug)?.element.locked));
@@ -174,6 +191,22 @@ export function ElementOverlays({
             <IconTrash size={15} />
           </ToolButton>
         </div>
+      )}
+
+      {selected && editing && richText && selected.type === "text" && (
+        <RichTextToolbar rect={selected.rect} scale={scale} viewportWidth={store.get().viewport.width} state={richText.state} kit={richText.kit} onCommand={richText.onCommand} onDone={richText.onDone} />
+      )}
+
+      {selected && selectedEntry && handleActions && canEdit && !editing && !drag && !isLocked(selectedEntry) && (
+        <Handles
+          selected={selected}
+          element={selectedEntry.element}
+          parent={parentRect}
+          next={besideNext}
+          scale={scale}
+          device={device}
+          actions={handleActions}
+        />
       )}
 
       {selected && isLocked(selectedEntry) && !drag && (

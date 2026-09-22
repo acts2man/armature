@@ -161,8 +161,8 @@ export function ElementInspector({
       <div className="dense-controls flex flex-col pb-4" data-testid="element-inspector" data-tab={tab}>
         {body}
         <div className="px-5 pt-4">
-          <Button variant="secondary" size="sm" onClick={requestChange}>
-            Request a change to this element
+          <Button variant="secondary" size="sm" onClick={requestChange} className="w-full" aria-label="Request a change to this element">
+            Request a change here
           </Button>
         </div>
       </div>

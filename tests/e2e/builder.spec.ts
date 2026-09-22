@@ -421,3 +421,165 @@ test.describe("the inspector", () => {
     await expect(page.getByTestId("custom-fonts")).toContainText("Fraunces");
   });
 });
+
+// --- milestone 4: direct manipulation ------------------------------------------------------------------
+
+test.describe("direct manipulation", () => {
+  test("rich text: the floating toolbar formats the selection, links it, and the draft keeps it", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const text = frame.locator(".ae-txtbuild");
+    await text.scrollIntoViewIfNeeded();
+    await text.dblclick();
+    await expect(text).toHaveAttribute("contenteditable", "true");
+    await expect(page.getByTestId("richtext-toolbar")).toBeVisible();
+    // Select the first word inside the page, then format it from the toolbar in the editor.
+    await text.evaluate((node) => {
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      const first = walker.nextNode() as Text;
+      const range = document.createRange();
+      range.setStart(first, 0);
+      range.setEnd(first, first.data.indexOf(" "));
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+    await page.getByTestId("rt-bold").click();
+    await expect(text.locator("b, strong")).toHaveCount(2);
+    await expect(page.getByTestId("rt-bold")).toHaveAttribute("aria-pressed", "true");
+    await page.getByTestId("rt-link").click();
+    await page.getByTestId("rt-link-input").fill("javascript:alert(1)");
+    await expect(page.getByRole("button", { name: "Apply" })).toBeDisabled();
+    await page.getByTestId("rt-link-input").fill("/contact/");
+    await page.getByRole("button", { name: "Apply" }).click();
+    await expect(text.locator('a[href="/contact/"]')).toHaveCount(1);
+    await page.getByTestId("rt-bullets").click();
+    await expect(text.locator("ul li")).toHaveCount(1);
+    await page.getByTestId("rt-done").click();
+    await expect(page.getByTestId("richtext-toolbar")).toHaveCount(0);
+    await expect(text).not.toHaveAttribute("contenteditable", "true");
+    await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
+    // The stored document is the kit's JSON, rendered by the kit: bold, the link and the list survive.
+    // (The demo text already has one bold phrase.)
+    await expect(text.locator("strong")).toHaveCount(2);
+    await expect(text.locator('a[href="/contact/"]')).toHaveCount(1);
+    await expect(text.locator("ul li")).toHaveCount(1);
+    await expect(text.locator("b")).toHaveCount(0);
+  });
+});
+
+test.describe("canvas handles", () => {
+  const px = (value: string) => Number.parseFloat(value);
+  /** A handle's centre once the canvas has stopped scrolling to the selection. */
+  const settled = async (locator: ReturnType<Page["getByTestId"]>) => {
+    let previous = "";
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      const box = await locator.boundingBox();
+      const current = JSON.stringify(box);
+      if (box && current === previous) return center(box);
+      previous = current;
+      await locator.page().waitForTimeout(100);
+    }
+    throw new Error("the handle never settled");
+  };
+
+  test("a padding handle drags live, is one undo step, and Esc puts it back", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await page.getByTestId("tab-navigator").click();
+    await page.getByTestId("nav-secbuild").click();
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "secbuild");
+    const section = frame.locator(".ae-secbuild");
+    const before = px(await section.evaluate((node) => getComputedStyle(node).paddingTop));
+    const handle = page.getByTestId("handle-padding-top");
+    const start = await settled(handle);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x, start.y + 10, { steps: 2 });
+    await page.mouse.move(start.x, start.y + 30, { steps: 4 });
+    await expect(page.getByTestId("handle-value")).toContainText("Padding top");
+    await page.mouse.up();
+    await expect.poll(async () => px(await section.evaluate((node) => getComputedStyle(node).paddingTop))).toBe(before + 30);
+    await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
+    // One drag, one step.
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect.poll(async () => px(await section.evaluate((node) => getComputedStyle(node).paddingTop))).toBe(before);
+    await expect(page.getByTestId("draft-status")).toContainText("Nothing to publish");
+
+    // Esc mid-drag reverts and leaves nothing to undo.
+    const again = await settled(handle);
+    await page.mouse.move(again.x, again.y);
+    await page.mouse.down();
+    await page.mouse.move(again.x, again.y + 20, { steps: 4 });
+    await expect.poll(async () => px(await section.evaluate((node) => getComputedStyle(node).paddingTop))).toBe(before + 20);
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await expect.poll(async () => px(await section.evaluate((node) => getComputedStyle(node).paddingTop))).toBe(before);
+    await expect(page.getByTestId("draft-status")).toContainText("Nothing to publish");
+
+    // Arrow keys on a focused handle nudge by 1 (10 with Shift).
+    await handle.focus();
+    await page.keyboard.press("Shift+ArrowDown");
+    await expect.poll(async () => px(await section.evaluate((node) => getComputedStyle(node).paddingTop))).toBe(before + 10);
+  });
+
+  test("the boundary between two columns resizes both, for the device being edited", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await page.getByRole("button", { name: /Tablet view/ }).click();
+    await page.getByTestId("tab-navigator").click();
+    await page.getByTestId("nav-colleft1").click();
+    const left = frame.locator(".ae-colleft1");
+    const right = frame.locator(".ae-colrigh1");
+    const widthOf = async (locator: typeof left) => px(await locator.evaluate((node) => getComputedStyle(node).width));
+    const [l0, r0] = [await widthOf(left), await widthOf(right)];
+    const handle = page.getByTestId("handle-columns");
+    const start = await settled(handle);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x + 40, start.y, { steps: 5 });
+    await page.mouse.up();
+    await expect.poll(async () => (await widthOf(left)) > l0 + 20).toBe(true);
+    await expect.poll(async () => (await widthOf(right)) < r0 - 20).toBe(true);
+    // Desktop keeps its 50 / 50.
+    await page.getByRole("button", { name: /Desktop view/ }).click();
+    await expect.poll(async () => Math.abs((await widthOf(left)) - (await widthOf(right))) < 2).toBe(true);
+  });
+
+  test("image width and height handles, and a spacer's height", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const img = frame.locator(".ae-imgbuild img");
+    await img.scrollIntoViewIfNeeded();
+    await img.click();
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "imgbuild");
+    const w0 = (await img.boundingBox())?.width ?? 0;
+    const handle = page.getByTestId("handle-image-width");
+    const start = await settled(handle);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(start.x - 80, start.y, { steps: 5 });
+    await expect(page.getByTestId("handle-value")).toContainText("%");
+    await page.mouse.up();
+    await expect.poll(async () => Math.round((await img.boundingBox())?.width ?? 0)).toBeLessThan(w0 - 60);
+    const h0 = (await img.boundingBox())?.height ?? 0;
+    await page.getByTestId("handle-image-height").focus();
+    await page.keyboard.press("Shift+ArrowDown");
+    await page.keyboard.press("Shift+ArrowDown");
+    await expect.poll(async () => Math.round((await img.boundingBox())?.height ?? 0)).toBe(Math.round(h0) + 20);
+
+    // A spacer inserted after the image: drag its bottom edge.
+    await page.getByTestId("tab-elements").click();
+    await page.getByTestId("element-spacer").click();
+    const spacer = frame.locator(".ae-spacer");
+    await expect(spacer).toHaveCount(1);
+    await expect(spacer).toHaveCSS("height", "50px");
+    const grip = page.getByTestId("handle-spacer");
+    const g = await settled(grip);
+    await page.mouse.move(g.x, g.y);
+    await page.mouse.down();
+    await page.mouse.move(g.x, g.y + 40, { steps: 5 });
+    await page.mouse.up();
+    await expect(spacer).toHaveCSS("height", "90px");
+  });
+});
