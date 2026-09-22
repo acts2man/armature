@@ -4,7 +4,7 @@
  * visual editor calls. GitHub is never touched; the batch publish answers with a
  * fake commit (or a conflict) and records what it was asked to write.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Page, Route } from "@playwright/test";
 
@@ -19,6 +19,12 @@ export const COMMIT_SHA = "abc1234def5678abc1234def5678abc1234def56";
 const demoDir = fileURLToPath(new URL("../../examples/demo-site/content/", import.meta.url));
 export const demoSchema = JSON.parse(readFileSync(`${demoDir}schema.json`, "utf8")) as unknown;
 export const demoContent = JSON.parse(readFileSync(`${demoDir}pages.json`, "utf8")) as Record<string, Record<string, Record<string, unknown>>>;
+export const demoKit = JSON.parse(readFileSync(`${demoDir}site-kit.json`, "utf8")) as unknown;
+export const demoLayouts = Object.fromEntries(
+  readdirSync(`${demoDir}layouts`)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => [name.slice(0, -".json".length), JSON.parse(readFileSync(`${demoDir}layouts/${name}`, "utf8")) as unknown]),
+) as Record<string, unknown>;
 
 export type Role = "staff" | "client";
 
@@ -34,6 +40,10 @@ export type MockOptions = {
   content?: Record<string, unknown>;
   /** Let Google Fonts load (for screenshots). Tests block them so nothing leaves the machine. */
   allowFonts?: boolean;
+  /** What clients may do in the editor; agency staff always get the full builder. */
+  editingLevel?: "content" | "style" | "builder";
+  /** Layouts returned by content-get; defaults to the demo site's files. */
+  layouts?: Record<string, unknown>;
 };
 
 export type MockState = {
@@ -78,6 +88,11 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
   const state: MockState = { publishRequests: [], contentGets: 0 };
   // The content "in the repository": a batch publish updates it, as a real one would.
   const content = JSON.parse(JSON.stringify(options.content ?? demoContent)) as Record<string, Record<string, Record<string, unknown>>>;
+  const layouts = JSON.parse(JSON.stringify(options.layouts ?? demoLayouts)) as Record<string, unknown>;
+  const media = [
+    { path: "/assets/hero.svg", bytes: 2400, kind: "image", alt: "A timber-framed house at dusk" },
+    { path: "/assets/team.svg", bytes: 1800, kind: "image", alt: "" },
+  ];
   let commitSha = COMMIT_SHA;
 
   // Nothing in these tests may leave the machine (fonts and the like).
@@ -141,7 +156,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
       switch (name) {
         case "content-get":
           state.contentGets += 1;
-          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [] });
+          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], layouts, siteKit: demoKit, media, editingLevel: options.editingLevel ?? "content" });
         case "content-publish-batch":
           state.publishRequests.push(body);
           if (options.publish === "conflict") {

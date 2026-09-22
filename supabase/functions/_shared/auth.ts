@@ -115,6 +115,8 @@ export type SiteRow = {
   status: "connected" | "needs_attention" | "hosting_only";
   last_published_at: string | null;
   created_at: string;
+  /** What clients may do in the visual editor (page builder migration). Absent before it is applied. */
+  editing_level?: "content" | "style" | "builder" | null;
 };
 
 /** A site whose repository is connected: every repository field is present. */

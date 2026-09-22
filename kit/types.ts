@@ -1,0 +1,354 @@
+/**
+ * The page builder's data model (site contract v2). Plain TypeScript types with no
+ * dependencies, so the kit can be copied into a site as is. The dashboard and the edge
+ * functions validate these shapes with the zod schemas in shared/builder/schema.ts,
+ * which are typed against this file so the two can never drift.
+ *
+ * Layout files live at content/layouts/<pageSlug>.json in the site's repository and
+ * the site kit at content/site-kit.json.
+ */
+
+// --- responsive values -------------------------------------------------------------------
+
+export type Device = "desktop" | "tablet" | "mobile";
+
+/** A value with per-device overrides. Tablet inherits desktop, mobile inherits tablet. */
+export type Responsive<T> = { desktop: T; tablet?: T; mobile?: T };
+export type MaybeResponsive<T> = T | Responsive<T>;
+
+// --- sizes, colours, references ----------------------------------------------------------
+
+export type Unit = "px" | "%" | "em" | "rem" | "vw" | "vh" | "auto" | "";
+/** Every size control stores a value and a unit. With "auto" the value is ignored; "" is unitless. */
+export type Size = { value: number; unit: Unit };
+export type Sides<T> = { top?: T; right?: T; bottom?: T; left?: T };
+export type Corners<T> = { topLeft?: T; topRight?: T; bottomRight?: T; bottomLeft?: T };
+
+/**
+ * A colour is a literal ("#1f3a2e", "#1f3a2e80", "rgba(...)", "transparent") or a kit
+ * reference such as "kit:color.primary" or "kit:color.custom.<id>".
+ */
+export type Color = string;
+/** A font family literal or "kit:font.heading" / "kit:font.body" / "kit:font.custom.<id>". */
+export type FontRef = string;
+
+export type Gap = { column?: Size; row?: Size };
+
+// --- style (the Style tab) -----------------------------------------------------------------
+
+export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | "normal" | "bold";
+export type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
+export type FontStyle = "normal" | "italic" | "oblique";
+export type TextDecoration = "none" | "underline" | "line-through" | "overline";
+export type TextAlign = "left" | "center" | "right" | "justify";
+
+export type Typography = {
+  /** A kit typography preset, e.g. "kit:type.h2". Explicit values below override it. */
+  preset?: string;
+  fontFamily?: FontRef;
+  fontSize?: MaybeResponsive<Size>;
+  fontWeight?: MaybeResponsive<FontWeight>;
+  textTransform?: MaybeResponsive<TextTransform>;
+  fontStyle?: MaybeResponsive<FontStyle>;
+  textDecoration?: MaybeResponsive<TextDecoration>;
+  lineHeight?: MaybeResponsive<Size>;
+  letterSpacing?: MaybeResponsive<Size>;
+  wordSpacing?: MaybeResponsive<Size>;
+  textAlign?: MaybeResponsive<TextAlign>;
+};
+
+export type Shadow = { x: number; y: number; blur: number; spread?: number; color: Color; inset?: boolean };
+
+export type BorderStyle = "none" | "solid" | "dashed" | "dotted" | "double";
+export type Border = {
+  style?: MaybeResponsive<BorderStyle>;
+  width?: MaybeResponsive<Sides<Size>>;
+  color?: MaybeResponsive<Color>;
+  radius?: MaybeResponsive<Corners<Size>>;
+};
+
+export type GradientStop = { color: Color; position: number };
+export type Background =
+  | { kind: "none" }
+  | { kind: "color"; color: Color }
+  | { kind: "gradient"; type: "linear" | "radial"; angle?: number; stops: GradientStop[] }
+  | {
+      kind: "image";
+      src: string;
+      position?: string;
+      attachment?: "scroll" | "fixed";
+      repeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
+      size?: "auto" | "cover" | "contain";
+      /** Focal point as percentages, used when size is cover. */
+      focal?: { x: number; y: number };
+    }
+  | { kind: "video"; src: string; poster?: string; loop?: boolean; playOnMobile?: boolean };
+
+export type BackgroundOverlay = { background: Background; opacity: number; blend?: string };
+
+export type StyleBase = {
+  typography?: Typography;
+  color?: MaybeResponsive<Color>;
+  textShadow?: MaybeResponsive<Shadow>;
+  boxShadow?: MaybeResponsive<Shadow>;
+  border?: Border;
+  background?: MaybeResponsive<Background>;
+  backgroundOverlay?: MaybeResponsive<BackgroundOverlay>;
+  opacity?: MaybeResponsive<number>;
+  /** Transition duration in milliseconds for hover changes. */
+  transition?: number;
+};
+
+export type Style = StyleBase & { hover?: StyleBase };
+
+// --- advanced (the Advanced tab) -----------------------------------------------------------
+
+export type WidthMode = "full" | "inline" | "custom";
+export type AlignSelf = "auto" | "flex-start" | "center" | "flex-end" | "stretch";
+export type PositionType = "default" | "absolute" | "fixed";
+export type AnimationType =
+  | "none"
+  | "fadeIn"
+  | "fadeInUp"
+  | "fadeInDown"
+  | "fadeInLeft"
+  | "fadeInRight"
+  | "zoomIn"
+  | "slideInUp"
+  | "bounceIn";
+
+export type Advanced = {
+  margin?: MaybeResponsive<Sides<Size>>;
+  padding?: MaybeResponsive<Sides<Size>>;
+  width?: MaybeResponsive<WidthMode>;
+  customWidth?: MaybeResponsive<Size>;
+  maxWidth?: MaybeResponsive<Size>;
+  alignSelf?: MaybeResponsive<AlignSelf>;
+  order?: MaybeResponsive<number>;
+  flexGrow?: MaybeResponsive<number>;
+  flexShrink?: MaybeResponsive<number>;
+  position?: {
+    type: PositionType;
+    top?: MaybeResponsive<Size>;
+    right?: MaybeResponsive<Size>;
+    bottom?: MaybeResponsive<Size>;
+    left?: MaybeResponsive<Size>;
+    zIndex?: number;
+  };
+  animation?: { type: AnimationType; duration?: number; delay?: number };
+  /** Hidden per device. A hidden element still shows in the editor at 40% with a badge. */
+  hidden?: { desktop?: boolean; tablet?: boolean; mobile?: boolean };
+  /** Agency only from here on. */
+  cssId?: string;
+  cssClasses?: string;
+  attributes?: { name: string; value: string }[];
+  /** Scoped to this element's selector; "selector" in the text stands for it. */
+  customCss?: string;
+};
+
+// --- rich text (TipTap-compatible JSON, rendered by the kit's own whitelist renderer) ------
+
+export type RichMark =
+  | { type: "bold" }
+  | { type: "italic" }
+  | { type: "underline" }
+  | { type: "strike" }
+  | { type: "code" }
+  | { type: "link"; attrs: { href: string; target?: "_blank" | null } }
+  | { type: "textStyle"; attrs: { color?: string } }
+  | { type: "highlight"; attrs: { color?: string } };
+
+export type RichText = { type: "text"; text: string; marks?: RichMark[] };
+export type RichInline = RichText | { type: "hardBreak" };
+export type RichBlock =
+  | { type: "paragraph"; attrs?: { textAlign?: TextAlign }; content?: RichInline[] }
+  | { type: "heading"; attrs: { level: 1 | 2 | 3 | 4 | 5 | 6; textAlign?: TextAlign }; content?: RichInline[] }
+  | { type: "bulletList"; content: RichListItem[] }
+  | { type: "orderedList"; attrs?: { start?: number }; content: RichListItem[] }
+  | { type: "blockquote"; content: RichBlock[] };
+export type RichListItem = { type: "listItem"; content: RichBlock[] };
+export type RichDoc = { type: "doc"; content: RichBlock[] };
+
+// --- icons ---------------------------------------------------------------------------------
+
+/** An icon's SVG nodes (a subset of the lucide format), saved so the site needs no icon library. */
+export type IconValue = { name: string; nodes: [string, Record<string, string>][] };
+
+// --- links -------------------------------------------------------------------------------
+
+export type LinkValue = { href: string; newTab?: boolean; rel?: string };
+
+// --- elements ------------------------------------------------------------------------------
+
+export type ElementMeta = { createdBy: string; updatedAt: string };
+
+export type Element = {
+  /** Eight characters, [a-z0-9]. Stable for the element's life; its CSS class is .ae-<id>. */
+  id: string;
+  type: string;
+  label?: string;
+  props: Record<string, unknown>;
+  style: Style;
+  advanced: Advanced;
+  children?: Element[];
+  locked?: boolean;
+  meta: ElementMeta;
+};
+
+export type PageSeo = { title?: string; description?: string; ogImage?: string; noindex?: boolean };
+export type PageSettings = { hideTitle?: boolean; bodyBackground?: Color | null; fullCanvas?: boolean };
+
+export type LayoutDoc = {
+  version: 1;
+  pageSlug: string;
+  path: string;
+  /** Required for builder-only pages (coded pages carry their label in schema.json). */
+  label?: string;
+  seo?: PageSeo;
+  pageSettings?: PageSettings;
+  root: Element[];
+};
+
+// --- widget props (the Content tab) -----------------------------------------------------------
+
+export type ContainerTag = "div" | "section" | "header" | "footer" | "article" | "aside" | "nav";
+export type FlexDirection = "row" | "column" | "row-reverse" | "column-reverse";
+export type Justify = "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+
+export type ContainerProps = {
+  tag?: ContainerTag;
+  /** Boxed keeps the content at the kit's content width; full lets it span the page. */
+  layout?: "boxed" | "full";
+  contentWidth?: MaybeResponsive<Size>;
+  /** "screen" fits the viewport height. */
+  minHeight?: MaybeResponsive<Size | "screen">;
+  direction?: MaybeResponsive<FlexDirection>;
+  justify?: MaybeResponsive<Justify>;
+  align?: MaybeResponsive<AlignItems>;
+  gap?: MaybeResponsive<Gap>;
+  wrap?: MaybeResponsive<boolean>;
+  overflow?: "visible" | "hidden";
+  link?: LinkValue;
+};
+
+export type GridProps = {
+  tag?: ContainerTag;
+  layout?: "boxed" | "full";
+  contentWidth?: MaybeResponsive<Size>;
+  minHeight?: MaybeResponsive<Size | "screen">;
+  /** A count, or a custom grid-template-columns string. */
+  columns?: MaybeResponsive<number | string>;
+  rows?: MaybeResponsive<number | string>;
+  gap?: MaybeResponsive<Gap>;
+  autoFlow?: "row" | "column" | "row dense" | "column dense";
+  justifyItems?: MaybeResponsive<"start" | "center" | "end" | "stretch">;
+  alignItems?: MaybeResponsive<"start" | "center" | "end" | "stretch">;
+  overflow?: "visible" | "hidden";
+};
+
+export type HeadingTag = "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "div" | "span";
+export type HeadingProps = { text: string; tag?: HeadingTag; link?: LinkValue };
+
+export type TextProps = { doc: RichDoc };
+
+export type ImageFit = "cover" | "contain" | "fill" | "none";
+export type ImageLink = { kind: "none" } | { kind: "lightbox" } | { kind: "url"; href: string; newTab?: boolean };
+export type ImageProps = {
+  src: string;
+  alt?: string;
+  width?: MaybeResponsive<Size>;
+  height?: MaybeResponsive<Size>;
+  fit?: ImageFit;
+  focal?: { x: number; y: number };
+  align?: MaybeResponsive<"left" | "center" | "right">;
+  link?: ImageLink;
+  caption?: string;
+  /** Intrinsic size, written when the picture is chosen, so the page never shifts while it loads. */
+  naturalWidth?: number;
+  naturalHeight?: number;
+};
+
+export type ButtonSize = "sm" | "md" | "lg" | "xl";
+export type ButtonProps = {
+  text: string;
+  link?: LinkValue;
+  /** A kit button preset, e.g. "kit:button.primary". */
+  preset?: string;
+  size?: ButtonSize;
+  icon?: IconValue | null;
+  iconPosition?: "before" | "after";
+  align?: MaybeResponsive<"left" | "center" | "right" | "justify">;
+};
+
+export type SpacerProps = { height?: MaybeResponsive<Size> };
+
+export type DividerProps = {
+  style?: BorderStyle;
+  width?: MaybeResponsive<Size>;
+  weight?: Size;
+  color?: Color;
+  align?: "left" | "center" | "right";
+  text?: string;
+  icon?: IconValue | null;
+};
+
+export type SiteSectionProps = { key: string };
+
+// --- site kit (content/site-kit.json) ------------------------------------------------------------
+
+export type TypographyPreset = {
+  fontFamily?: FontRef;
+  fontSize: MaybeResponsive<Size>;
+  fontWeight?: FontWeight;
+  lineHeight?: Size;
+  letterSpacing?: Size;
+  textTransform?: TextTransform;
+};
+
+export type ButtonPreset = {
+  background: Color;
+  color: Color;
+  borderWidth?: Size;
+  borderColor?: Color;
+  radius?: Size;
+  padding?: Sides<Size>;
+  hover?: { background?: Color; color?: Color; borderColor?: Color };
+};
+
+export type SiteKit = {
+  version: 1;
+  colors: {
+    primary: Color;
+    secondary: Color;
+    text: Color;
+    accent: Color;
+    custom: { id: string; label: string; value: Color }[];
+  };
+  fonts: {
+    heading: string;
+    body: string;
+    custom: { id: string; family: string; source: "google" | "system" }[];
+  };
+  typography: {
+    h1: TypographyPreset;
+    h2: TypographyPreset;
+    h3: TypographyPreset;
+    h4: TypographyPreset;
+    h5: TypographyPreset;
+    h6: TypographyPreset;
+    body: TypographyPreset;
+    small: TypographyPreset;
+    button: TypographyPreset;
+  };
+  buttons: { primary: ButtonPreset; secondary: ButtonPreset; outline: ButtonPreset };
+  links: { color: Color; hover: Color };
+  forms: { fieldBackground: Color; fieldBorder: Color; fieldRadius: Size; fieldText: Color };
+  container: { contentWidth: Size; padding: Sides<Size>; gap: Size };
+  breakpoints: { tablet: number; mobile: number };
+  imageRadius: Size;
+  pageBackground: Color;
+};
+
+/** What a site registers for a hand-coded section it wants in the tree. */
+export type SiteSectionInfo = { key: string; label: string; repeatable: boolean };

@@ -44,7 +44,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 
 - No AI features. Nothing is generated, suggested or rewritten.
 - No email sending. Invite links are shown to the agency to copy and send by hand; the link is also written to the function logs.
-- The visual editor edits words, pictures, links and lists (Stage 1). Colours and fonts from design tokens (Stage 2) and adding, moving or hiding sections (Stage 3) are designed for but not built: the protocol reserves `armature:tokens:*` and `armature:sections:*`, and the draft store has room for those change kinds.
+- The page builder (docs/BUILDER_SPEC.md) is being built milestone by milestone. Milestone 1, the foundation, is in: the data model, the site kit, the renderer and the v2 protocol. Dragging widgets, the inspector and publishing layouts arrive in the following milestones.
 - The form editor still publishes one page at a time; the visual editor publishes every page in one commit.
 - Sign-up confirmation and password-reset emails come from Supabase's built-in templates.
 
@@ -53,7 +53,9 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 | Folder | What is in it |
 | --- | --- |
 | `src/` | The dashboard: a Vite + React + TypeScript single-page app, hosted on Netlify. `src/visual/` is the visual editor. |
-| `bridge/` | `armature-bridge.ts`, the one dependency-free file a site copies in to support visual editing, with its README. |
+| `bridge/` | `armature-bridge.ts`, the one dependency-free file a v1.1 site copies in to support click-to-edit content, with its README. |
+| `kit/` | The site kit (site contract v2): the folder a site copies to `src/lib/armature-kit/` for the page builder. Bridge v2, renderer, widgets, CSS generator, rich-text renderer. React is its only dependency. |
+| `shared/builder/` | The page builder's data model as zod schemas, shared by the dashboard and the edge functions. |
 | `examples/demo-site/` | A tiny Vite + React site that follows the contract, including the bridge. The end-to-end tests run the editor against it. |
 | `tests/e2e/` | Playwright tests of the visual editor against the demo site, with Supabase mocked and GitHub never touched. |
 | `shared/` | The site contract as code: schema types, the content serializer and validation. Imported by both the dashboard and the edge functions so they can never disagree. |

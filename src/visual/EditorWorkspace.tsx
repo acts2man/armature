@@ -61,6 +61,7 @@ import { PublishDialog, type PublishState } from "./PublishDialog.tsx";
 import { RequestBar, RestorePrompt, ShortcutsSheet, Tour } from "./Sheets.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { useBridge } from "./useBridge.ts";
+import { defaultSiteKit } from "@shared/builder/index.ts";
 
 const AUTOSAVE_MS = 300;
 const HINT_MS = 2600;
@@ -204,6 +205,7 @@ export function EditorWorkspace({
   const bridge = useBridge({ liveUrl: site.live_url, siteId: site.id, handlers: { onMessage: (message) => handleMessage.current(message) } });
   const { send, connection } = bridge;
   const ready = connection.status === "ready";
+  const protocol = connection.status === "ready" ? connection.protocol : null;
 
   // First load of the frame.
   const loadedOnce = useRef(false);
@@ -224,6 +226,14 @@ export function EditorWorkspace({
     if (!ready) return;
     send({ type: "armature:mode", mode: preview ? "preview" : "edit" });
   }, [ready, preview, send]);
+  // Site contract v2: the kit renders the layouts and site kit the editor holds (the
+  // published ones until the page builder's draft store lands in M2).
+  const layoutsForBridge = useMemo(() => content.layouts ?? {}, [content.layouts]);
+  const kitForBridge = useMemo(() => content.siteKit ?? defaultSiteKit(), [content.siteKit]);
+  useEffect(() => {
+    if (!ready || protocol !== 2) return;
+    send({ type: "armature:layout:apply", layouts: layoutsForBridge, kit: kitForBridge });
+  }, [ready, protocol, layoutsForBridge, kitForBridge, send]);
   useEffect(() => {
     if (!ready) geometry.reset();
   }, [ready, geometry]);
@@ -476,7 +486,7 @@ export function EditorWorkspace({
   const mod = modKey();
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-ground text-text" data-testid="visual-editor">
+    <div className="flex h-dvh flex-col overflow-hidden bg-ground text-text" data-testid="visual-editor" data-protocol={protocol ?? undefined}>
       <TopBar
         siteName={site.name}
         siteId={site.id}
@@ -555,6 +565,7 @@ export function EditorWorkspace({
             formEditorHref={formEditorHref}
             siteName={site.name}
             hint={hint}
+            olderKit={isStaff && protocol === 1}
           />
           <RequestBar agencyName={agencyName} onSubmit={(text) => requestChange(selectedPath ?? "", text)} />
           <Tour active={tourOpen} onDone={() => setTourOpen(false)} />

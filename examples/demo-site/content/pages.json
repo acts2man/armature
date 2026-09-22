@@ -66,7 +66,7 @@
   "shared": {
     "footer": {
       "blurb": "Alder & Stone is a small design-build studio in Sacramento, California.",
-      "copyright": "© 2026 Alder & Stone. All rights reserved."
+      "copyright": "\u00a9 2026 Alder & Stone. All rights reserved."
     },
     "header": {
       "brand": "Alder & Stone",
@@ -78,6 +78,10 @@
         {
           "href": "/about/",
           "label": "About"
+        },
+        {
+          "href": "/contact/",
+          "label": "Contact"
         }
       ]
     }

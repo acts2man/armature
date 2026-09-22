@@ -245,6 +245,8 @@ The visual editor ("Edit site visually") shows the live website inside the dashb
 
 Then open the site in the dashboard and press **Edit site visually**. If the editor says "This site isn't set up for visual editing yet", the site has no bridge or the wrong origin in its allowlist; if it says the site refuses to be shown, it prints the exact header to add. Either way the page editor keeps working. A site that never adds the bridge simply keeps the form editor.
 
+For the page builder (dragging widgets, styling, new pages), the site copies the `kit/` folder instead of the single bridge file and follows "Site contract v2" in [SITE_CONTRACT.md](SITE_CONTRACT.md). A site still on the bridge shows agency staff the note "This site uses an older kit version" inside the editor, with the steps.
+
 ## Part G — If something goes wrong
 
 **Running a migration says "already exists".** You ran the file before. Nothing is broken; move on to the next file.

@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router";
+import { ArmatureRoute, ArmatureSlot } from "../../../kit/index.ts";
+import { armature } from "./armature.ts";
 import { registerNavigate, usePageCopy } from "./content.ts";
 
 function Header() {
@@ -33,13 +35,12 @@ function Footer() {
   );
 }
 
-function Home() {
+// --- the hand-coded sections of the home page, registered with the kit ---------------------
+
+function Hero() {
   const copy = usePageCopy("home");
   const cta = copy.link("hero", "cta");
   const video = copy.image("hero", "video");
-  useEffect(() => {
-    document.title = copy.plain("seo", "title");
-  });
   return (
     <>
       <section className="hero">
@@ -62,30 +63,56 @@ function Home() {
           <iframe src={video} title="Video" allowFullScreen />
         </section>
       )}
-      <section className="services">
-        <h2>{copy.text("services", "heading")}</h2>
-        <div className="grid">
-          {copy.list("services", "items").map((item, index) => (
-            <article key={index}>
-              <h3>{item.title}</h3>
-              <p>{item.body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className="faq">
-        <h2>{copy.text("faq", "heading")}</h2>
-        <dl>
-          {copy.list("faq", "items").map((item, index) => (
-            <div key={index} className="faq-item">
-              <dt>{item.question}</dt>
-              <dd>{item.answer}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
     </>
   );
+}
+
+function Services() {
+  const copy = usePageCopy("home");
+  return (
+    <section className="services">
+      <h2>{copy.text("services", "heading")}</h2>
+      <div className="grid">
+        {copy.list("services", "items").map((item, index) => (
+          <article key={index}>
+            <h3>{item.title}</h3>
+            <p>{item.body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Faq() {
+  const copy = usePageCopy("home");
+  return (
+    <section className="faq">
+      <h2>{copy.text("faq", "heading")}</h2>
+      <dl>
+        {copy.list("faq", "items").map((item, index) => (
+          <div key={index} className="faq-item">
+            <dt>{item.question}</dt>
+            <dd>{item.answer}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+armature.registerSiteSection("hero", { label: "Hero", component: Hero });
+armature.registerSiteSection("services", { label: "Services", component: Services });
+armature.registerSiteSection("faq", { label: "FAQ", component: Faq, repeatable: true });
+
+function Home() {
+  const copy = usePageCopy("home");
+  useEffect(() => {
+    document.title = copy.plain("seo", "title");
+  });
+  // The page's layout (content/layouts/home.json) decides the order and what sits between
+  // the sections; without one, the three sections render as they always did.
+  return <ArmatureSlot slug="home" defaults={["hero", "services", "faq"]} />;
 }
 
 function About() {
@@ -109,6 +136,20 @@ function About() {
   );
 }
 
+function NotFound() {
+  return (
+    <section className="about">
+      <div>
+        <h1>Page not found</h1>
+        <p className="lead">There is nothing at this address.</p>
+        <p>
+          <Link to="/">Back to the front page</Link>
+        </p>
+      </div>
+    </section>
+  );
+}
+
 export function App() {
   const navigate = useNavigate();
   useEffect(() => registerNavigate((path) => navigate(path)), [navigate]);
@@ -119,7 +160,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
-          <Route path="*" element={<Home />} />
+          {/* Builder-only pages (content/layouts/*.json with a path of their own) come before the 404. */}
+          <Route path="*" element={<ArmatureRoute fallback={<NotFound />} />} />
         </Routes>
       </main>
       <Footer />

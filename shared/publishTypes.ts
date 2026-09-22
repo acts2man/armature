@@ -6,6 +6,7 @@
  * `Failure`. Nothing is ever signalled by a bare thrown error or an empty body: the
  * editor renders `message` verbatim, which is what keeps every failure visible.
  */
+import type { LayoutDoc, SiteKit } from "../kit/types.ts";
 import type { ContentTree, ContentValue } from "./contentFile.ts";
 import type { SiteSchema } from "./schema.ts";
 
@@ -59,7 +60,22 @@ export type ContentGetResponse = {
   repo: string;
   /** Warnings from the content check, shown but not blocking. */
   warnings: string[];
+  /** Site contract v2: every valid layout under content/layouts/, by page slug. */
+  layouts: Record<string, LayoutDoc>;
+  /** content/site-kit.json when present and valid, else null (the default kit applies). */
+  siteKit: SiteKit | null;
+  /** Pictures and videos under public/assets/, for the media library. */
+  media: MediaFile[];
+  /** The site's editing level for clients (agency staff always get the full builder). */
+  editingLevel: EditingLevel;
 };
+
+export type EditingLevel = "content" | "style" | "builder";
+
+export type MediaFile = { path: string; bytes: number; kind: "image" | "video"; alt: string };
+
+/** content/media.json: default alt text per asset path. */
+export type MediaMeta = Record<string, { alt: string }>;
 
 // --- content-publish ----------------------------------------------------------
 

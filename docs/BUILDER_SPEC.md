@@ -332,7 +332,7 @@ dialog) compared against the design.
 
 ## Milestones (build in order; tick when verified, changelogged, committed and pushed)
 
-- [ ] **M1 Foundation.** Data model, zod schemas, `site-kit.json`, `kit/` with the renderer
+- [x] **M1 Foundation.** Data model, zod schemas, `site-kit.json`, `kit/` with the renderer
       core (Container, Grid, Heading, Text Editor, Image, Button, Spacer, Divider), CSS
       generator, rich-text renderer, bridge protocol v2 with v1.1 compatibility, demo-site
       upgrade, `docs/SITE_CONTRACT.md` v2.

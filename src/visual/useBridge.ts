@@ -7,12 +7,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { callFunction } from "@/lib/functions.ts";
 import type { EmbedCheckResponse } from "@shared/publishTypes.ts";
 import {
+  BUILDER_PROTOCOL_VERSION,
   HANDSHAKE_TIMEOUT_MS,
   VISUAL_PROTOCOL_VERSION,
   editUrl,
   isBridgeMessage,
   type BridgeToEditor,
   type EditorToBridge,
+  type ProtocolVersion,
+  type SiteSectionInfo,
+  type SlotInfo,
 } from "@shared/visualProtocol.ts";
 
 export type ConnectionErrorKind = "no_live_url" | "bad_url" | "timeout" | "blocked" | "unreachable" | "protocol";
@@ -20,7 +24,17 @@ export type ConnectionErrorKind = "no_live_url" | "bad_url" | "timeout" | "block
 export type Connection =
   | { status: "loading" }
   | { status: "connecting" }
-  | { status: "ready"; bridgeVersion: string }
+  | {
+      status: "ready";
+      bridgeVersion: string;
+      /** 1: a v1.1 bridge (content editing only). 2: a v2 kit (the page builder). */
+      protocol: ProtocolVersion;
+      kitVersion: string | null;
+      sections: SiteSectionInfo[];
+      slots: SlotInfo[];
+      /** Slugs of the layouts the site was built with. */
+      layouts: string[];
+    }
   | { status: "error"; kind: ConnectionErrorKind; title: string; message: string; fix?: string; snippet?: string };
 
 const HELLO_INTERVAL_MS = 250;
@@ -151,7 +165,7 @@ export function useBridge(opts: { liveUrl: string | null; siteId: string; handle
     const hello = () => {
       const target = iframeRef.current?.contentWindow;
       if (!target) return;
-      target.postMessage({ type: "armature:hello", nonce: nonceRef.current, protocolVersion: VISUAL_PROTOCOL_VERSION } satisfies EditorToBridge, siteOrigin);
+      target.postMessage({ type: "armature:hello", nonce: nonceRef.current, protocolVersion: VISUAL_PROTOCOL_VERSION, wants: BUILDER_PROTOCOL_VERSION } satisfies EditorToBridge, siteOrigin);
     };
     hello();
     timers.current.hello = window.setInterval(hello, HELLO_INTERVAL_MS);
@@ -171,7 +185,7 @@ export function useBridge(opts: { liveUrl: string | null; siteId: string; handle
       const message = event.data;
       if (message.type === "armature:ready") {
         clearTimers();
-        if (message.protocolVersion !== VISUAL_PROTOCOL_VERSION) {
+        if (message.protocolVersion !== VISUAL_PROTOCOL_VERSION && message.protocolVersion !== BUILDER_PROTOCOL_VERSION) {
           setConnection({
             status: "error",
             kind: "protocol",
@@ -181,7 +195,15 @@ export function useBridge(opts: { liveUrl: string | null; siteId: string; handle
           });
           return;
         }
-        setConnection({ status: "ready", bridgeVersion: message.bridgeVersion });
+        setConnection({
+          status: "ready",
+          bridgeVersion: message.bridgeVersion,
+          protocol: message.protocolVersion === BUILDER_PROTOCOL_VERSION ? 2 : 1,
+          kitVersion: message.kitVersion ?? null,
+          sections: message.sections ?? [],
+          slots: message.slots ?? [],
+          layouts: message.layouts ?? [],
+        });
       } else if (message.type === "armature:error" && message.code === "protocol_mismatch") {
         clearTimers();
         setConnection({

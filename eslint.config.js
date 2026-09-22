@@ -24,4 +24,9 @@ export default defineConfig([
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // The site kit is copied into other projects and mixes components with helpers on purpose.
+    files: ["kit/**/*.{ts,tsx}", "src/builder/widgets/**/*.{ts,tsx}"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
 ]);

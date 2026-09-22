@@ -1,0 +1,66 @@
+{
+  "label": "Contact",
+  "path": "/contact/",
+  "pageSlug": "contact",
+  "root": [
+    {
+      "advanced": {},
+      "children": [
+        {
+          "advanced": {},
+          "id": "cthead01",
+          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+          "props": { "tag": "h1", "text": "Let's talk about your home" },
+          "style": { "typography": { "preset": "kit:type.h1" } },
+          "type": "heading"
+        },
+        {
+          "advanced": {},
+          "id": "cttext01",
+          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+          "props": {
+            "doc": {
+              "content": [
+                { "content": [{ "text": "Tell us about the lot, the house you have in mind and when you would like to move in. A real person answers within one business day.", "type": "text" }], "type": "paragraph" }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": { "typography": { "preset": "kit:type.body" } },
+          "type": "text"
+        },
+        {
+          "advanced": {},
+          "id": "ctdivide",
+          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+          "props": { "color": "kit:color.secondary", "style": "solid", "weight": { "unit": "px", "value": 1 }, "width": { "unit": "%", "value": 100 } },
+          "style": {},
+          "type": "divider"
+        },
+        {
+          "advanced": {},
+          "id": "ctbutton",
+          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+          "props": { "link": { "href": "mailto:hello@alderstone.example" }, "preset": "kit:button.primary", "size": "lg", "text": "Email hello@alderstone.example" },
+          "style": {},
+          "type": "button"
+        },
+        {
+          "advanced": {},
+          "id": "ctspacer",
+          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+          "props": { "height": { "unit": "px", "value": 40 } },
+          "style": {},
+          "type": "spacer"
+        }
+      ],
+      "id": "ctsectio",
+      "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+      "props": { "align": "flex-start", "layout": "boxed", "tag": "section" },
+      "style": {},
+      "type": "container"
+    }
+  ],
+  "seo": { "description": "Get in touch with Alder & Stone about your custom home.", "title": "Contact | Alder & Stone" },
+  "version": 1
+}
