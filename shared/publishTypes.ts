@@ -181,3 +181,34 @@ export type InviteAcceptResponse = {
   agency_id: string;
   role: InviteRole;
 };
+
+// --- client-create ---------------------------------------------------------------
+
+export type SiteRole = "client_owner" | "client_editor";
+
+export type ClientCreateRequest = {
+  site_id: string;
+  full_name: string;
+  email: string;
+  /** Only ever sent; never returned or logged. */
+  temporary_password: string;
+  role: SiteRole;
+};
+
+export type ClientCreateResponse = {
+  ok: true;
+  /** "created": a new account with the temporary password. "already_existed": their own password still applies. */
+  outcome: "created" | "already_existed";
+  email: string;
+  site_name: string;
+  /** Where the client signs in: APP_URL + /signin. */
+  sign_in_url: string;
+  /** A plain-English sentence for the agency about what happened. */
+  message: string;
+};
+
+// --- password-set -------------------------------------------------------------------
+
+export type PasswordSetRequest = { password: string };
+
+export type PasswordSetResponse = { ok: true };

@@ -103,7 +103,7 @@ Secrets only reach edge functions that were deployed **after** the secrets were 
 
 ## Part C — Deploy the edge functions
 
-The edge functions are seven small programs in the folder `supabase/functions` of this repository. They must be uploaded to your Supabase project. There are two ways; the first needs no terminal.
+The edge functions are nine small programs in the folder `supabase/functions` of this repository. They must be uploaded to your Supabase project. There are two ways; the first needs no terminal.
 
 ### C1. The no-terminal way: a GitHub Action
 
@@ -119,14 +119,14 @@ This repository includes a workflow called **Deploy edge functions**. It needs t
 
 From now on, every change to the functions that lands on the `main` branch deploys automatically.
 
-To confirm: in Supabase press **Edge Functions**. You should see seven functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `site-diagnose`, `invite-create` and `invite-accept`.
+To confirm: in Supabase press **Edge Functions**. You should see nine functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `site-diagnose`, `invite-create`, `invite-accept`, `client-create` and `password-set`.
 
 ### C2. The terminal way (if you prefer)
 
 1. Install Node.js (the **LTS** download at https://nodejs.org) and, on GitHub, download this repository (**Code → Download ZIP**) or clone it. Open a terminal in the repository folder.
 2. `npx supabase login` opens a browser window; approve it. This lets the tool act as you.
 3. `npx supabase link --project-ref PROJECT_REF` (use your value from A2) connects the folder to your project. It may ask for the database password from A1.
-4. `npx supabase functions deploy --use-api` uploads all seven functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
+4. `npx supabase functions deploy --use-api` uploads all nine functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
 
 ---
 
@@ -207,6 +207,18 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 3. The dashboard shows an invite link with a **Copy link** button. Email sending is not set up in this version, so copy the link and send it to the client yourself. It expires after seven days.
 4. The client opens the link, creates an account **with that same email address** (or signs in if they already have one), and sees **You now have access**; pressing **Open your site** takes them to it. They see your portal name, logo and colour, and never the word Armature.
 
+### F5. Giving a client their login (instead of an invite)
+
+If you would rather set up the client's account yourself and hand them a ready-made login, you can. The client never has to create an account or open a link.
+
+1. Open the site, press **Team**, and press **Create client login** (next to **Create invite**).
+2. Fill in the client's **Name** and **Email**, check the **Site** (the current site is already chosen; you can pick another of your sites), and choose a **Role** (**Client owner** or **Client editor**, both can edit and publish).
+3. Under **Temporary password** press **Generate**: the dashboard makes a strong password of 14 letters, numbers and symbols and shows it. You can type your own instead, as long as it is at least 10 characters and is not the word "password", the client's email address, or one character repeated. **Show** / **Hide** toggles whether it is visible.
+4. Press **Create login**. A green card shows the sign-in link, the email and the temporary password, and a ready-to-send message. Press **Copy login details** and paste it into an email or text message to the client. **The password is not shown again** once you leave this page, so send it before you dismiss the card. (Nothing is emailed by the dashboard; you deliver the details yourself.)
+5. The client opens the sign-in link, signs in with the email and temporary password, and is taken straight to **Choose your password**. They cannot open any other screen until they have chosen their own password; after that they use it from then on. They see your portal name and never the word Armature.
+
+If the email address already has an account (for example a client who edits another of your sites), the dashboard does not change their password: it only gives them access to this site, and the card says **Their existing password still applies**. They sign in as before; if they have forgotten their password, **Forgot your password?** on the sign-in page emails them a reset link.
+
 ---
 
 ## Part G — If something goes wrong
@@ -215,11 +227,15 @@ If GitHub did *not* send you back (the App's Setup URL was empty at the time), g
 
 **The sign-in page says "This dashboard is not connected to a Supabase project yet" and names a missing variable.** Part D step 6: check the variable names exactly, then Trigger deploy again.
 
-**"The … function is not deployed to this Supabase project."** Part C has not run, or it failed. Check the Actions tab for a red run, or Supabase → Edge Functions for the seven names.
+**"The … function is not deployed to this Supabase project."** Part C has not run, or it failed. Check the Actions tab for a red run, or Supabase → Edge Functions for the nine names.
 
 **After signing in: "Your account does not have access to any site yet."** For the agency owner: Part E step 5 was not run, or used a different email. For a client: either they have not opened the invite link while signed in (the link is what adds them: send it again and ask them to open it), or they signed in with an email that is not the one the invite was sent to; they should sign out and use the invited address, or you send a new invite to the address they use.
 
 **"This invite was sent to …, but you are signed in as …".** Same cause as above. Press **Sign out and use a different email** on that page, then sign in (or create an account) with the invited address; the invite is accepted automatically.
+
+**A client with a login you created says they are "stuck on Choose your password".** That screen is expected the first time; they need to type a new password twice (at least 10 characters, not the word "password", not their email address) and press **Save password and continue**. If the screen comes back after that, ask them to sign out and sign in again with the new password. If you need to start over, create the login again with a fresh temporary password: because the account already exists, the dashboard will not change their password, so instead ask them to use **Forgot your password?** on the sign-in page.
+
+**"Create client login" says the site does not belong to your agency, or that only agency staff can do this.** You are signed in with an account that is not owner or staff of the agency that owns the site. Sign in with your agency account (the one from Part E).
 
 **Confirmation or sign-in-link emails point at localhost.** Part A4: the Site URL in Supabase is still the default. Set it to `DASHBOARD_URL` and add the redirect URL.
 

@@ -5,6 +5,12 @@ All notable changes to Armature are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Create client login**: on a site's Team screen, agency staff can create a client's account themselves (name, email, site, role, temporary password with a **Generate** button and show/hide) and copy a ready-to-send message with the sign-in link, email and temporary password. The invite-link flow stays as it was. If the email already has an account, that person is only given access to the site and their existing password is left alone.
+- **Choose your password** on first sign-in: an account the agency created must replace the temporary password before it can open any other screen. The new password follows the same rules (at least 10 characters; not the word "password", the email address, or one character repeated).
+- Two edge functions: `client-create` (agency staff only; creates the confirmed account with the service role and never returns or logs the password) and `password-set` (the signed-in person sets their own password and the must-change flag is cleared).
+
 ### Fixed
 
 - "Add a site" / "Check connection": the step "The App can write to the repository" now passes when the installation token GitHub issued carries Contents: write. It used to read `permissions.push` from the repository response, which GitHub does not report reliably for App installation tokens, so the step failed on real deploys right after the token step had passed.

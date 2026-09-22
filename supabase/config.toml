@@ -25,3 +25,9 @@ verify_jwt = true
 
 [functions.invite-accept]
 verify_jwt = true
+
+[functions.client-create]
+verify_jwt = true
+
+[functions.password-set]
+verify_jwt = true

@@ -1,5 +1,6 @@
 import { createBrowserRouter, RouterProvider } from "react-router";
-import { RequireAuth, RequireStaff } from "@/auth/RequireAuth.tsx";
+import { RequireAuth, RequirePasswordChosen, RequireStaff } from "@/auth/RequireAuth.tsx";
+import { CHOOSE_PASSWORD_PATH } from "@/auth/passwordGate.ts";
 import { AppShell } from "@/components/AppShell.tsx";
 import { SiteLayout } from "@/components/SiteLayout.tsx";
 import { AddSite } from "@/pages/AddSite.tsx";
@@ -7,6 +8,7 @@ import { AgencyRequests } from "@/pages/AgencyRequests.tsx";
 import { AgencySettings } from "@/pages/AgencySettings.tsx";
 import { ChangeRequestDetail } from "@/pages/ChangeRequestDetail.tsx";
 import { ChangeRequests } from "@/pages/ChangeRequests.tsx";
+import { ChoosePassword } from "@/pages/ChoosePassword.tsx";
 import { Fleet } from "@/pages/Fleet.tsx";
 import { GithubSetup } from "@/pages/GithubSetup.tsx";
 import { Home } from "@/pages/Home.tsx";
@@ -26,35 +28,43 @@ const router = createBrowserRouter([
   {
     element: <RequireAuth />,
     children: [
+      // The password screen sits outside the shell and outside the gate that sends
+      // every other signed-in route here until a temporary password is replaced.
+      { path: CHOOSE_PASSWORD_PATH, element: <ChoosePassword /> },
       {
-        element: <AppShell />,
+        element: <RequirePasswordChosen />,
         children: [
-          { path: "/", element: <Home /> },
-          { path: "/github/setup", element: <GithubSetup /> },
           {
-            element: <RequireStaff />,
+            element: <AppShell />,
             children: [
-              { path: "/fleet", element: <Fleet /> },
-              { path: "/sites/new", element: <AddSite /> },
-              { path: "/agency/requests", element: <AgencyRequests /> },
-              { path: "/agency/settings", element: <AgencySettings /> },
+              { path: "/", element: <Home /> },
+              { path: "/github/setup", element: <GithubSetup /> },
+              {
+                element: <RequireStaff />,
+                children: [
+                  { path: "/fleet", element: <Fleet /> },
+                  { path: "/sites/new", element: <AddSite /> },
+                  { path: "/agency/requests", element: <AgencyRequests /> },
+                  { path: "/agency/settings", element: <AgencySettings /> },
+                ],
+              },
+              {
+                path: "/sites/:siteId",
+                element: <SiteLayout />,
+                children: [
+                  { index: true, element: <SiteHome /> },
+                  { path: "pages", element: <SitePages /> },
+                  { path: "pages/:slug", element: <PageEditor /> },
+                  { path: "requests", element: <ChangeRequests /> },
+                  { path: "requests/new", element: <NewChangeRequest /> },
+                  { path: "requests/:requestId", element: <ChangeRequestDetail /> },
+                  { path: "team", element: <Team /> },
+                  { path: "history", element: <PublishHistory /> },
+                ],
+              },
+              { path: "*", element: <NotFound /> },
             ],
           },
-          {
-            path: "/sites/:siteId",
-            element: <SiteLayout />,
-            children: [
-              { index: true, element: <SiteHome /> },
-              { path: "pages", element: <SitePages /> },
-              { path: "pages/:slug", element: <PageEditor /> },
-              { path: "requests", element: <ChangeRequests /> },
-              { path: "requests/new", element: <NewChangeRequest /> },
-              { path: "requests/:requestId", element: <ChangeRequestDetail /> },
-              { path: "team", element: <Team /> },
-              { path: "history", element: <PublishHistory /> },
-            ],
-          },
-          { path: "*", element: <NotFound /> },
         ],
       },
     ],
