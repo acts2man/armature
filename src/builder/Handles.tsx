@@ -9,7 +9,9 @@ import { clsx } from "clsx";
 import { useState } from "react";
 import { resolve, type Device, type Element, type ImageProps, type Sides, type Size } from "@shared/builder/index.ts";
 import type { ElementRect } from "@shared/visualProtocol.ts";
-import { dragHeight, dragSpacing, inwardDelta, keyDelta, resizeColumns, resizeImage, trackHandle, type HandleWrite, type Side } from "./handles.ts";
+import { dragHeight, dragSpacing, inwardDelta, keyDelta, OPPOSITE, px, resizeColumns, resizeImage, trackHandle, type HandleWrite, type Side } from "./handles.ts";
+
+type Mode = "one" | "opposite" | "all";
 import { isContainerType } from "./store.ts";
 
 export type HandleActions = {
@@ -46,14 +48,14 @@ export function Handles({
   const isBox = isContainerType(element.type) || element.type === "site-section";
 
   /** Starts a drag: `compute` turns the total movement into writes and a value to show. */
-  const begin = (event: React.PointerEvent, kind: string, compute: (dx: number, dy: number, symmetric: boolean) => { writes: HandleWrite[]; label: string; value: string }) => {
+  const begin = (event: React.PointerEvent, kind: string, compute: (dx: number, dy: number, mode: Mode) => { writes: HandleWrite[]; label: string; value: string }) => {
     const group = `drag:${kind}:${element.id}:${Math.round(event.timeStamp)}`;
     const startX = event.clientX;
     const startY = event.clientY;
     let moved = false;
     trackHandle(event, s, {
       onMove: (dx, dy, modifiers) => {
-        const result = compute(dx, dy, modifiers.shift || modifiers.alt);
+        const result = compute(dx, dy, modifiers.shift ? "all" : modifiers.alt ? "opposite" : "one");
         moved = true;
         actions.onWrite(result.writes, result.label, group);
         setActive({ label: result.label, value: result.value, x: startX + dx * s, y: startY + dy * s });
@@ -66,12 +68,13 @@ export function Handles({
     });
   };
   /** The same change from the keyboard: each press is its own step, merged while pressing. */
-  const nudge = (event: React.KeyboardEvent, kind: string, axis: "x" | "y", compute: (dx: number, dy: number, symmetric: boolean) => { writes: HandleWrite[]; label: string }) => {
+  const nudge = (event: React.KeyboardEvent, kind: string, axis: "x" | "y", compute: (dx: number, dy: number, mode: Mode) => { writes: HandleWrite[]; label: string }) => {
     const delta = keyDelta(event, axis);
     if (delta === null) return;
     event.preventDefault();
     event.stopPropagation();
-    const result = compute(axis === "x" ? delta : 0, axis === "y" ? delta : 0, event.altKey);
+    // Shift is the ten-pixel step on the keyboard; Alt moves the opposite side too.
+    const result = compute(axis === "x" ? delta : 0, axis === "y" ? delta : 0, event.altKey ? "opposite" : "one");
     actions.onWrite(result.writes, result.label, `key:${kind}:${element.id}`);
   };
 
@@ -84,11 +87,12 @@ export function Handles({
     const measured = { ...selected[kind] };
     const current = resolve<Partial<Sides<Size>>>(element.advanced[kind] as never, device);
     const name = kind === "padding" ? "Padding" : "Margin";
-    return (dx: number, dy: number, symmetric: boolean) => {
+    return (dx: number, dy: number, mode: Mode) => {
       const inward = inwardDelta(side, dx, dy);
       const delta = kind === "padding" ? inward : -inward;
-      const value = dragSpacing(current, measured, side, delta, { kind, symmetric });
-      return { writes: [{ id: element.id, path: ["advanced", kind], value, responsive: true }], label: `${name} ${side}${symmetric ? " and " + ({ top: "bottom", bottom: "top", left: "right", right: "left" } as const)[side] : ""}`, value: sizeText(value[side]) };
+      const value = dragSpacing(current, measured, side, delta, { kind, mode });
+      const which = mode === "all" ? "on all sides" : mode === "opposite" ? `${side} and ${OPPOSITE[side]}` : side;
+      return { writes: [{ id: element.id, path: ["advanced", kind], value, responsive: true }], label: `${name} ${which}`, value: sizeText(value[side]) };
     };
   };
   const spacingHandle = (kind: "padding" | "margin", side: Side) => {
@@ -104,7 +108,7 @@ export function Handles({
         key={`${kind}-${side}`}
         type="button"
         aria-label={label}
-        title={`${kind === "padding" ? "Padding" : "Margin"} ${side} (${Math.round(box[side])}px). Shift: both sides`}
+        title={`${kind === "padding" ? "Padding" : "Margin"} ${side} (${Math.round(box[side])}px). Alt: opposite side too. Shift: all sides`}
         data-testid={`handle-${kind}-${side}`}
         onPointerDown={(event) => begin(event, `${kind}-${side}`, spacing(kind, side))}
         onKeyDown={(event) => nudge(event, `${kind}-${side}`, vertical ? "x" : "y", spacing(kind, side))}
@@ -133,9 +137,20 @@ export function Handles({
       const value = dragHeight(img.height, dy, 16, 2000, resolve<Size>(props.height as never, device));
       return { writes: [{ id: element.id, path: ["props", "height"], value, responsive: true }, ...(props.fit ? [] : [{ id: element.id, path: ["props", "fit"], value: "cover", responsive: false }])], label: "Changed the image height", value: sizeText(value) };
     };
+    /** The corner keeps the picture's proportions (a set height scales with the width); Shift frees them. */
+    const corner = (dx: number, dy: number, mode: Mode) => {
+      const result = width(dx);
+      const ownHeight = resolve<Size>(props.height as never, device);
+      if (mode === "all") return { ...result, writes: [...result.writes, ...height(0, dy).writes], label: "Resized the image freely", value: `${result.value} × ${Math.round(img.height + dy)}px` };
+      if (ownHeight && ownHeight.unit === "px" && img.width > 0) {
+        const ratio = Math.max(16, img.width + dx) / img.width;
+        return { ...result, writes: [...result.writes, { id: element.id, path: ["props", "height"], value: px(img.height * ratio), responsive: true }] };
+      }
+      return result;
+    };
     handles.push(
       <button key="img-w" type="button" aria-label="Image width: drag, or use the arrow keys" data-testid="handle-image-width" onPointerDown={(event) => begin(event, "img-w", (dx) => width(dx))} onKeyDown={(event) => nudge(event, "img-w", "x", (dx) => width(dx))} className="pointer-events-auto absolute h-6 w-2 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-full border-2 border-accent bg-white" style={{ left: (img.x + img.width) * s, top: (img.y + img.height / 2) * s }} />,
-      <button key="img-c" type="button" aria-label="Image size: drag the corner" tabIndex={-1} data-testid="handle-image-corner" onPointerDown={(event) => begin(event, "img-c", (dx) => width(dx))} className="pointer-events-auto absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize border-2 border-accent bg-white" style={{ left: (img.x + img.width) * s, top: (img.y + img.height) * s }} />,
+      <button key="img-c" type="button" aria-label="Image size: drag the corner (Shift frees the aspect ratio)" tabIndex={-1} data-testid="handle-image-corner" onPointerDown={(event) => begin(event, "img-c", (dx, dy, mode) => corner(dx, dy, mode))} className="pointer-events-auto absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize border-2 border-accent bg-white" style={{ left: (img.x + img.width) * s, top: (img.y + img.height) * s }} />,
       <button key="img-h" type="button" aria-label="Image height: drag, or use the arrow keys" data-testid="handle-image-height" onPointerDown={(event) => begin(event, "img-h", height)} onKeyDown={(event) => nudge(event, "img-h", "y", height)} className="pointer-events-auto absolute h-2 w-6 -translate-x-1/2 -translate-y-1/2 cursor-ns-resize rounded-full border-2 border-accent bg-white" style={{ left: (img.x + img.width / 2) * s, top: (img.y + img.height) * s }} />,
     );
   }

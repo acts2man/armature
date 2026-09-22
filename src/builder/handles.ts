@@ -19,15 +19,15 @@ export const clamp = (value: number, min: number, max: number) => Math.min(max, 
 
 /**
  * New spacing for one side after a drag of `delta` model pixels. Padding grows as the
- * handle moves inward, margin as it moves outward; `symmetric` (Shift or Alt) moves the
- * opposite side too. Sides that were not touched keep their value.
+ * handle moves inward, margin as it moves outward; Alt moves the opposite side too and
+ * Shift all four. Sides that were not touched keep their value.
  */
 export function dragSpacing(
   current: Partial<Sides<Size>> | undefined,
   measured: Record<Side, number>,
   side: Side,
   delta: number,
-  options: { kind: "padding" | "margin"; symmetric?: boolean },
+  options: { kind: "padding" | "margin"; /** Alt: the opposite side too. Shift: all four. */ mode?: "one" | "opposite" | "all" },
 ): Partial<Sides<Size>> {
   const min = options.kind === "padding" ? 0 : -500;
   // The element's own pixel value when it has one (so repeated nudges add up), else what the page measured.
@@ -36,7 +36,8 @@ export function dragSpacing(
   const next = clamp(base + delta, min, 1000);
   const out: Partial<Sides<Size>> = { ...(current ?? {}) };
   out[side] = px(next);
-  if (options.symmetric) out[OPPOSITE[side]] = px(next);
+  if (options.mode === "opposite") out[OPPOSITE[side]] = px(next);
+  if (options.mode === "all") for (const other of SIDES) out[other] = px(next);
   return out;
 }
 
@@ -54,6 +55,13 @@ export function inwardDelta(side: Side, dx: number, dy: number): number {
   }
 }
 
+/** Percentages a resize snaps to when it comes within `within` of one. */
+export const SNAPS = [25, 100 / 3, 50, 200 / 3, 75, 100];
+export function snapPercent(value: number, within = 1.5, snaps: number[] = SNAPS): number {
+  for (const snap of snaps) if (Math.abs(value - snap) <= within) return Math.round(snap * 10) / 10;
+  return value;
+}
+
 /**
  * Resize two side-by-side columns: `delta` model pixels moves the boundary between them.
  * Returns both widths as percentages of the row, keeping their sum, each at least `min`%.
@@ -64,8 +72,11 @@ export function resizeColumns(left: number, right: number, row: number, delta: n
   const l = current ? current[0] : (left / row) * 100;
   const r = current ? current[1] : (right / row) * 100;
   const total = l + r;
-  const nextLeft = clamp(l + (delta / row) * 100, min, total - min);
-  return [Math.round(nextLeft * 10) / 10, Math.round((total - nextLeft) * 10) / 10];
+  // Snap the boundary at the usual splits of the pair (a quarter, a third, a half, ...).
+  const raw = clamp(l + (delta / row) * 100, min, total - min);
+  const share = snapPercent((raw / total) * 100);
+  const nextLeft = Math.round(((share / 100) * total) * 10) / 10;
+  return [nextLeft, Math.round((total - nextLeft) * 10) / 10];
 }
 
 /**
@@ -73,10 +84,10 @@ export function resizeColumns(left: number, right: number, row: number, delta: n
  * it sits in when the width is already a percentage (the default), pixels otherwise.
  */
 export function resizeImage(current: Size | undefined, imageWidth: number, boxWidth: number, delta: number): Size {
-  if (current?.unit === "%" && boxWidth > 0) return pct(clamp(current.value + (delta / boxWidth) * 100, 5, 100));
+  if (current?.unit === "%" && boxWidth > 0) return pct(snapPercent(clamp(current.value + (delta / boxWidth) * 100, 5, 100)));
   if (current?.unit === "px") return px(clamp(current.value + delta, 16, Math.max(16, boxWidth)));
   const width = clamp(imageWidth + delta, 16, Math.max(16, boxWidth));
-  return pct(boxWidth > 0 ? clamp((width / boxWidth) * 100, 5, 100) : 100);
+  return pct(boxWidth > 0 ? snapPercent(clamp((width / boxWidth) * 100, 5, 100)) : 100);
 }
 
 /** A height dragged from the bottom edge (spacer height, container minimum height, image height). */
