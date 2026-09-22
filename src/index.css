@@ -1,22 +1,59 @@
 @import "tailwindcss";
 
-/* Design tokens. The accent is a runtime CSS variable so each agency can override it. */
+/*
+ * Design tokens, taken from the approved screens in docs/*.html.
+ * The accent is a runtime CSS variable so each agency's colour flows through
+ * every button, link and focus ring (white-label).
+ */
 @theme {
-  --color-ink: #16202b;
-  --color-text: #1b2733;
-  --color-muted: #4a5866;
-  --color-line: #d7dde3;
+  /* surfaces and text */
   --color-ground: #eef1f4;
   --color-panel: #ffffff;
+  --color-line: #d7dde3;
+  --color-text: #1b2733;
+  --color-muted: #4a5866;
+  --color-ink: #16202b;
+  --color-ink-2: #26364a;
+  --color-ink-line: #3a4a5c;
+  --color-ink-text: #c3ceda;
+
+  /* status pairs: soft background + readable foreground */
+  --color-green: #176b43;
+  --color-green-soft: #e1f2e9;
+  --color-amber: #8a4b00;
+  --color-amber-soft: #fcefd9;
+  --color-blue: #24339f;
+  --color-blue-soft: #e7eafc;
+  --color-grey-soft: #e6eaee;
+  --color-red: #a32d2d;
+  --color-red-soft: #fbe9e9;
+
+  /* older aliases still used by a few screens */
   --color-success: #176b43;
-  --color-success-soft: #e6f3ec;
+  --color-success-soft: #e1f2e9;
   --color-warning: #8a4b00;
-  --color-warning-soft: #fdf1e3;
+  --color-warning-soft: #fcefd9;
   --color-danger: #a32d2d;
   --color-danger-soft: #fbe9e9;
+
   --font-display: "Bricolage Grotesque", "Hanken Grotesk", system-ui, sans-serif;
-  --font-sans: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Hanken Grotesk", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --radius-sm: 6px;
+  --radius-control: 8px;
   --radius-card: 12px;
+  --radius-pill: 12px;
+
+  --shadow-segment: 0 1px 2px rgba(22, 32, 43, 0.16);
+  --shadow-pop: 0 12px 32px rgba(22, 32, 43, 0.18);
+  --shadow-dark: 0 8px 24px rgba(22, 32, 43, 0.28);
+  --shadow-sheet: 0 1px 0 #d7dde3, 0 16px 40px rgba(22, 32, 43, 0.12);
+
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Sidebars collapse to a top bar below this width. */
+  --breakpoint-shell: 900px;
 }
 
 @theme inline {
@@ -28,13 +65,16 @@
 :root {
   --accent: #2b3fd6;
   --accent-fg: #ffffff;
-  --accent-soft: color-mix(in srgb, var(--accent) 10%, white);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, white);
+  --sidebar-width: 248px;
 }
 
 html {
   background: var(--color-ground);
   color: var(--color-text);
   font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   text-size-adjust: 100%;
 }
@@ -54,18 +94,100 @@ h3,
 
 /* Keyboard focus is always visible; mouse focus stays quiet. */
 :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  border-radius: 6px;
+  outline: none;
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 4px var(--accent);
+  border-radius: var(--radius-control);
 }
 
 /* Comfortable tap targets everywhere a finger might land. */
-button,
-[role="button"],
-a.btn,
 input[type="file"],
 select {
   min-height: 44px;
+}
+
+/* Subtle, consistent motion. */
+button,
+a,
+input,
+select,
+textarea,
+[role="switch"] {
+  transition-property: background-color, border-color, color, box-shadow, opacity, transform;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-standard);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e6eaee 0%, #f3f5f7 50%, #e6eaee 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-in {
+  animation: toast-in 180ms var(--ease-standard);
+}
+
+/* The "wire" selection style from the visual editor: an accent outline with corner handles. */
+.wire {
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  position: relative;
+}
+
+.wire::before,
+.wire::after,
+.wire > .wire-handles::before,
+.wire > .wire-handles::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #ffffff;
+  border: 2px solid var(--accent);
+  box-sizing: border-box;
+}
+
+.wire::before {
+  top: -5px;
+  left: -5px;
+}
+
+.wire::after {
+  top: -5px;
+  right: -5px;
+}
+
+.wire > .wire-handles::before {
+  bottom: -5px;
+  left: -5px;
+}
+
+.wire > .wire-handles::after {
+  bottom: -5px;
+  right: -5px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -3,9 +3,11 @@ import { RequireAuth, RequirePasswordChosen, RequireStaff } from "@/auth/Require
 import { CHOOSE_PASSWORD_PATH } from "@/auth/passwordGate.ts";
 import { AppShell } from "@/components/AppShell.tsx";
 import { SiteLayout } from "@/components/SiteLayout.tsx";
+import { Account } from "@/pages/Account.tsx";
 import { AddSite } from "@/pages/AddSite.tsx";
 import { AgencyRequests } from "@/pages/AgencyRequests.tsx";
 import { AgencySettings } from "@/pages/AgencySettings.tsx";
+import { AgencyTeam } from "@/pages/AgencyTeam.tsx";
 import { ChangeRequestDetail } from "@/pages/ChangeRequestDetail.tsx";
 import { ChangeRequests } from "@/pages/ChangeRequests.tsx";
 import { ChoosePassword } from "@/pages/ChoosePassword.tsx";
@@ -39,6 +41,7 @@ const router = createBrowserRouter([
             children: [
               { path: "/", element: <Home /> },
               { path: "/github/setup", element: <GithubSetup /> },
+              { path: "/account", element: <Account /> },
               {
                 element: <RequireStaff />,
                 children: [
@@ -46,6 +49,7 @@ const router = createBrowserRouter([
                   { path: "/sites/new", element: <AddSite /> },
                   { path: "/agency/requests", element: <AgencyRequests /> },
                   { path: "/agency/settings", element: <AgencySettings /> },
+                  { path: "/agency/team", element: <AgencyTeam /> },
                 ],
               },
               {
