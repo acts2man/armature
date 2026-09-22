@@ -1,14 +1,19 @@
 /**
- * Add a site — three numbered steps on one page: link the GitHub App, name the
- * repository, and read the checklist. When every check passes the site exists.
+ * Add a site, two ways: connect a GitHub repository (link the App, name the
+ * repository, read the checklist), or add a hosting-only client (a name and a
+ * live URL) whose repository can be connected later. With ?upgrade=<site id>
+ * the repository path connects a repository to that hosting-only site in place.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { CheckList } from "@/components/CheckList.tsx";
-import { IconGithub, IconRefresh } from "@/components/icons.tsx";
-import { Button, Field, Input, LinkButton, Notice, PageHeader, Panel, Pill, Select, Skeleton, SrOnly } from "@/components/ui.tsx";
+import { IconGithub, IconGlobe, IconRefresh } from "@/components/icons.tsx";
+import { Button, Field, Input, LinkButton, Notice, PageHeader, Panel, Pill, Segmented, Select, Skeleton, SrOnly } from "@/components/ui.tsx";
 import { callFunction } from "@/lib/functions.ts";
+import { supabase } from "@/lib/supabase.ts";
+import type { Site } from "@/lib/types.ts";
 import type { GithubSetupResponse, SiteConnectRequest, SiteConnectResponse } from "@shared/publishTypes.ts";
 
 type InstallationsResponse = Extract<GithubSetupResponse, { action: "list_installations" }>;
@@ -55,11 +60,91 @@ function StepTitle({ number, children }: { number: number; children: ReactNode }
   );
 }
 
-export function AddSite() {
-  const { agencies } = useAuth();
+// --- hosting-only ------------------------------------------------------------------------------
+
+function HostingOnlyForm({ agencyId }: { agencyId: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [agencyId, setAgencyId] = useState(() => agencies[0]?.agency.id ?? "");
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [name, setName] = useState("");
+  const [liveUrl, setLiveUrl] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const create = useMutation({
+    mutationFn: async (input: { name: string; liveUrl: string | null }) => {
+      const { data, error: insertError } = await supabase
+        .from("sites")
+        .insert({ agency_id: agencyId, name: input.name, live_url: input.liveUrl, status: "hosting_only" })
+        .select("id")
+        .single();
+      if (insertError) throw new Error(insertError.message);
+      return (data as { id: string }).id;
+    },
+    onSuccess: async (siteId) => {
+      await queryClient.invalidateQueries({ queryKey: ["fleet"] });
+      navigate(`/sites/${siteId}`);
+    },
+  });
+
+  function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const cleanName = name.trim();
+    const cleanUrl = liveUrl.trim();
+    if (!cleanName) {
+      setError("Enter the client's site name.");
+      return;
+    }
+    if (cleanName.length > 120) {
+      setError("The name is too long (120 characters at most).");
+      return;
+    }
+    if (cleanUrl && !/^https:\/\//.test(cleanUrl)) {
+      setError("The live URL must start with https://");
+      return;
+    }
+    setError(null);
+    create.mutate({ name: cleanName, liveUrl: cleanUrl || null });
+  }
+
+  return (
+    <Panel title="Add a hosting-only client">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4 p-4 sm:p-5">
+        <p className="text-[14px] leading-relaxed text-muted">
+          For a client you host, register a domain for or run email for, but whose site is not edited here yet. You can record what you charge them straight away and connect the repository
+          later.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Site name" htmlFor="hosting-only-name" hint="Shown to you and, later, to the client.">
+            <Input id="hosting-only-name" required maxLength={120} value={name} onChange={(event) => setName(event.target.value)} disabled={create.isPending} />
+          </Field>
+          <Field label="Live URL" htmlFor="hosting-only-url" hint="Where the site can be seen. Must start with https://">
+            <Input id="hosting-only-url" type="url" inputMode="url" placeholder="https://www.example.com" value={liveUrl} onChange={(event) => setLiveUrl(event.target.value)} disabled={create.isPending} />
+          </Field>
+        </div>
+        {error && (
+          <Notice kind="danger" title="Check the form">
+            {error}
+          </Notice>
+        )}
+        {create.isError && (
+          <Notice kind="danger" title="The site could not be added">
+            {create.error.message}
+          </Notice>
+        )}
+        <div>
+          <Button type="submit" loading={create.isPending}>
+            <IconGlobe size={16} /> Add client
+          </Button>
+        </div>
+      </form>
+    </Panel>
+  );
+}
+
+// --- connect a repository -----------------------------------------------------------------------
+
+function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { agencyId: string; agencies: { id: string; name: string }[]; upgrade: Site | null; onAgencyChange: (id: string) => void }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<FormState>(() => (upgrade ? { ...EMPTY_FORM, name: upgrade.name, liveUrl: upgrade.live_url ?? "" } : EMPTY_FORM));
   const [errors, setErrors] = useState<FormErrors>({});
 
   const installations = useQuery({
@@ -88,7 +173,10 @@ export function AddSite() {
       return result;
     },
     onSuccess: (result) => {
-      if (result.site) void queryClient.invalidateQueries({ queryKey: ["fleet"] });
+      if (result.site) {
+        void queryClient.invalidateQueries({ queryKey: ["fleet"] });
+        void queryClient.invalidateQueries({ queryKey: ["site", result.site.id] });
+      }
     },
   });
 
@@ -118,6 +206,7 @@ export function AddSite() {
       branch,
       name: form.name.trim() || repo.name,
       ...(liveUrl ? { live_url: liveUrl } : {}),
+      ...(upgrade ? { site_id: upgrade.id } : {}),
     });
   }
 
@@ -125,14 +214,6 @@ export function AddSite() {
     setForm(EMPTY_FORM);
     setErrors({});
     connect.reset();
-  }
-
-  if (agencies.length === 0) {
-    return (
-      <Notice kind="warning" title="Your account is not staff of any agency">
-        Only agency staff can add sites. Ask the agency owner to invite you.
-      </Notice>
-    );
   }
 
   let installationsBlock: ReactNode;
@@ -184,23 +265,25 @@ export function AddSite() {
         {data.site ? (
           <Notice
             kind="success"
-            title={`${data.site.name} is connected`}
+            title={upgrade ? `${data.site.name} now has its repository connected` : `${data.site.name} is connected`}
             action={
               <>
                 <LinkButton to={`/sites/${data.site.id}`} size="sm">
                   Open the site
                 </LinkButton>
-                <Button variant="secondary" size="sm" onClick={startAgain}>
-                  Add another
-                </Button>
+                {!upgrade && (
+                  <Button variant="secondary" size="sm" onClick={startAgain}>
+                    Add another
+                  </Button>
+                )}
               </>
             }
           >
-            The site is ready to edit. Add the client from its Team tab.
+            {upgrade ? "Pages can be edited and published from here on." : "The site is ready to edit. Add the client from its Team tab."}
           </Notice>
         ) : data.allPassed ? (
           <Notice kind="warning" title="Every check passed, but the site was not saved">
-            Press "Check and connect" again. If this keeps happening, the site-connect function is not returning the new site.
+            Press "Check and connect" again. If this keeps happening, the site-connect function is not returning the site.
           </Notice>
         ) : (
           <Notice kind="warning" title="Fix the red items, then check again">
@@ -215,9 +298,7 @@ export function AddSite() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title="Add a site" description="Connect a site's GitHub repository so its pages can be edited here." />
-
+    <>
       <Panel title={<StepTitle number={1}>Connect GitHub</StepTitle>}>
         <div className="flex flex-col gap-4 p-4 sm:p-5">
           <p className="text-[14px] leading-relaxed text-muted">
@@ -243,12 +324,12 @@ export function AddSite() {
 
       <Panel title={<StepTitle number={2}>Which repository?</StepTitle>}>
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4 p-4 sm:p-5">
-          {agencies.length > 1 && (
+          {agencies.length > 1 && !upgrade && (
             <Field label="Agency" htmlFor="add-site-agency" hint="The agency this site belongs to.">
-              <Select id="add-site-agency" value={agencyId} onChange={(event) => setAgencyId(event.target.value)}>
-                {agencies.map((membership) => (
-                  <option key={membership.agency.id} value={membership.agency.id}>
-                    {membership.agency.name}
+              <Select id="add-site-agency" value={agencyId} onChange={(event) => onAgencyChange(event.target.value)}>
+                {agencies.map((agency) => (
+                  <option key={agency.id} value={agency.id}>
+                    {agency.name}
                   </option>
                 ))}
               </Select>
@@ -274,7 +355,7 @@ export function AddSite() {
             <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">
               <Input id="add-site-branch" value={form.branch} onChange={update("branch")} autoComplete="off" spellCheck={false} required className="font-mono" />
             </Field>
-            <Field label="Site name" htmlFor="add-site-name" hint={`Shown to the client. Leave blank to use "${parsed?.name ?? "the repository name"}".`}>
+            <Field label="Site name" htmlFor="add-site-name" hint={upgrade ? "Leave as it is to keep the current name." : `Shown to the client. Leave blank to use "${parsed?.name ?? "the repository name"}".`}>
               <Input id="add-site-name" value={form.name} onChange={update("name")} placeholder={parsed?.name ?? ""} />
             </Field>
           </div>
@@ -292,6 +373,104 @@ export function AddSite() {
       <Panel title={<StepTitle number={3}>Result</StepTitle>}>
         <div className="p-4 sm:p-5">{resultBlock}</div>
       </Panel>
+    </>
+  );
+}
+
+// --- the page ---------------------------------------------------------------------------------------
+
+export function AddSite() {
+  const { agencies } = useAuth();
+  const [params] = useSearchParams();
+  const upgradeId = params.get("upgrade") ?? "";
+  const [agencyId, setAgencyId] = useState(() => agencies[0]?.agency.id ?? "");
+  const [mode, setMode] = useState<"repo" | "hosting">("repo");
+
+  const upgrade = useQuery({
+    queryKey: ["site", upgradeId],
+    enabled: upgradeId.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sites").select("*").eq("id", upgradeId).maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data as Site | null) ?? null;
+    },
+  });
+
+  if (agencies.length === 0) {
+    return (
+      <Notice kind="warning" title="Your account is not staff of any agency">
+        Only agency staff can add sites. Ask the agency owner to invite you.
+      </Notice>
+    );
+  }
+
+  const agencyOptions = agencies.map((membership) => ({ id: membership.agency.id, name: membership.agency.name }));
+
+  if (upgradeId) {
+    if (upgrade.isPending) {
+      return (
+        <div className="space-y-4" role="status" aria-label="Loading the site">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-40 rounded-card" />
+        </div>
+      );
+    }
+    const site = upgrade.data ?? null;
+    if (upgrade.isError || !site) {
+      return (
+        <Notice kind="warning" title="That site could not be found" action={<LinkButton to="/fleet" variant="secondary" size="sm">Back to Fleet</LinkButton>}>
+          {upgrade.isError ? upgrade.error.message : "It may have been removed, or it belongs to another agency."}
+        </Notice>
+      );
+    }
+    if (site.status !== "hosting_only") {
+      return (
+        <Notice kind="info" title={`${site.name} already has a repository connected`} action={<LinkButton to={`/sites/${site.id}`} size="sm">Open the site</LinkButton>} />
+      );
+    }
+    return (
+      <div className="flex flex-col gap-5">
+        <PageHeader title={`Connect a repository to ${site.name}`} description="Same checks as for a new site. When every line passes, the site keeps its name, services and members and gains pages." />
+        <ConnectRepository key={site.id} agencyId={site.agency_id} agencies={agencyOptions} upgrade={site} onAgencyChange={() => undefined} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Add a site"
+        description="Connect a site's GitHub repository so its pages can be edited here, or add a client you only host."
+        action={
+          <Segmented
+            label="How to add the site"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: "repo", label: "Connect a repository" },
+              { value: "hosting", label: "Add a hosting-only client" },
+            ]}
+          />
+        }
+      />
+      {mode === "hosting" ? (
+        <>
+          {agencies.length > 1 && (
+            <Field label="Agency" htmlFor="hosting-only-agency" className="max-w-sm">
+              <Select id="hosting-only-agency" value={agencyId} onChange={(event) => setAgencyId(event.target.value)}>
+                {agencyOptions.map((agency) => (
+                  <option key={agency.id} value={agency.id}>
+                    {agency.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+          <HostingOnlyForm agencyId={agencyId} />
+        </>
+      ) : (
+        <ConnectRepository agencyId={agencyId} agencies={agencyOptions} upgrade={null} onAgencyChange={setAgencyId} />
+      )}
     </div>
   );
 }

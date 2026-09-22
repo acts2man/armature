@@ -7,9 +7,10 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { IconExternal, IconPage, IconPencil } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
-import { Button, Card, EmptyState, Notice, PageHeader, Pill, Skeleton, SrOnly } from "@/components/ui.tsx";
+import { Button, Card, EmptyState, LinkButton, Notice, PageHeader, Pill, Skeleton, SrOnly } from "@/components/ui.tsx";
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
 import { plural, shortSha } from "@/lib/format.ts";
+import { isHostingOnly } from "@/lib/services.ts";
 import type { PageDefinition } from "@shared/schema.ts";
 
 /** The page's address on the live site, or null when the site has no live URL yet. */
@@ -76,7 +77,31 @@ function PagesSkeleton() {
   );
 }
 
+function HostingOnlyPages() {
+  const { site, isStaff } = useSite();
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Pages" meta={<Pill tone="grey">Hosting only</Pill>} />
+      <EmptyState
+        title="No pages to edit yet"
+        icon={<IconPage size={18} />}
+        action={isStaff ? <LinkButton to={`/sites/new?upgrade=${site.id}`} size="sm">Connect repository</LinkButton> : undefined}
+      >
+        {isStaff
+          ? `${site.name} is a hosting-only site: no repository is connected. Connect one and its pages appear here, ready to edit and publish.`
+          : `${site.name} is looked after by the agency but is not edited here yet. Ask them if you would like to make changes yourself.`}
+      </EmptyState>
+    </div>
+  );
+}
+
 export function SitePages() {
+  const { site } = useSite();
+  if (isHostingOnly(site)) return <HostingOnlyPages />;
+  return <ConnectedPages />;
+}
+
+function ConnectedPages() {
   const { site } = useSite();
   const content = useSiteContent(site.id);
 

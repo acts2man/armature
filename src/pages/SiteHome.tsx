@@ -10,30 +10,26 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { CheckList } from "@/components/CheckList.tsx";
-import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconHistory, IconPage, IconPencil, IconSend, IconStethoscope, IconTeam } from "@/components/icons.tsx";
+import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconGithub, IconHistory, IconPage, IconPencil, IconSend, IconStethoscope, IconTeam } from "@/components/icons.tsx";
 import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
+import { SiteServicesPanel } from "@/components/SiteServicesPanel.tsx";
 import { Button, EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
 import { formatDateTime, plural, relativeTime, shortSha } from "@/lib/format.ts";
 import { callFunction } from "@/lib/functions.ts";
 import { displayName, firstName, greeting } from "@/lib/people.ts";
+import { SITE_STATUS_TONES, isHostingOnly, siteStatusLabel } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
-import {
-  OPEN_CHANGE_REQUEST_STATUSES,
-  PUBLISH_STATUS_LABELS,
-  type ChangeRequest,
-  type Publish,
-  type PublishStatus,
-  type SiteStatus,
-} from "@/lib/types.ts";
+import { OPEN_CHANGE_REQUEST_STATUSES, PUBLISH_STATUS_LABELS, type ChangeRequest, type Publish, type PublishStatus, type Site } from "@/lib/types.ts";
 import type { DiagnoseResponse } from "@shared/publishTypes.ts";
 
 const PUBLISH_TONES: Record<PublishStatus, "green" | "amber" | "danger"> = { committed: "green", conflict: "amber", failed: "danger" };
 
 const displayUrl = (url: string): string => url.replace(/^https?:\/\//i, "").replace(/\/+$/, "");
 
-function StatusPill({ status }: { status: SiteStatus }) {
-  return status === "connected" ? <Pill tone="green">Connected</Pill> : <Pill tone="amber">Needs attention</Pill>;
+function StatusPill({ site }: { site: Pick<Site, "status" | "last_published_at"> }) {
+  const label = siteStatusLabel(site);
+  return <Pill tone={SITE_STATUS_TONES[label]}>{label}</Pill>;
 }
 
 function useRecentPublishes(siteId: string) {
@@ -82,6 +78,7 @@ export function SiteHome() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const root = `/sites/${site.id}`;
+  const hostingOnly = isHostingOnly(site);
   const publishes = useRecentPublishes(site.id);
   const requests = useRecentRequests(site.id);
 
@@ -98,7 +95,7 @@ export function SiteHome() {
 
   // --- what needs attention, from real data only ---
   const attention: { key: string; icon: ReactNode; title: string; detail: string; action: ReactNode }[] = [];
-  if (site.status !== "connected") {
+  if (site.status === "needs_attention") {
     attention.push({
       key: "connection",
       icon: <IconAlert size={18} />,
@@ -173,15 +170,15 @@ export function SiteHome() {
                 <IconExternal size={13} />
                 <SrOnly>(opens in a new tab)</SrOnly>
               </a>
-            ) : isStaff ? (
+            ) : isStaff && !hostingOnly ? (
               <span className="font-mono text-[13px]">
                 {site.repo_owner}/{site.repo_name}@{site.branch}
               </span>
             ) : (
               <span>{site.name}</span>
             )}
-            <StatusPill status={site.status} />
-            <span>{site.last_published_at ? `Last published ${formatDateTime(site.last_published_at)}` : "Nothing published yet"}</span>
+            <StatusPill site={site} />
+            {!hostingOnly && <span>{site.last_published_at ? `Last published ${formatDateTime(site.last_published_at)}` : "Nothing published yet"}</span>}
           </>
         }
         action={
@@ -191,12 +188,28 @@ export function SiteHome() {
                 <IconEye size={16} /> View site
               </LinkButton>
             )}
-            <LinkButton to={`${root}/pages`}>
-              <IconPencil size={16} /> Edit pages
-            </LinkButton>
+            {hostingOnly ? (
+              isStaff && (
+                <LinkButton to={`/sites/new?upgrade=${site.id}`}>
+                  <IconGithub size={16} /> Connect repository
+                </LinkButton>
+              )
+            ) : (
+              <LinkButton to={`${root}/pages`}>
+                <IconPencil size={16} /> Edit pages
+              </LinkButton>
+            )}
           </>
         }
       />
+
+      {hostingOnly && (
+        <Notice kind="info" title={isStaff ? "Hosting-only site" : "This site is looked after by the agency"}>
+          {isStaff
+            ? "No repository is connected, so there are no pages to edit or publish yet. Hosting, domain and email are recorded below; connect the repository whenever the site is ready to be edited here."
+            : "Its pages are not edited here yet. Change requests still reach the agency."}
+        </Notice>
+      )}
 
       {diagnose.isError && (
         <Notice kind="danger" title="The connection check could not run">
@@ -240,15 +253,25 @@ export function SiteHome() {
             ) : publishes.data.length === 0 ? (
               <div className="p-5">
                 <EmptyState
-                  title="Nothing published yet"
+                  title={hostingOnly ? "No pages to publish" : "Nothing published yet"}
                   icon={<IconPage size={18} />}
                   action={
-                    <LinkButton to={`${root}/pages`} variant="secondary" size="sm">
-                      Edit a page
-                    </LinkButton>
+                    hostingOnly ? (
+                      isStaff ? (
+                        <LinkButton to={`/sites/new?upgrade=${site.id}`} variant="secondary" size="sm">
+                          Connect repository
+                        </LinkButton>
+                      ) : undefined
+                    ) : (
+                      <LinkButton to={`${root}/pages`} variant="secondary" size="sm">
+                        Edit a page
+                      </LinkButton>
+                    )
                   }
                 >
-                  Changes you publish from the page editor will be listed here with a link to the commit.
+                  {hostingOnly
+                    ? "This site's repository is not connected, so nothing is published from here. Publishes appear once it is."
+                    : "Changes you publish from the page editor will be listed here with a link to the commit."}
                 </EmptyState>
               </div>
             ) : (
@@ -288,16 +311,21 @@ export function SiteHome() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <Panel title="Site health" aside={<StatusPill status={site.status} />}>
+          {isStaff && <SiteServicesPanel siteId={site.id} siteName={site.name} />}
+          <Panel title="Site health" aside={<StatusPill site={site} />}>
             <div className="flex flex-col gap-2.5 p-5 text-[13px] text-text">
               <div className="flex items-center gap-2.5">
-                <span className={site.status === "connected" ? "text-green" : "text-amber"}>{site.status === "connected" ? <IconCheck size={16} /> : <IconAlert size={16} />}</span>
-                <span>{site.status === "connected" ? "Connected to the site's repository" : "The connection check found a problem"}</span>
+                <span className={site.status === "connected" ? "text-green" : hostingOnly ? "text-muted" : "text-amber"}>
+                  {site.status === "connected" ? <IconCheck size={16} /> : hostingOnly ? <IconGithub size={16} /> : <IconAlert size={16} />}
+                </span>
+                <span>{site.status === "connected" ? "Connected to the site's repository" : hostingOnly ? "No repository connected" : "The connection check found a problem"}</span>
               </div>
-              <div className="flex items-center gap-2.5">
-                <span className={site.last_published_at ? "text-green" : "text-muted"}>{site.last_published_at ? <IconCheck size={16} /> : <IconHistory size={16} />}</span>
-                <span>{site.last_published_at ? `Last published ${relativeTime(site.last_published_at)}` : "No publish yet"}</span>
-              </div>
+              {!hostingOnly && (
+                <div className="flex items-center gap-2.5">
+                  <span className={site.last_published_at ? "text-green" : "text-muted"}>{site.last_published_at ? <IconCheck size={16} /> : <IconHistory size={16} />}</span>
+                  <span>{site.last_published_at ? `Last published ${relativeTime(site.last_published_at)}` : "No publish yet"}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2.5">
                 <span className={openCount === 0 ? "text-green" : "text-blue"}>
                   <IconBranch size={16} />
@@ -306,9 +334,11 @@ export function SiteHome() {
               </div>
               {isStaff && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button variant="secondary" size="sm" onClick={() => diagnose.mutate()} loading={diagnose.isPending}>
-                    <IconStethoscope size={16} /> Check connection
-                  </Button>
+                  {!hostingOnly && (
+                    <Button variant="secondary" size="sm" onClick={() => diagnose.mutate()} loading={diagnose.isPending}>
+                      <IconStethoscope size={16} /> Check connection
+                    </Button>
+                  )}
                   <LinkButton variant="secondary" size="sm" to={`${root}/team`}>
                     <IconTeam size={16} /> Team
                   </LinkButton>
@@ -363,9 +393,11 @@ export function SiteHome() {
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <QuickAction to={`${root}/pages`} icon={<IconPencil size={18} />}>
-          Edit a page
-        </QuickAction>
+        {!hostingOnly && (
+          <QuickAction to={`${root}/pages`} icon={<IconPencil size={18} />}>
+            Edit a page
+          </QuickAction>
+        )}
         <QuickAction to={`${root}/requests/new`} icon={<IconSend size={18} />}>
           Request a change
         </QuickAction>
@@ -374,9 +406,11 @@ export function SiteHome() {
             View the live site
           </QuickAction>
         )}
-        <QuickAction to={`${root}/history`} icon={<IconHistory size={18} />}>
-          Publish history
-        </QuickAction>
+        {!hostingOnly && (
+          <QuickAction to={`${root}/history`} icon={<IconHistory size={18} />}>
+            Publish history
+          </QuickAction>
+        )}
       </div>
     </div>
   );

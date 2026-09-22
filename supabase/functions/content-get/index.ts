@@ -6,7 +6,7 @@
  * agency and to client members of the site. No service role.
  */
 import type { ContentGetResponse } from "../../../shared/publishTypes.ts";
-import { loadAccessibleSite, resolveCaller } from "../_shared/auth.ts";
+import { loadAccessibleSite, requireConnectedSite, resolveCaller } from "../_shared/auth.ts";
 import { denoEnv } from "../_shared/env.ts";
 import { loadAppConfig, mintInstallationToken } from "../_shared/githubApp.ts";
 import { createGithubContentRepo } from "../_shared/githubRepo.ts";
@@ -20,7 +20,7 @@ Deno.serve(
     const siteId = requireUuid(body, "site_id");
 
     const caller = await resolveCaller(req, env);
-    const site = await loadAccessibleSite(caller.supabase, siteId);
+    const site = requireConnectedSite(await loadAccessibleSite(caller.supabase, siteId));
 
     const app = loadAppConfig(env);
     const token = await mintInstallationToken(app, site.github_installation_id, site.repo_name);

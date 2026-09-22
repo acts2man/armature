@@ -4,7 +4,7 @@
  */
 export type AgencyRole = "owner" | "staff";
 export type SiteRole = "client_owner" | "client_editor";
-export type SiteStatus = "connected" | "needs_attention";
+export type SiteStatus = "connected" | "needs_attention" | "hosting_only";
 export type PublishStatus = "committed" | "conflict" | "failed";
 export type ChangeRequestStatus = "new" | "in_progress" | "ready_for_review" | "done" | "declined";
 
@@ -35,14 +35,49 @@ export type Site = {
   id: string;
   agency_id: string;
   name: string;
-  repo_owner: string;
-  repo_name: string;
-  branch: string;
+  /** Null until a repository is connected (a hosting-only site). */
+  repo_owner: string | null;
+  repo_name: string | null;
+  branch: string | null;
   live_url: string | null;
-  github_installation_id: number;
+  github_installation_id: number | null;
   status: SiteStatus;
   last_published_at: string | null;
   created_at: string;
+};
+
+/** What the agency charges a site for. Agency staff only; clients cannot read it. */
+export type SiteServices = {
+  site_id: string;
+  hosting_provider: string | null;
+  hosting_annual_fee_cents: number | null;
+  hosting_start_date: string | null;
+  hosting_renewal_date: string | null;
+  domain_name: string | null;
+  domain_registrar: string | null;
+  domain_account_owner: "agency" | "client" | null;
+  domain_renewal_date: string | null;
+  domain_annual_fee_cents: number | null;
+  email_provider: "google_workspace" | "microsoft_365" | "zoho" | "forwarding" | "other" | "none" | null;
+  email_mailboxes: number | null;
+  email_pricing: "flat" | "per_mailbox" | null;
+  /** A flat yearly amount, or the yearly price of one mailbox when email_pricing is per_mailbox. */
+  email_annual_fee_cents: number | null;
+  email_managed_by: "agency" | "client" | null;
+  transactional_email_provider: "resend" | "other" | "none" | null;
+  transactional_from_address: string | null;
+  agreement_accepted_on: string | null;
+  notes: string;
+  updated_at: string | null;
+  updated_by: string | null;
+};
+
+/** The site_billing view: yearly total and the renewal that matters, per site. */
+export type SiteBilling = {
+  site_id: string;
+  yearly_total_cents: number;
+  next_renewal_date: string | null;
+  overdue_renewal_date: string | null;
 };
 
 export type SiteMember = {

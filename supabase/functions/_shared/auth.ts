@@ -106,15 +106,38 @@ export type SiteRow = {
   id: string;
   agency_id: string;
   name: string;
-  repo_owner: string;
-  repo_name: string;
-  branch: string;
+  /** Null until a repository is connected (a hosting-only site). */
+  repo_owner: string | null;
+  repo_name: string | null;
+  branch: string | null;
   live_url: string | null;
-  github_installation_id: number;
-  status: "connected" | "needs_attention";
+  github_installation_id: number | null;
+  status: "connected" | "needs_attention" | "hosting_only";
   last_published_at: string | null;
   created_at: string;
 };
+
+/** A site whose repository is connected: every repository field is present. */
+export type ConnectedSiteRow = SiteRow & {
+  repo_owner: string;
+  repo_name: string;
+  branch: string;
+  github_installation_id: number;
+};
+
+/**
+ * Pages, publishing and the connection check need a repository. A hosting-only
+ * site has none, and this says so instead of failing deeper down.
+ */
+export function requireConnectedSite(site: SiteRow): ConnectedSiteRow {
+  if (site.status === "hosting_only" || !site.repo_owner || !site.repo_name || !site.branch || site.github_installation_id === null) {
+    throw new ArmatureError(
+      "invalid",
+      `${site.name} is a hosting-only site: no repository is connected yet, so there are no pages to edit or publish. The agency can connect one from Fleet.`,
+    );
+  }
+  return site as ConnectedSiteRow;
+}
 
 /**
  * The site, if the caller may edit it. RLS decides: agency staff of the owning

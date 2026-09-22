@@ -123,6 +123,8 @@ export type SiteConnectRequest = {
   branch: string;
   name?: string;
   live_url?: string;
+  /** An existing hosting-only site to connect the repository to, instead of creating a new site. */
+  site_id?: string;
 };
 
 export type SiteConnectResponse = {

@@ -35,7 +35,7 @@ Keep a notes file open while you work. You will be asked to copy a handful of va
 3. Open **API Keys** in the same settings area. Copy the key labelled **Publishable key** (it starts with `sb_publishable_`) into your notes as `PUBLISHABLE_KEY`. If your dashboard only shows a legacy **anon** key, that works too.
    Do **not** copy the secret or service-role key. The dashboard never needs it anywhere you can paste it; Supabase gives it to the edge functions automatically.
 
-### A3. Apply the two migrations, in order
+### A3. Apply the migrations, in order
 
 A migration is a text file of database instructions. You paste each one into the SQL editor and run it once.
 
@@ -45,7 +45,7 @@ A migration is a text file of database instructions. You paste each one into the
 4. In Supabase, press **SQL Editor** in the left sidebar, then **New query** (or the **+** button).
 5. Paste, then press **Run** (bottom right, or Ctrl/Cmd+Enter).
 6. Wait for the message **Success. No rows returned**. If you see an error instead, read Part G below; the usual cause is running the same file twice.
-7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`.
+7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then for `20260922000100_hosting_and_services.sql`.
 
 To confirm: press **Table Editor** in the left sidebar. You should see tables named `agencies`, `sites`, `publishes`, `change_requests` and a few more.
 
@@ -218,6 +218,21 @@ If you would rather set up the client's account yourself and hand them a ready-m
 5. The client opens the sign-in link, signs in with the email and temporary password, and is taken straight to **Choose your password**. They cannot open any other screen until they have chosen their own password; after that they use it from then on. They see your portal name and never the word Armature.
 
 If the email address already has an account (for example a client who edits another of your sites), the dashboard does not change their password: it only gives them access to this site, and the card says **Their existing password still applies**. They sign in as before; if they have forgotten their password, **Forgot your password?** on the sign-in page emails them a reset link.
+
+---
+
+### F6. Hosting-only clients, and what you charge
+
+Some clients you only host, or you look after their domain and email, and their site is not edited here. You can still keep them in Fleet.
+
+1. Press **Fleet**, then **Add a site**, then **Add a hosting-only client**. Enter the site name and its live address and press **Add client**. The site appears in Fleet with the status **Hosting only**; there are no pages to edit until a repository is connected, and the dashboard says so wherever a page would be.
+2. On any site's overview, the **Hosting & services** panel records what you charge: hosting (provider, yearly fee, start and renewal dates), the domain (name, registrar, who owns the account, fee and renewal), email (provider, number of mailboxes, a flat yearly amount or a price per mailbox, who manages it), automatic emails (the provider the website sends form notifications through, and the address they come from), the date the client accepted your agreement, and notes. Press **Edit**, type amounts in dollars, and watch the yearly total update as you go, for example "$200 hosting + 4 mailboxes × $30 = $320 / year".
+3. Fleet totals it up: **Yearly billing** across every site, **Renewals, next 30 days**, and per site the yearly total and the next renewal, marked amber when it is within 30 days and red when it has passed. Sort the table by name, yearly total or next renewal, or search it.
+4. When a hosting-only client's site is ready to be edited here, open it and press **Connect repository**. The same checklist runs as for a new site, and the site keeps its name, services and members.
+
+Clients never see this panel or any price: the database refuses them access to it outright.
+
+The migration for this is `supabase/migrations/20260922000100_hosting_and_services.sql`; apply it in the SQL editor like the others (Part A3) before using these screens.
 
 ---
 

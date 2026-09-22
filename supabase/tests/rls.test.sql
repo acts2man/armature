@@ -8,7 +8,9 @@
 -- Cast: agency X (owner, staff) owns site A (client "ca") and site B (client "cb").
 --       agency Y (owner) owns site C (client "cc").
 -- Proves: a client of site A cannot read site B; a member of agency X cannot read
--- anything belonging to agency Y; nobody can forge publish rows or invites.
+-- anything belonging to agency Y; nobody can forge publish rows or invites; and
+-- site_services (what the agency charges) is invisible to clients and to other
+-- agencies. Site D is hosting-only (no repository) to exercise those rules too.
 -- =============================================================================
 begin;
 
@@ -36,6 +38,51 @@ insert into public.sites (id, agency_id, name, repo_owner, repo_name, branch, gi
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000000aa', 'Site A', 'acme', 'site-a', 'main', 1),
   ('00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-0000000000aa', 'Site B', 'acme', 'site-b', 'main', 1),
   ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-0000000000bb', 'Site C', 'other', 'site-c', 'main', 2);
+
+-- A hosting-only site: no repository yet.
+insert into public.sites (id, agency_id, name, status, live_url) values
+  ('00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-0000000000aa', 'Site D (hosting only)', 'hosting_only', 'https://d.example.com');
+
+-- The shape rules for sites: a connected site must carry its repository, and a
+-- repository can be connected only once, while hosting-only sites are unlimited.
+do $$ begin
+  begin
+    insert into public.sites (agency_id, name, status) values ('00000000-0000-0000-0000-0000000000aa', 'Half connected', 'connected');
+    raise exception 'a connected site without a repository was accepted';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.sites (agency_id, name, repo_owner, repo_name, branch, github_installation_id)
+    values ('00000000-0000-0000-0000-0000000000aa', 'Duplicate of A', 'acme', 'site-a', 'main', 1);
+    raise exception 'the same repository and branch was connected twice';
+  exception when unique_violation then null;
+  end;
+  insert into public.sites (agency_id, name, status) values ('00000000-0000-0000-0000-0000000000aa', 'Another hosting-only', 'hosting_only');
+end $$;
+delete from public.sites where name = 'Another hosting-only';
+
+insert into public.site_services (site_id, hosting_provider, hosting_annual_fee_cents, hosting_renewal_date,
+  domain_name, domain_annual_fee_cents, domain_renewal_date, email_provider, email_mailboxes, email_pricing, email_annual_fee_cents) values
+  ('00000000-0000-0000-0000-00000000000a', 'Netlify', 20000, current_date + 40, 'site-a.example.com', 1800, current_date + 10, 'google_workspace', 4, 'per_mailbox', 3000),
+  ('00000000-0000-0000-0000-00000000000d', 'Netlify', 12000, current_date - 3, null, null, null, 'none', null, 'flat', 0),
+  ('00000000-0000-0000-0000-00000000000c', 'Vercel', 5000, current_date + 100, null, null, null, null, null, null, null);
+
+-- The billing view does the arithmetic: hosting + domain + mailboxes x price, and
+-- the earliest renewal today or later (a past one is reported separately).
+do $$ begin
+  assert (select yearly_total_cents from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000a') = 20000 + 1800 + 4 * 3000,
+    'site_billing sums hosting, domain and per-mailbox email';
+  assert (select next_renewal_date from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000a') = current_date + 10,
+    'site_billing picks the earliest future renewal';
+  assert (select overdue_renewal_date from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000a') is null,
+    'site A has no overdue renewal';
+  assert (select next_renewal_date from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000d') is null,
+    'site D has no future renewal';
+  assert (select overdue_renewal_date from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000d') = current_date - 3,
+    'site D reports its lapsed renewal';
+  assert (select yearly_total_cents from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000d') = 12000,
+    'a flat email fee of zero adds nothing';
+end $$;
 
 insert into public.site_members (site_id, user_id, role) values
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000a003', 'client_owner'),
@@ -89,6 +136,10 @@ do $$ begin
   assert (select commit_sha from public.publishes) = 'aaa', 'client A sees the site A publish';
   assert (select count(*) from public.change_requests) = 1, 'client A sees only site A change requests';
 
+  -- Services and prices stay with the agency: a client reads nothing, not even for their own site.
+  assert (select count(*) from public.site_services) = 0, 'client A cannot read site_services (not even site A)';
+  assert (select count(*) from public.site_billing) = 0, 'client A cannot read site_billing';
+
   -- Profiles: self and agency X staff, never client B or anyone in agency Y.
   assert (select count(*) from public.profiles where id = '00000000-0000-0000-0000-00000000a003') = 1, 'client A sees own profile';
   assert (select count(*) from public.profiles where id = '00000000-0000-0000-0000-00000000a002') = 1, 'client A sees agency X staff profile';
@@ -126,7 +177,15 @@ do $$ begin
     raise exception 'client A was able to add themselves to site B';
   exception when insufficient_privilege then null;
   end;
+  begin
+    insert into public.site_services (site_id, hosting_provider) values ('00000000-0000-0000-0000-00000000000a', 'Forged');
+    raise exception 'client A was able to write site_services for their own site';
+  exception when insufficient_privilege then null;
+  end;
 end $$;
+
+-- A client cannot change prices either: the update matches no rows.
+update public.site_services set hosting_annual_fee_cents = 1 where site_id = '00000000-0000-0000-0000-00000000000a';
 
 -- Updates a client is not allowed to make simply affect zero rows.
 update public.change_requests set status = 'done' where id = '00000000-0000-0000-0000-00000000c00a';
@@ -148,7 +207,12 @@ do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000
 set local role authenticated;
 
 do $$ begin
-  assert (select count(*) from public.sites) = 2, 'agency X staff see both agency X sites';
+  assert (select count(*) from public.sites) = 3, 'agency X staff see all three agency X sites, hosting-only included';
+  assert (select status from public.sites where id = '00000000-0000-0000-0000-00000000000d') = 'hosting_only', 'agency X staff see the hosting-only site';
+  assert (select count(*) from public.site_services) = 2, 'agency X staff see services for A and D only';
+  assert (select count(*) from public.site_services where site_id = '00000000-0000-0000-0000-00000000000c') = 0, 'agency X staff cannot read site C services';
+  assert (select count(*) from public.site_billing) = 2, 'agency X staff see billing for A and D only';
+  assert (select hosting_annual_fee_cents from public.site_services where site_id = '00000000-0000-0000-0000-00000000000a') = 20000, 'the client update above changed nothing';
   assert (select count(*) from public.sites where agency_id = '00000000-0000-0000-0000-0000000000bb') = 0, 'agency X staff cannot read agency Y sites';
   assert (select count(*) from public.agencies) = 1, 'agency X staff see one agency';
   assert (select count(*) from public.agencies where id = '00000000-0000-0000-0000-0000000000bb') = 0, 'agency X staff cannot read agency Y';
@@ -171,9 +235,23 @@ do $$ begin
     'agency staff can update a change request';
 end $$;
 
+-- Staff keep the services record: edit A, create one for B, never for C.
+update public.site_services set hosting_annual_fee_cents = 24000 where site_id = '00000000-0000-0000-0000-00000000000a';
+insert into public.site_services (site_id, hosting_provider, hosting_annual_fee_cents) values ('00000000-0000-0000-0000-00000000000b', 'Netlify', 9900);
+do $$ begin
+  assert (select hosting_annual_fee_cents from public.site_services where site_id = '00000000-0000-0000-0000-00000000000a') = 24000, 'agency staff can update site_services';
+  assert (select yearly_total_cents from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000a') = 24000 + 1800 + 4 * 3000, 'site_billing follows the update';
+  assert (select count(*) from public.site_services) = 3, 'agency staff can create a services row for their own site';
+  begin
+    insert into public.site_services (site_id, hosting_provider) values ('00000000-0000-0000-0000-00000000000c', 'Intruder');
+    raise exception 'agency X staff were able to write services for agency Y site C';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
 -- Staff can add a site to their agency but not to agency Y.
 insert into public.sites (agency_id, name, repo_owner, repo_name, branch, github_installation_id)
-values ('00000000-0000-0000-0000-0000000000aa', 'Site D', 'acme', 'site-d', 'main', 1);
+values ('00000000-0000-0000-0000-0000000000aa', 'Site E', 'acme', 'site-e', 'main', 1);
 do $$ begin
   begin
     insert into public.sites (agency_id, name, repo_owner, repo_name, branch, github_installation_id)
@@ -237,6 +315,9 @@ do $$ begin
   assert (select count(*) from public.change_requests) = 1, 'agency Y owner sees site C requests only';
   assert (select count(*) from public.invites) = 1, 'agency Y owner sees agency Y invites only';
   assert (select count(*) from public.agency_members where agency_id = '00000000-0000-0000-0000-0000000000aa') = 0, 'agency Y owner cannot list agency X members';
+  assert (select count(*) from public.site_services) = 1, 'agency Y owner sees site C services only';
+  assert (select count(*) from public.site_services where site_id = '00000000-0000-0000-0000-00000000000a') = 0, 'agency Y owner cannot read site A services';
+  assert (select count(*) from public.site_billing where site_id = '00000000-0000-0000-0000-00000000000a') = 0, 'agency Y owner cannot read site A billing';
   assert (select count(*) from public.profiles where id = '00000000-0000-0000-0000-00000000a001') = 0, 'agency Y owner cannot see agency X owner profile';
 end $$;
 

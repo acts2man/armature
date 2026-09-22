@@ -5,6 +5,13 @@ All notable changes to Armature are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Hosting-only clients**: a site can exist before its GitHub repository is connected. "Add a site" offers "Connect a repository" and "Add a hosting-only client" (name and live URL); a hosting-only site shows "Connect repository", which runs the usual checks and upgrades it in place. Pages, the editor and publishing say so plainly until then.
+- **Hosting & services** on each site's overview (agency only): what the agency charges for hosting, the domain and email (mailboxes, flat or per mailbox), the automatic-email sender, the agreement date and notes, edited in a drawer with a live yearly total. Stored in cents, entered in dollars. Clients never see it: the `site_services` table is unreadable to client accounts, and the RLS proof checks that.
+- Fleet now shows the yearly billing total, renewals due in the next 30 days (amber when close, red when past), and a yearly total and next renewal per site, with sorting by name, total or renewal and a search box.
+- Migration `20260922000100_hosting_and_services.sql`: nullable repository columns, the `hosting_only` status, the `site_services` table and the `site_billing` view.
+
 ### Changed
 
 - **Every screen restyled to the approved design** (docs/1-visual-editor.html to docs/4-agency-fleet.html): Bricolage Grotesque headings with Hanken Grotesk text, a dark ink sidebar (the Armature wordmark and wire-A logo for agencies; the agency's own portal name and logo for clients, who never see the word Armature), white panels with 1px borders on a cool grey ground, 44px controls, and the agency accent colour flowing through buttons, links and focus rings. Below 900px the sidebar becomes a top bar with a menu drawer.

@@ -1,13 +1,14 @@
 /**
- * Fleet — the agency staff home, as in docs/4-agency-fleet.html: a row of stat
- * cards, the client sites table, and on the right the newest open change request.
- * Every number comes from the database; nothing is invented.
+ * Fleet — the agency's single view of every client site and what the agency
+ * charges for it: status, open requests, the yearly total for hosting, domain
+ * and email, and the next renewal. Every number comes from the database.
  */
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { clsx } from "clsx";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { IconBranch, IconClock, IconExternal, IconPlus } from "@/components/icons.tsx";
+import { IconArrowDown, IconArrowUp, IconBranch, IconClock, IconGlobe, IconPlus, IconSearch } from "@/components/icons.tsx";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
 import {
   Card,
@@ -15,6 +16,7 @@ import {
   DataRow,
   DataTable,
   EmptyState,
+  Input,
   LinkButton,
   Monogram,
   Notice,
@@ -27,37 +29,37 @@ import {
   StatCard,
   Timeline,
 } from "@/components/ui.tsx";
-import { formatDateTime, plural, relativeTime } from "@/lib/format.ts";
+import { formatDate, formatDateTime, plural, relativeTime } from "@/lib/format.ts";
+import { formatCents } from "@/lib/money.ts";
 import { requestSteps } from "@/lib/requests.ts";
+import { SITE_STATUS_TONES, isHostingOnly, renewalState, siteStatusLabel, type RenewalState } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
-import { OPEN_CHANGE_REQUEST_STATUSES, type ChangeRequest, type PublishStatus, type Site, type SiteStatus } from "@/lib/types.ts";
+import { OPEN_CHANGE_REQUEST_STATUSES, type ChangeRequest, type Site, type SiteBilling } from "@/lib/types.ts";
 
-type PublishLite = { site_id: string; status: PublishStatus; created_at: string };
 type NewestRequest = ChangeRequest & { site: { id: string; name: string } | null; creator: { full_name: string | null; email: string | null } | null };
 
 type FleetData = {
   sites: Site[];
   /** Open change requests per site id. */
   openCounts: Record<string, number>;
-  /** Publishes in the last 30 days per site id. */
-  recentPublishes: Record<string, number>;
-  /** The newest publish row per site id, when there is one. */
-  latestPublish: Record<string, PublishLite>;
+  /** The site_billing view, per site id. Sites without a services record have no row. */
+  billing: Record<string, SiteBilling>;
   /** The most recently updated open request across the fleet, with who asked. */
   newest: NewestRequest | null;
 };
 
-type FleetRow = { site: Site; openCount: number; recent: number; latest: PublishLite | undefined };
+export type FleetRow = { site: Site; openCount: number; billing: SiteBilling | undefined; renewal: RenewalState | null };
 
-const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-const COLUMNS = "2.3fr 1.1fr 0.9fr 1.15fr";
+type SortKey = "name" | "total" | "renewal";
+type SortDir = "asc" | "desc";
+
+const COLUMNS = "2.2fr 1.1fr 1.1fr 0.9fr 1.2fr";
 
 async function loadFleet(): Promise<FleetData> {
-  const since = new Date(Date.now() - THIRTY_DAYS).toISOString();
-  const [sitesResult, requestsResult, publishesResult, newestResult] = await Promise.all([
+  const [sitesResult, requestsResult, billingResult, newestResult] = await Promise.all([
     supabase.from("sites").select("*").order("name"),
     supabase.from("change_requests").select("site_id, status").in("status", OPEN_CHANGE_REQUEST_STATUSES),
-    supabase.from("publishes").select("site_id, status, created_at").gte("created_at", since).order("created_at", { ascending: false }).limit(1000),
+    supabase.from("site_billing").select("*"),
     supabase
       .from("change_requests")
       .select("*, site:sites(id, name)")
@@ -68,19 +70,15 @@ async function loadFleet(): Promise<FleetData> {
   ]);
   if (sitesResult.error) throw new Error(`Could not load sites: ${sitesResult.error.message}`);
   if (requestsResult.error) throw new Error(`Could not load change requests: ${requestsResult.error.message}`);
-  if (publishesResult.error) throw new Error(`Could not load publishes: ${publishesResult.error.message}`);
+  if (billingResult.error) throw new Error(`Could not load billing: ${billingResult.error.message}`);
   if (newestResult.error) throw new Error(`Could not load the newest request: ${newestResult.error.message}`);
 
   const openCounts: Record<string, number> = {};
   for (const row of (requestsResult.data ?? []) as { site_id: string }[]) {
     openCounts[row.site_id] = (openCounts[row.site_id] ?? 0) + 1;
   }
-  const recentPublishes: Record<string, number> = {};
-  const latestPublish: Record<string, PublishLite> = {};
-  for (const row of (publishesResult.data ?? []) as PublishLite[]) {
-    recentPublishes[row.site_id] = (recentPublishes[row.site_id] ?? 0) + 1;
-    if (latestPublish[row.site_id] === undefined) latestPublish[row.site_id] = row;
-  }
+  const billing: Record<string, SiteBilling> = {};
+  for (const row of (billingResult.data ?? []) as SiteBilling[]) billing[row.site_id] = row;
 
   let newest: NewestRequest | null = null;
   const raw = newestResult.data as (ChangeRequest & { site: { id: string; name: string } | null }) | null;
@@ -93,18 +91,32 @@ async function loadFleet(): Promise<FleetData> {
     newest = { ...raw, creator };
   }
 
-  return { sites: (sitesResult.data ?? []) as Site[], openCounts, recentPublishes, latestPublish, newest };
+  return { sites: (sitesResult.data ?? []) as Site[], openCounts, billing, newest };
 }
 
-function StatusPill({ status }: { status: SiteStatus }) {
-  return status === "connected" ? <Pill tone="green">Connected</Pill> : <Pill tone="amber">Needs attention</Pill>;
+export function SiteStatusPill({ site }: { site: Pick<Site, "status" | "last_published_at"> }) {
+  const label = siteStatusLabel(site);
+  return <Pill tone={SITE_STATUS_TONES[label]}>{label}</Pill>;
 }
 
-function publishedLine(row: FleetRow): string {
-  const repo = `${row.site.repo_owner}/${row.site.repo_name}`;
-  if (row.latest && row.latest.status !== "committed") return `${repo}. Last publish failed ${relativeTime(row.latest.created_at)}`;
-  if (row.site.last_published_at) return `${repo}. Published ${relativeTime(row.site.last_published_at)}`;
-  return `${repo}. Not published yet`;
+export function RenewalCell({ renewal }: { renewal: RenewalState | null }) {
+  if (!renewal) return <span className="text-[13px] text-muted">None set</span>;
+  if (renewal.state === "later") return <span className="text-[13px] text-text">{formatDate(renewal.date)}</span>;
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[13px] text-text">{formatDate(renewal.date)}</span>
+      <Pill tone={renewal.state === "past" ? "danger" : "amber"}>
+        {renewal.state === "past" ? `${plural(-renewal.days, "day")} ago` : renewal.days === 0 ? "Today" : `in ${plural(renewal.days, "day")}`}
+      </Pill>
+    </span>
+  );
+}
+
+function siteLine(row: FleetRow): string {
+  const site = row.site;
+  if (isHostingOnly(site)) return site.live_url ? `${site.live_url.replace(/^https?:\/\//, "")}. No repository yet` : "No repository yet";
+  const repo = `${site.repo_owner}/${site.repo_name}`;
+  return site.last_published_at ? `${repo}. Published ${relativeTime(site.last_published_at)}` : `${repo}. Not published yet`;
 }
 
 function OpenRequestsCell({ row }: { row: FleetRow }) {
@@ -116,12 +128,33 @@ function OpenRequestsCell({ row }: { row: FleetRow }) {
   );
 }
 
-function SitesTable({ rows }: { rows: FleetRow[] }) {
+function SortHeader({ label, active, dir, onClick }: { label: string; active: boolean; dir: SortDir; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={clsx("inline-flex h-8 items-center gap-1 rounded-sm text-[12px] font-semibold hover:text-text", active ? "text-text" : "text-muted")}
+    >
+      {label}
+      {active && (dir === "asc" ? <IconArrowUp size={12} /> : <IconArrowDown size={12} />)}
+    </button>
+  );
+}
+
+function SitesTable({ rows, sort, onSort }: { rows: FleetRow[]; sort: { key: SortKey; dir: SortDir }; onSort: (key: SortKey) => void }) {
   const navigate = useNavigate();
+  const head = [
+    <SortHeader key="name" label="Site" active={sort.key === "name"} dir={sort.dir} onClick={() => onSort("name")} />,
+    "Status",
+    "Open requests",
+    <SortHeader key="total" label="Yearly total" active={sort.key === "total"} dir={sort.dir} onClick={() => onSort("total")} />,
+    <SortHeader key="renewal" label="Next renewal" active={sort.key === "renewal"} dir={sort.dir} onClick={() => onSort("renewal")} />,
+  ];
   return (
     <>
       <div className="hidden sm:block">
-        <DataTable columns={COLUMNS} label="Client sites" head={["Site", "Status", "Publishes, 30 days", "Open requests"]}>
+        <DataTable columns={COLUMNS} label="Client sites" head={head}>
           {rows.map((row) => (
             <DataRow key={row.site.id} columns={COLUMNS} onClick={() => navigate(`/sites/${row.site.id}`)}>
               <Cell>
@@ -129,16 +162,19 @@ function SitesTable({ rows }: { rows: FleetRow[] }) {
                   <Monogram name={row.site.name} />
                   <span className="min-w-0">
                     <span className="block truncate text-[14px] font-semibold">{row.site.name}</span>
-                    <span className="block truncate text-[12px] text-muted">{publishedLine(row)}</span>
+                    <span className="block truncate text-[12px] text-muted">{siteLine(row)}</span>
                   </span>
                 </Link>
               </Cell>
               <Cell>
-                <StatusPill status={row.site.status} />
+                <SiteStatusPill site={row.site} />
               </Cell>
-              <Cell className="text-[14px] font-semibold">{row.recent}</Cell>
               <Cell>
                 <OpenRequestsCell row={row} />
+              </Cell>
+              <Cell className="text-[14px] font-semibold">{row.billing ? formatCents(row.billing.yearly_total_cents) : <span className="font-normal text-muted">Not set</span>}</Cell>
+              <Cell>
+                <RenewalCell renewal={row.renewal} />
               </Cell>
             </DataRow>
           ))}
@@ -152,14 +188,19 @@ function SitesTable({ rows }: { rows: FleetRow[] }) {
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[14px] font-semibold text-text">{row.site.name}</span>
-                  <StatusPill status={row.site.status} />
+                  <SiteStatusPill site={row.site} />
                 </span>
-                <span className="mt-0.5 block text-[12px] text-muted">{publishedLine(row)}</span>
-                <span className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-muted">
-                  <span>{plural(row.recent, "publish", "publishes")} in 30 days</span>
+                <span className="mt-0.5 block text-[12px] text-muted">{siteLine(row)}</span>
+                <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
+                  <span className="font-semibold text-text">{row.billing ? `${formatCents(row.billing.yearly_total_cents)} / year` : "No services set"}</span>
                   <span>·</span>
-                  {row.openCount > 0 ? <Pill tone="blue">{plural(row.openCount, "open request")}</Pill> : <span>No open requests</span>}
+                  <RenewalCell renewal={row.renewal} />
                 </span>
+                {row.openCount > 0 && (
+                  <span className="mt-1.5 block">
+                    <Pill tone="blue">{plural(row.openCount, "open request")}</Pill>
+                  </span>
+                )}
               </span>
             </Link>
           </li>
@@ -226,18 +267,20 @@ function RequestPanel({ newest }: { newest: NewestRequest | null }) {
 }
 
 function StatsRow({ rows }: { rows: FleetRow[] }) {
-  const connected = rows.filter((row) => row.site.status === "connected").length;
-  const attention = rows.length - connected;
+  const hostingOnly = rows.filter((row) => isHostingOnly(row.site)).length;
+  const connected = rows.length - hostingOnly;
+  const yearly = rows.reduce((total, row) => total + (row.billing?.yearly_total_cents ?? 0), 0);
+  const priced = rows.filter((row) => row.billing).length;
+  const soon = rows.filter((row) => row.renewal?.state === "soon").length;
+  const past = rows.filter((row) => row.renewal?.state === "past").length;
   const openRequests = rows.reduce((total, row) => total + row.openCount, 0);
   const sitesWithRequests = rows.filter((row) => row.openCount > 0).length;
-  const publishes = rows.reduce((total, row) => total + row.recent, 0);
-  const publishedSites = rows.filter((row) => row.recent > 0).length;
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-      <StatCard label="Sites" value={rows.length} note={rows.length === 0 ? "none connected yet" : `${connected} connected${attention > 0 ? `, ${attention} need attention` : ""}`} />
-      <StatCard label="Needs attention" value={attention} note={attention === 0 ? "every site is connected" : "run Check connection"} />
+      <StatCard label="Sites" value={rows.length} note={rows.length === 0 ? "none yet" : `${connected} with a site, ${hostingOnly} hosting-only`} />
+      <StatCard label="Yearly billing" value={formatCents(yearly)} note={priced === 0 ? "no services recorded yet" : `across ${plural(priced, "site")}`} />
+      <StatCard label="Renewals, next 30 days" value={soon} note={past > 0 ? `${plural(past, "renewal")} already past` : soon === 0 ? "nothing due soon" : "check the dates below"} />
       <StatCard label="Open requests" value={openRequests} note={openRequests === 0 ? "nothing waiting" : `across ${plural(sitesWithRequests, "site")}`} />
-      <StatCard label="Publishes, 30 days" value={publishes} note={publishes === 0 ? "nothing published yet" : `from ${plural(publishedSites, "site")}`} />
     </div>
   );
 }
@@ -266,11 +309,42 @@ function FleetSkeleton() {
   );
 }
 
+function compare(a: FleetRow, b: FleetRow, key: SortKey): number {
+  if (key === "name") return a.site.name.localeCompare(b.site.name);
+  if (key === "total") return (a.billing?.yearly_total_cents ?? -1) - (b.billing?.yearly_total_cents ?? -1);
+  // Renewal: dated rows first (earliest first), undated last.
+  const da = a.renewal?.date ?? "9999-12-31";
+  const db = b.renewal?.date ?? "9999-12-31";
+  return da.localeCompare(db) || a.site.name.localeCompare(b.site.name);
+}
+
+function matchesSearch(row: FleetRow, needle: string): boolean {
+  if (!needle) return true;
+  const hay = [row.site.name, row.site.repo_owner, row.site.repo_name, row.site.live_url, siteStatusLabel(row.site)].filter(Boolean).join(" ").toLowerCase();
+  return hay.includes(needle);
+}
+
 export function Fleet() {
   const { agencies } = useAuth();
   const agencyIds = [...agencies.map((membership) => membership.agency.id)].sort();
-
   const query = useQuery({ queryKey: ["fleet", agencyIds], queryFn: loadFleet });
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
+
+  const onSort = (key: SortKey) => setSort((current) => (current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "total" ? "desc" : "asc" }));
+
+  const rows: FleetRow[] = useMemo(() => {
+    const data = query.data;
+    if (!data) return [];
+    return data.sites
+      .filter((site) => agencyIds.includes(site.agency_id))
+      .map((site) => {
+        const billing = data.billing[site.id];
+        return { site, openCount: data.openCounts[site.id] ?? 0, billing, renewal: billing ? renewalState(billing.next_renewal_date, billing.overdue_renewal_date) : null };
+      });
+    // agencyIds is derived from `agencies`, which is stable per session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data, agencies]);
 
   const addAction = (
     <LinkButton to="/sites/new">
@@ -288,22 +362,24 @@ export function Fleet() {
       </Notice>
     );
   } else {
-    const data = query.data;
-    const rows: FleetRow[] = data.sites
-      .filter((site) => agencyIds.includes(site.agency_id))
-      .map((site) => ({
-        site,
-        openCount: data.openCounts[site.id] ?? 0,
-        recent: data.recentPublishes[site.id] ?? 0,
-        latest: data.latestPublish[site.id],
-      }));
-
+    const needle = search.trim().toLowerCase();
+    const visible = rows.filter((row) => matchesSearch(row, needle)).sort((a, b) => (sort.dir === "asc" ? 1 : -1) * compare(a, b, sort.key));
     const groups =
       agencies.length > 1
         ? [...agencies]
             .sort((a, b) => a.agency.name.localeCompare(b.agency.name))
-            .map((membership) => ({ title: membership.agency.name, rows: rows.filter((row) => row.site.agency_id === membership.agency.id) }))
-        : [{ title: "Client sites", rows }];
+            .map((membership) => ({ title: membership.agency.name, rows: visible.filter((row) => row.site.agency_id === membership.agency.id) }))
+        : [{ title: "Client sites", rows: visible }];
+
+    const searchBox = (
+      <div className="relative">
+        <label htmlFor="fleet-search" className="sr-only">
+          Search sites
+        </label>
+        <IconSearch size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+        <Input id="fleet-search" type="search" placeholder="Search sites" value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 w-44 pl-9 text-[13px] sm:w-56" />
+      </div>
+    );
 
     body = (
       <div className="flex flex-col gap-5">
@@ -311,18 +387,22 @@ export function Fleet() {
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_392px]">
           <div className="flex min-w-0 flex-col gap-4">
             {rows.length === 0 ? (
-              <EmptyState title="No sites yet" action={addAction} icon={<IconExternal size={18} />}>
-                Connect a site's GitHub repository and it will appear here with its status and requests.
+              <EmptyState title="No sites yet" action={addAction} icon={<IconGlobe size={18} />}>
+                Connect a site's GitHub repository, or add a hosting-only client, and it will appear here with its status, billing and renewals.
               </EmptyState>
             ) : (
               groups.map((group) => (
-                <Panel key={group.title} title={group.title} aside={<span className="text-[12px] text-muted">Publishes are for the last 30 days</span>}>
-                  {group.rows.length === 0 ? <p className="px-5 py-4 text-[13px] text-muted">No sites yet for this agency.</p> : <SitesTable rows={group.rows} />}
+                <Panel key={group.title} title={group.title} aside={searchBox}>
+                  {group.rows.length === 0 ? (
+                    <p className="px-5 py-4 text-[13px] text-muted">{needle ? `No sites match "${search.trim()}".` : "No sites yet for this agency."}</p>
+                  ) : (
+                    <SitesTable rows={group.rows} sort={sort} onSort={onSort} />
+                  )}
                 </Panel>
               ))
             )}
           </div>
-          <RequestPanel newest={data.newest} />
+          <RequestPanel newest={query.data.newest} />
         </div>
       </div>
     );
@@ -330,7 +410,7 @@ export function Fleet() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Fleet" description="Every client site you manage, with what needs you first." action={addAction} />
+      <PageHeader title="Fleet" description="Every client site you manage, what you charge for it, and what needs you first." action={addAction} />
       {body}
     </div>
   );

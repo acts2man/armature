@@ -7,7 +7,7 @@
  * cannot be forged from a browser. Every attempt on an accessible site gets a row.
  */
 import type { PublishResponse } from "../../../shared/publishTypes.ts";
-import { adminClient, loadAccessibleSite, resolveCaller } from "../_shared/auth.ts";
+import { adminClient, loadAccessibleSite, requireConnectedSite, resolveCaller } from "../_shared/auth.ts";
 import { denoEnv, type Env } from "../_shared/env.ts";
 import { ArmatureError } from "../_shared/errors.ts";
 import { loadAppConfig, mintInstallationToken } from "../_shared/githubApp.ts";
@@ -44,7 +44,7 @@ Deno.serve(
     if (!input.slug) throw new ArmatureError("invalid", 'Missing "slug" in the request.');
 
     const caller = await resolveCaller(req, env);
-    const site = await loadAccessibleSite(caller.supabase, input.site_id);
+    const site = requireConnectedSite(await loadAccessibleSite(caller.supabase, input.site_id));
 
     const requestedFields = [
       ...input.fields.map((field) => `${field.section}.${field.field}`),

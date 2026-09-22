@@ -8,7 +8,7 @@
  * update site rows.
  */
 import type { ConnectionCheck, DiagnoseResponse } from "../../../shared/publishTypes.ts";
-import { adminClient, linkedInstallationIds, loadAccessibleSite, resolveCaller, type SiteRow } from "../_shared/auth.ts";
+import { adminClient, linkedInstallationIds, loadAccessibleSite, requireConnectedSite, resolveCaller, type SiteRow } from "../_shared/auth.ts";
 import { denoEnv, type Env } from "../_shared/env.ts";
 import { readJsonBody, requireUuid, serveJson } from "../_shared/http.ts";
 import { runRepoChecks } from "../_shared/siteChecks.ts";
@@ -54,7 +54,7 @@ Deno.serve(
     // 2. site access
     let site;
     try {
-      site = await loadAccessibleSite(caller.supabase, siteId);
+      site = requireConnectedSite(await loadAccessibleSite(caller.supabase, siteId));
       checks.push({ id: "site-access", label: "Your account can edit this site", status: "ok", detail: `${site.name} — ${site.repo_owner}/${site.repo_name} on ${site.branch}` });
     } catch (error) {
       checks.push({
@@ -62,7 +62,7 @@ Deno.serve(
         label: "Your account can edit this site",
         status: "fail",
         detail: error instanceof Error ? error.message : "No access.",
-        fix: "Ask the agency to invite your account to this site (Team → Invite).",
+        fix: "If this is a hosting-only site, the agency connects its repository from Fleet. Otherwise ask the agency to add your account to this site (Team).",
       });
       return { ok: true, allPassed: false, checks };
     }

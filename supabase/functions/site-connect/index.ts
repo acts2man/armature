@@ -3,8 +3,11 @@
  * reach the repository, that content/schema.json and content/pages.json exist and
  * validate, and create the site row. Every step is reported with a fix.
  *
+ * With `site_id`, an existing hosting-only site of the agency is upgraded in
+ * place instead: the same checks run and the repository is written onto that row.
+ *
  * Authorisation: the caller must be a member of the agency (checked under RLS),
- * and the site row is inserted with the caller's own client, so RLS enforces the
+ * and the site row is written with the caller's own client, so RLS enforces the
  * agency boundary a second time. No service role.
  */
 import type { SiteConnectResponse } from "../../../shared/publishTypes.ts";
@@ -26,6 +29,7 @@ Deno.serve(
     const branch = optionalString(body, "branch") ?? "main";
     const name = optionalString(body, "name") ?? repoName;
     const liveUrl = optionalString(body, "live_url");
+    const upgradeSiteId = optionalString(body, "site_id");
 
     if (!NAME_PATTERN.test(repoOwner) || !NAME_PATTERN.test(repoName)) {
       throw new ArmatureError(
@@ -40,6 +44,25 @@ Deno.serve(
     const caller = await resolveCaller(req, env);
     await requireAgencyMember(caller.supabase, agencyId, caller.userId);
 
+    // Upgrading: the site must be the agency's own and still hosting-only.
+    let existing: { id: string; name: string; live_url: string | null } | null = null;
+    if (upgradeSiteId) {
+      const { data, error } = await caller.supabase
+        .from("sites")
+        .select("id, name, agency_id, status, live_url")
+        .eq("id", upgradeSiteId)
+        .maybeSingle();
+      if (error) throw new ArmatureError("github_error", `Could not read the site to upgrade: ${error.message}`);
+      const row = data as { id: string; name: string; agency_id: string; status: string; live_url: string | null } | null;
+      if (!row || row.agency_id !== agencyId) {
+        throw new ArmatureError("forbidden", "That site does not exist, or it does not belong to your agency.");
+      }
+      if (row.status !== "hosting_only") {
+        throw new ArmatureError("invalid", `${row.name} already has a repository connected.`);
+      }
+      existing = row;
+    }
+
     const result = await runRepoChecks({
       env,
       repoOwner,
@@ -52,20 +75,25 @@ Deno.serve(
       return { ok: true, allPassed: false, checks: result.checks };
     }
 
-    const { data, error } = await caller.supabase
-      .from("sites")
-      .insert({
-        agency_id: agencyId,
-        name,
-        repo_owner: repoOwner,
-        repo_name: repoName,
-        branch,
-        live_url: liveUrl ?? null,
-        github_installation_id: result.installation.id,
-        status: "connected",
-      })
-      .select("id, name")
-      .single();
+    const repoFields = {
+      repo_owner: repoOwner,
+      repo_name: repoName,
+      branch,
+      github_installation_id: result.installation.id,
+      status: "connected",
+    };
+    const { data, error } = existing
+      ? await caller.supabase
+          .from("sites")
+          .update({ ...repoFields, ...(liveUrl ? { live_url: liveUrl } : {}), ...(optionalString(body, "name") ? { name } : {}) })
+          .eq("id", existing.id)
+          .select("id, name")
+          .single()
+      : await caller.supabase
+          .from("sites")
+          .insert({ agency_id: agencyId, name, live_url: liveUrl ?? null, ...repoFields })
+          .select("id, name")
+          .single();
 
     if (error) {
       if (error.code === "23505") {

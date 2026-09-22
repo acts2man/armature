@@ -35,6 +35,7 @@ import { Button, Field, IconButton, Input, LinkButton, Modal, Notice, PageHeader
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
 import { plural, shortSha } from "@/lib/format.ts";
 import { callFunction, type Failure } from "@/lib/functions.ts";
+import { isHostingOnly } from "@/lib/services.ts";
 import { fileToBase64, prepareImage, type PreparedImage } from "@/lib/resizeImage.ts";
 import type { ContentValue, LinkValue } from "@shared/contentFile.ts";
 import type { ConnectionReport, ContentGetResponse, DiagnoseResponse, FieldUpdate, ImageUpload, PublishRequest, PublishResponse } from "@shared/publishTypes.ts";
@@ -406,6 +407,23 @@ function FieldCard({
 
 export function PageEditor() {
   const { slug = "" } = useParams();
+  const { site, isStaff } = useSite();
+  if (isHostingOnly(site)) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Link to={`/sites/${site.id}/pages`} className="inline-flex h-11 items-center gap-2 text-[13px] font-medium text-muted hover:text-text">
+          <IconArrowLeft size={16} /> All pages
+        </Link>
+        <Notice
+          kind="info"
+          title="Nothing to edit yet"
+          action={isStaff ? <LinkButton to={`/sites/new?upgrade=${site.id}`} size="sm">Connect repository</LinkButton> : undefined}
+        >
+          {site.name} is a hosting-only site: no repository is connected, so there are no pages to edit or publish.
+        </Notice>
+      </div>
+    );
+  }
   // Keyed by slug so moving between pages starts a fresh draft and releases previews.
   return <Editor key={slug} slug={slug} />;
 }
