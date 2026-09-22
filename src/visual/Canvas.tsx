@@ -7,7 +7,7 @@
 import { clsx } from "clsx";
 import { useEffect, useLayoutEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { Link } from "react-router";
-import { IconAlert, IconBranch, IconImage, IconLink, IconPencil, IconRefresh, IconUndo } from "@/components/icons.tsx";
+import { IconAlert, IconBranch, IconImage, IconLink, IconPencil, IconRefresh, IconUndo, IconX } from "@/components/icons.tsx";
 import { Button, LinkButton } from "@/components/ui.tsx";
 import type { SiteSchema } from "@shared/schema.ts";
 import { fieldRoot, type FieldPath, type MappedField } from "@shared/visualProtocol.ts";
@@ -277,6 +277,10 @@ export function Canvas({
   formEditorHref,
   siteName,
   hint,
+  olderKit,
+  sheetRef,
+  elementOverlays,
+  dragging,
 }: {
   iframeRef: React.RefObject<HTMLIFrameElement>;
   src: string | null;
@@ -297,6 +301,14 @@ export function Canvas({
   formEditorHref: string;
   siteName: string;
   hint: string | null;
+  /** The site answered with the v1.1 bridge: content editing works, the page builder needs kit v2. */
+  olderKit?: boolean;
+  /** The scaled sheet that holds the frame, for converting pointer positions during drags. */
+  sheetRef?: React.RefObject<HTMLDivElement | null>;
+  /** Site contract v2: the builder's overlays, drawn above the Stage 1 ones. */
+  elementOverlays?: ReactNode;
+  /** While an element is being dragged, a transparent layer keeps the pointer in the parent. */
+  dragging?: boolean;
 }) {
   const main = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 600 });
@@ -319,6 +331,7 @@ export function Canvas({
   return (
     <main ref={main} className="relative flex min-w-0 flex-1 justify-center overflow-hidden" style={{ paddingTop: SHEET_TOP }} data-testid="canvas" data-device-width={deviceWidth} data-scale={scale.toFixed(3)}>
       <div
+        ref={sheetRef}
         className="relative overflow-hidden rounded-t-[10px] bg-panel shadow-sheet transition-[width] duration-200 ease-[var(--ease-standard)]"
         style={{ width: sheetWidth, height: sheetHeight }}
         data-testid="sheet"
@@ -348,6 +361,8 @@ export function Canvas({
           <>
             <ImageTargets store={store} scale={scale} onSelect={onSelectImage} onDrop={onDropImage} />
             <Overlays store={store} scale={scale} schema={schema} selectedPath={selectedPath} changed={changed} editing={editing} actions={actions} />
+            {elementOverlays}
+            {dragging && <div className="absolute inset-0 cursor-grabbing" data-testid="drag-capture" />}
           </>
         )}
         {ready && preview && (
@@ -391,6 +406,47 @@ export function Canvas({
           {hint}
         </div>
       )}
+      {olderKit && ready && <OlderKitNotice />}
     </main>
   );
 }
+
+/** Shown to agency staff when a site still runs the v1.1 bridge. Dismissable per session. */
+function OlderKitNotice() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return sessionStorage.getItem("armature:visual:older-kit") !== "dismissed";
+    } catch {
+      return true;
+    }
+  });
+  if (!open) return null;
+  return (
+    <div role="status" data-testid="older-kit-notice" className="toast-in absolute left-1/2 top-3 z-20 flex w-[min(640px,92%)] -translate-x-1/2 items-start gap-3 rounded-card border border-amber/30 bg-amber-soft px-4 py-3 text-[13px] text-amber shadow-pop">
+      <IconAlert size={18} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1 leading-relaxed">
+        <p className="font-semibold">This site uses an older kit version. Update it to use the page builder.</p>
+        <p className="mt-1">
+          Words, pictures and lists still edit as before. To drag widgets, style elements and add pages, the site's developer replaces <code className="font-mono text-[12px]">armature-bridge.ts</code> with the <code className="font-mono text-[12px]">armature-kit/</code> folder from the Armature repository, creates it with <code className="font-mono text-[12px]">createArmatureKit()</code> and wraps each page in <code className="font-mono text-[12px]">&lt;ArmatureSlot&gt;</code>. The steps are in docs/SITE_CONTRACT.md, "Site contract v2".
+        </p>
+      </div>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={() => {
+          setOpen(false);
+          try {
+            sessionStorage.setItem("armature:visual:older-kit", "dismissed");
+          } catch {
+            // fine
+          }
+        }}
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control hover:bg-white/60"
+      >
+        <IconX size={16} />
+      </button>
+    </div>
+  );
+}
+
+

@@ -9,7 +9,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@kit/*": ["./kit/*"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,
@@ -25,5 +26,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "shared", "bridge", "examples/demo-site/content.test.ts"]
+  "include": ["src", "shared", "bridge", "kit", "examples/demo-site/content.test.ts"]
 }

@@ -7,7 +7,7 @@ const siteFrame = (page: Page): FrameLocator => page.frameLocator(`iframe[title$
 
 async function openEditor(page: Page, options: Parameters<typeof installMocks>[1] = {}) {
   const state = await installMocks(page, options);
-  await page.addInitScript(() => window.localStorage.setItem("armature:visual:tour:v1", "done"));
+  await page.addInitScript(() => { window.localStorage.setItem("armature:visual:tour:v1", "done"); window.localStorage.setItem("armature:builder:tour:v1", "done"); });
   await page.goto(editorUrl());
   await expect(page.getByTestId("visual-editor")).toBeVisible();
   return state;
@@ -148,9 +148,10 @@ test.describe("visual editor", () => {
     await expect(canvas).toHaveAttribute("data-device-width", "390");
     await expect(canvas).toHaveAttribute("data-scale", "1.000");
     await expect.poll(() => page.getByTestId("sheet").evaluate((el) => el.clientWidth)).toBe(390);
+    // The tablet canvas is as wide as the site kit's tablet breakpoint (1024 for the demo).
     await page.getByRole("button", { name: /Tablet view/ }).click();
-    await expect(canvas).toHaveAttribute("data-device-width", "820");
-    expect(desktopWidth).toBeLessThan(820);
+    await expect(canvas).toHaveAttribute("data-device-width", "1024");
+    expect(desktopWidth).toBeLessThan(1024);
     await expect(siteFrame(page).locator("h1")).toBeVisible();
   });
 
@@ -240,7 +241,7 @@ test.describe("connection states", () => {
     test.setTimeout(90_000);
     await installMocks(page, { liveUrl: PLAIN_SITE_URL });
     await servePlainSite(page);
-    await page.addInitScript(() => window.localStorage.setItem("armature:visual:tour:v1", "done"));
+    await page.addInitScript(() => { window.localStorage.setItem("armature:visual:tour:v1", "done"); window.localStorage.setItem("armature:builder:tour:v1", "done"); });
     await page.goto(editorUrl());
     await expect(page.getByText("Connecting the editor…")).toBeVisible();
     await expect(page.getByRole("alert")).toContainText("isn't set up for visual editing yet", { timeout: 20_000 });
@@ -251,7 +252,7 @@ test.describe("connection states", () => {
     test.setTimeout(90_000);
     await installMocks(page, { liveUrl: PLAIN_SITE_URL, embed: { reachable: true, status: 200, xFrameOptions: "DENY", frameAncestors: null } });
     await servePlainSite(page);
-    await page.addInitScript(() => window.localStorage.setItem("armature:visual:tour:v1", "done"));
+    await page.addInitScript(() => { window.localStorage.setItem("armature:visual:tour:v1", "done"); window.localStorage.setItem("armature:builder:tour:v1", "done"); });
     await page.goto(editorUrl());
     await expect(page.getByRole("alert")).toContainText("X-Frame-Options: DENY", { timeout: 20_000 });
     await expect(page.getByRole("alert")).toContainText("frame-ancestors 'self' http://localhost:5173");

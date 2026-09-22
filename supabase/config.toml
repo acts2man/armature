@@ -1,7 +1,9 @@
 # Supabase CLI configuration for Armature. `project_id` is filled in by
 # `supabase link`; nothing here needs editing by hand.
 #
-# Every edge function requires a signed-in caller, so verify_jwt stays on.
+# Every edge function requires a signed-in caller, so verify_jwt stays on, except
+# form-submit: website visitors send forms without signing in. It trusts nothing it
+# is sent (fields come from the published page) and rate limits every visitor.
 # The functions import the repo-root shared/ folder, which needs the API-based
 # bundler: deploy with `supabase functions deploy --use-api` (CLI 2.13.3 or newer).
 
@@ -31,3 +33,9 @@ verify_jwt = true
 
 [functions.password-set]
 verify_jwt = true
+
+[functions.builder-publish]
+verify_jwt = true
+
+[functions.form-submit]
+verify_jwt = false

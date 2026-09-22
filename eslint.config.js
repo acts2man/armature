@@ -24,4 +24,16 @@ export default defineConfig([
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
+  {
+    // The site kit is copied into other projects and mixes components with helpers on purpose.
+    files: ["kit/**/*.{ts,tsx}", "src/builder/widgets/**/*.{ts,tsx}", "src/builder/controls/**/*.{ts,tsx}"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
+  {
+    // The editor is not compiled by React Compiler; the "could not preserve memoization" rule
+    // only reports what the compiler would skip, and the hand-written deps are checked by
+    // exhaustive-deps anyway.
+    files: ["src/visual/**/*.{ts,tsx}", "src/builder/**/*.{ts,tsx}"],
+    rules: { "react-hooks/preserve-manual-memoization": "off" },
+  },
 ]);

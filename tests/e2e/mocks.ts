@@ -4,7 +4,7 @@
  * visual editor calls. GitHub is never touched; the batch publish answers with a
  * fake commit (or a conflict) and records what it was asked to write.
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Page, Route } from "@playwright/test";
 
@@ -19,6 +19,12 @@ export const COMMIT_SHA = "abc1234def5678abc1234def5678abc1234def56";
 const demoDir = fileURLToPath(new URL("../../examples/demo-site/content/", import.meta.url));
 export const demoSchema = JSON.parse(readFileSync(`${demoDir}schema.json`, "utf8")) as unknown;
 export const demoContent = JSON.parse(readFileSync(`${demoDir}pages.json`, "utf8")) as Record<string, Record<string, Record<string, unknown>>>;
+export const demoKit = JSON.parse(readFileSync(`${demoDir}site-kit.json`, "utf8")) as unknown;
+export const demoLayouts = Object.fromEntries(
+  readdirSync(`${demoDir}layouts`)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => [name.slice(0, -".json".length), JSON.parse(readFileSync(`${demoDir}layouts/${name}`, "utf8")) as unknown]),
+) as Record<string, unknown>;
 
 export type Role = "staff" | "client";
 
@@ -34,11 +40,22 @@ export type MockOptions = {
   content?: Record<string, unknown>;
   /** Let Google Fonts load (for screenshots). Tests block them so nothing leaves the machine. */
   allowFonts?: boolean;
+  /** What clients may do in the editor; agency staff always get the full builder. */
+  editingLevel?: "content" | "style" | "builder";
+  /** Layouts returned by content-get; defaults to the demo site's files. */
+  layouts?: Record<string, unknown>;
+  /** builder-publish: "ok" (default), or "conflict-once" (a layout conflict until the person chooses). */
+  builderPublish?: "ok" | "conflict-once";
+  /** REST rows present before the test starts (a draft saved on another device, templates). */
+  rows?: Record<string, Record<string, unknown>[]>;
 };
 
 export type MockState = {
   publishRequests: unknown[];
+  builderPublishRequests: Record<string, unknown>[];
   contentGets: number;
+  /** Rows written to REST tables (drafts, templates), by table. */
+  rows: Record<string, Record<string, unknown>[]>;
 };
 
 const base64url = (value: string) => Buffer.from(value).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -75,10 +92,16 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     created_at: "2026-09-01T00:00:00Z",
   };
 
-  const state: MockState = { publishRequests: [], contentGets: 0 };
+  const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: JSON.parse(JSON.stringify(options.rows ?? {})) as MockState["rows"] };
   // The content "in the repository": a batch publish updates it, as a real one would.
   const content = JSON.parse(JSON.stringify(options.content ?? demoContent)) as Record<string, Record<string, Record<string, unknown>>>;
+  const layouts = JSON.parse(JSON.stringify(options.layouts ?? demoLayouts)) as Record<string, unknown>;
+  const media = [
+    { path: "/assets/hero.svg", bytes: 2400, kind: "image", alt: "A timber-framed house at dusk" },
+    { path: "/assets/team.svg", bytes: 1800, kind: "image", alt: "" },
+  ];
   let commitSha = COMMIT_SHA;
+  let siteKit: unknown = demoKit;
 
   // Nothing in these tests may leave the machine (fonts and the like).
   if (!options.allowFonts) await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
@@ -118,9 +141,14 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, [agency]);
         case "sites":
           if (wantsCount) return countOf(1);
+          if (request.method() === "PATCH") {
+            const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+            (state.rows["sites"] ??= []).push(patch);
+            Object.assign(site, patch);
+          }
           return json(route, [site]);
         case "publishes":
-          return json(route, []);
+          return json(route, state.rows["publishes"] ?? []);
         case "change_requests":
           if (wantsCount) return countOf(0);
           if (request.method() === "POST") return json(route, [{ id: "55555555-5555-4555-8555-555555555555" }], 201);
@@ -129,6 +157,40 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, []);
         case "site_billing":
           return json(route, []);
+        case "builder_templates":
+        case "builder_drafts": {
+          const rows = (state.rows[table] ??= []);
+          const method = request.method();
+          if (method === "GET" || method === "HEAD") {
+            // Honour "column=eq.value" filters (enough for id / site_id / user_id lookups).
+            let shown = rows;
+            for (const [column, filter] of url.searchParams) {
+              if (filter.startsWith("eq.")) shown = shown.filter((row) => String(row[column]) === filter.slice(3));
+            }
+            const single = (request.headers()["accept"] ?? "").includes("vnd.pgrst.object");
+            if (single) return shown[0] ? json(route, shown[0]) : json(route, { code: "PGRST116", message: "no rows" }, 406);
+            return json(route, shown);
+          }
+          if (method === "POST") {
+            const incoming = JSON.parse(request.postData() ?? "{}") as Record<string, unknown> | Record<string, unknown>[];
+            const list = Array.isArray(incoming) ? incoming : [incoming];
+            const upsert = (request.headers()["prefer"] ?? "").includes("resolution=merge-duplicates");
+            const saved = list.map((row) => {
+              const existing = upsert ? rows.findIndex((other) => other["site_id"] === row["site_id"] && other["user_id"] === row["user_id"]) : -1;
+              const full = { id: `tpl-${rows.length + 1}-${Math.random().toString(16).slice(2, 8)}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row };
+              if (existing >= 0) rows[existing] = { ...rows[existing], ...full, id: rows[existing]!["id"] };
+              else rows.push(full);
+              return full;
+            });
+            return json(route, saved, 201);
+          }
+          if (method === "DELETE") {
+            const filters = [...url.searchParams].filter(([, filter]) => filter.startsWith("eq."));
+            state.rows[table] = rows.filter((row) => !filters.every(([column, filter]) => String(row[column]) === filter.slice(3)));
+            return json(route, [], 200);
+          }
+          return json(route, []);
+        }
         default:
           return json(route, []);
       }
@@ -141,7 +203,36 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
       switch (name) {
         case "content-get":
           state.contentGets += 1;
-          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [] });
+          if (typeof body["ref"] === "string") {
+            // An older version: the home layout's "Recent builds" heading read differently then.
+            const older = JSON.parse(JSON.stringify(layouts).replace('"Recent builds"', '"Builds from last spring"')) as Record<string, unknown>;
+            return json(route, { ok: true, schema: demoSchema, content, commitSha: body["ref"], branch: "main", repo: "acme/alder-stone", warnings: [], layouts: older, siteKit, media, editingLevel: options.editingLevel ?? "content" });
+          }
+          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], layouts, siteKit, media, editingLevel: options.editingLevel ?? "content" });
+        case "builder-publish": {
+          state.builderPublishRequests.push(body);
+          const resolutions = (body["resolutions"] ?? {}) as Record<string, string>;
+          if (options.builderPublish === "conflict-once" && !resolutions["layout:home:hdbuilds"]) {
+            return json(route, {
+              ok: false,
+              code: "conflict",
+              message: "Someone else published changes to the same thing while you were editing.",
+              fields: ['Both you and someone else changed heading "Recent builds"'],
+              conflicts: [{ key: "layout:home:hdbuilds", page: "home", elementId: "hdbuilds", label: 'Both you and someone else changed heading "Recent builds"' }],
+            });
+          }
+          for (const page of (body["pages"] ?? []) as { slug: string; fields: { section: string; field: string; value: unknown }[] }[]) {
+            for (const field of page.fields) ((content[page.slug] ??= {})[field.section] ??= {})[field.field] = field.value;
+          }
+          const written = Object.keys((body["layouts"] ?? {}) as Record<string, unknown>);
+          for (const [slug, layout] of Object.entries((body["layouts"] ?? {}) as Record<string, unknown>)) {
+            if (layout === null) delete layouts[slug];
+            else layouts[slug] = layout;
+          }
+          if (body["kit"]) siteKit = body["kit"];
+          commitSha = "b0b0b0b0b1b1b1b1b2b2b2b2b3b3b3b3b4b4b4b4";
+          return json(route, { ok: true, commitSha, commitUrl: `https://github.com/acme/alder-stone/commit/${commitSha}`, fields: [], images: [], slugs: written, layouts: written, kit: !!body["kit"], media: !!body["media"], merged: options.builderPublish === "conflict-once" });
+        }
         case "content-publish-batch":
           state.publishRequests.push(body);
           if (options.publish === "conflict") {

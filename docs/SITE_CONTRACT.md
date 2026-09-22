@@ -1,4 +1,4 @@
-# The site contract (v1, with the optional v1.1 visual-editing addition)
+# The site contract (v1, with the optional v1.1 visual-editing addition and the v2 page builder)
 
 This is what a website repository must contain before Armature can connect to it and let people edit it. It is short on purpose: two JSON files and one folder. Everything the dashboard does, from the "Add a site" checklist to the Publish button, is defined by the rules on this page, and the same rules are enforced in code by the `shared/` folder of this repository, which both the browser and the edge functions import.
 
@@ -440,6 +440,215 @@ force-pushed, and one `publishes` row records every field that changed
 (`slug.section.field`) with the page slugs joined by commas. A list item picture is sent
 with its `index` and `itemKey`; the function writes the committed path into that item.
 
+## Site contract v2: page builder (optional)
+
+Version 2 turns the visual editor into a page builder: people drag widgets onto the real
+site, nest them in containers, type rich text in place, style elements per device, and
+publish layouts, global colours and fonts, new pages, content and pictures in one commit.
+It is additive: `armatureContract` stays `1`, `schema.json` and `pages.json` do not
+change, a v1.1 site keeps working (the editor tells agency staff "This site uses an older
+kit version, update it to use the page builder"), and a page without a layout file behaves
+exactly as before.
+
+### What the site adds
+
+1. **The kit.** Copy the `kit/` folder of this repository into the site as
+   `src/lib/armature-kit/` (React is its only dependency; it replaces
+   `armature-bridge.ts`) and create it once:
+
+   ```ts
+   // src/lib/armature.ts
+   import { createArmatureKit } from "./armature-kit";
+   import schema from "../../content/schema.json";
+   import content from "../../content/pages.json";
+   import siteKit from "../../content/site-kit.json"; // optional; the default kit applies without it
+
+   export const armature = createArmatureKit({
+     allowedOrigins: ["https://armature-sites.netlify.app"], // the dashboard's exact origin
+     schema,
+     content,
+     siteKit,
+     layouts: import.meta.glob("../../content/layouts/*.json", { eager: true }),
+     navigate: (path) => router.navigate(path), // optional, for client-side routers
+   });
+   ```
+
+   The kit keeps the whole v1.1 content API (`text`, `plain`, `link`, `image`, `list`,
+   `subscribe`, `getSnapshot`), so a v1.1 site upgrades by changing one import.
+
+2. **Site sections.** Register each hand-coded section the editor may place, move, hide or
+   wrap, and render coded pages through a slot:
+
+   ```tsx
+   armature.registerSiteSection("hero", { label: "Hero", component: Hero });
+   armature.registerSiteSection("faq", { label: "FAQ", component: Faq, repeatable: true });
+
+   function Home() {
+     return <ArmatureSlot slug="home" defaults={["hero", "faq"]} />;
+   }
+   ```
+
+   Without a layout file the slot renders `defaults` in order, exactly as the page rendered
+   before. With one, the layout decides the order and what sits between the sections. Text
+   and pictures inside a section keep editing through the v1.1 field system.
+
+3. **Builder-only pages.** Place `<ArmatureRoute fallback={<NotFound />} />` before the
+   site's catch-all route. Pages created in the editor are served at their `path` from
+   `content/layouts/<slug>.json`; anything else renders the fallback. `useBuilderPages()`
+   lists them for the site's own navigation.
+
+4. **The frame header**, as in v1.1 (`Content-Security-Policy: frame-ancestors 'self' <dashboard origin>`).
+
+5. **Forms (only if the site uses the Form widget).** Pass the dashboard's form function
+   and the site's id (the id in the site's dashboard address) to the kit:
+
+   ```ts
+   createArmatureKit({ ...,
+     forms: { endpoint: "https://<project>.supabase.co/functions/v1/form-submit", siteId: "<site id>" },
+   });
+   ```
+
+   Without it a form shows "This form is not connected yet" and never sends. The function
+   trusts nothing from the page: it reads the form's fields from the published layout,
+   drops unknown fields, rate limits each visitor and each site, and ignores entries whose
+   hidden honeypot field is filled or that arrive faster than a person types.
+
+6. **Content-Security-Policy, if the site sends one.** The widget library reaches outside
+   the site only when asked: `connect-src` the form endpoint above; `frame-src`
+   `https://www.youtube-nocookie.com https://player.vimeo.com https://maps.google.com
+   https://www.google.com` for videos (after a visitor presses play) and maps; `style-src`
+   `https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com` for Google fonts.
+   The HTML widget (agency only) runs in a sandboxed `srcdoc` frame with its own origin.
+
+7. **Page settings hooks.** Mark the site's header and footer with `data-armature-chrome`
+   and a coded page's visible title with `data-armature-page-title`. A page set to "Full
+   canvas" puts `data-armature-canvas="full"` on `<html>` and one set to "Hide the page
+   title" puts `data-armature-hide-title` there; the kit's base CSS then hides the marked
+   elements. Unmarked sites simply keep their header, footer and title.
+
+### Upgrading a v1.1 site to the kit
+
+1. Copy `kit/` from this repository into `src/lib/armature-kit/` and delete
+   `armature-bridge.ts`.
+2. Replace the bridge setup with `createArmatureKit({...})` as in step 1 above, keeping
+   the same `allowedOrigins`; every `text`/`plain`/`link`/`image`/`list` call keeps working.
+3. Register the coded sections and render each coded page through `<ArmatureSlot>` with
+   its sections as `defaults` (step 2), so the page looks exactly as before.
+4. Add `<ArmatureRoute fallback={...} />` before the catch-all route (step 3).
+5. Add `data-armature-chrome` to the header and footer, and `data-armature-page-title` to
+   page titles (step 7).
+6. If the site uses forms or sends a Content-Security-Policy, do steps 5 and 6.
+7. Commit an empty `content/layouts/` (a `.gitkeep`) if the site's bundler needs the folder
+   to exist. `content/site-kit.json` is optional; the first save from Site settings writes it.
+8. Deploy, open the site in the visual editor as agency staff and check that the builder
+   switches on (protocol 2). Then choose the clients' editing level on the site overview.
+
+### The widget library
+
+Beyond the core widgets (Container, Grid, Heading, Text Editor, Image, Button, Spacer,
+Divider), the kit renders Icon, Video (YouTube, Vimeo or a file; a click-to-load facade
+that contacts the host only when a visitor presses play), Icon Box, Image Box, Icon List,
+Accordion, Toggle, Tabs, Testimonial, Star Rating, Counter, Progress Bar, Alert, Social
+Icons, Image Gallery (with a lightbox), Image Carousel, Google Map, Call to Action, Price
+Table, Countdown (to a date, or per visitor), Flip Box, Blockquote, Table of Contents,
+Form, and the agency-only HTML embed. Interactive widgets follow the WAI-ARIA patterns
+(buttons with `aria-expanded`, tablists with arrow keys, a native `<dialog>` lightbox) and
+stop moving for visitors who ask for reduced motion. Their props are in `kit/types.ts` and
+their rules in `shared/builder/widgetSchemas.ts`. A newer widget an older kit does not know
+is skipped on the site (the editor shows "Unsupported element").
+
+### Files the editor writes
+
+```
+content/layouts/<pageSlug>.json    one layout per page (coded pages: optional; builder pages: always)
+content/site-kit.json              global colours, fonts, typography and button presets, container defaults, breakpoints
+content/media.json                 default alt text per picture, from the media library
+public/assets/uploads/             pictures, as in v1
+```
+
+A layout is `{ version: 1, pageSlug, path, label?, seo?, pageSettings?, root: Element[] }`.
+An element is `{ id, type, label?, props, style, advanced, children?, locked?, meta }`; ids
+are eight characters of `[a-z0-9]` and become the CSS class `.ae-<id>`. Any style or
+advanced value may be `{ desktop, tablet?, mobile? }` (tablet inherits desktop, mobile
+inherits tablet); sizes are `{ value, unit }`; colours, fonts, typography and button values
+may be literals or kit references such as `kit:color.primary`, `kit:font.heading`,
+`kit:type.h2`, `kit:button.primary`. The full model is in `kit/types.ts`, the validation
+rules in `shared/builder/schema.ts` (zod), and the design notes in
+[BUILDER_SPEC.md](BUILDER_SPEC.md). Limits: a layout file under 1 MB, nesting at most 12
+deep, at most 2000 elements per page; a file that breaks a rule is reported by name and
+skipped, never silently.
+
+### How the kit renders
+
+- `<ArmaturePage>` generates one stylesheet per page from the tree and the kit and mounts
+  it as a `<style>` text node: `.ae-root .ae-<id> { ... }`, media queries at the kit
+  breakpoints carrying only each device's own values, `:hover` rules, and the kit as
+  custom properties on `.ae-root` (`--ae-color-primary`, `--ae-font-heading`,
+  `--ae-content-width`, ...). Nothing leaks outside `.ae-root`, so the site's own CSS is
+  never touched.
+- Semantic HTML only, no `innerHTML`. Links may only use https, http, mailto, tel, a
+  site path or a fragment; pictures a site path or https. Custom CSS is scoped to the
+  element and stripped of `@import`, `javascript:`, `expression(` and off-site `url()`.
+- Rich text is stored as TipTap-compatible JSON and rendered by the kit's own small
+  whitelist renderer. Icons are saved as SVG nodes, so the site needs no icon library.
+- Fonts: the kit loads the fonts listed in `site-kit.json` under `fonts.custom` with
+  `"source": "google"` as one `<link rel="stylesheet">` to `fonts.googleapis.com` in the
+  document head (family names of letters, digits and spaces only). A site with a
+  Content-Security-Policy must allow `https://fonts.googleapis.com` in `style-src` and
+  `https://fonts.gstatic.com` in `font-src`, or list no Google fonts and load its own.
+- A widget's Style values land on what the visitor sees: a button's on its link
+  (`.ae-<id> .ae-btn`), an image's on the picture (`.ae-<id> img`), everything else on the
+  element's own box. Advanced spacing and size always apply to the element's box.
+- Images carry `width` and `height`; the first picture on a page is eager with a high
+  fetch priority, the rest lazy. Entrance animations use an IntersectionObserver and are
+  skipped under `prefers-reduced-motion`.
+- Public visitors never run the bridge: it activates only inside the editor's iframe,
+  with `?armature=edit`, from an allowlisted origin, after a nonce handshake.
+
+### Protocol 2
+
+The editor says hello with `protocolVersion: 1` and `wants: 2`. A v1.1 bridge answers
+`ready` with protocol 1 (content editing only); a v2 kit answers with protocol 2 and,
+besides every v1 message, exchanges these (all with the nonce, origin and source checks
+of v1):
+
+| Message | Direction | Meaning |
+| --- | --- | --- |
+| `armature:ready` | kit → editor | Adds `kitVersion`, `sections` (registered site sections), `slots` (mounted slots with their defaults) and `layouts` (slugs the site was built with). |
+| `armature:layout:apply` | editor → kit | The draft: every layout (null = deleted) and the kit. The kit re-renders through its store. |
+| `armature:elements:map` | kit → editor | Every builder element with its id, type, parent, page, border box, computed padding and margin, and for images/containers the inner box. Sent with `fields:map` and once per animation frame while scrolling. |
+| `armature:element:hover`, `armature:element:select` | both ways | Hover and selection by element id (`source` as in v1). Alt-click selects the parent. |
+| `armature:element:contextmenu` | kit → editor | A right-click on an element, with its position. |
+| `armature:slot` | kit → editor | The mounted slots and their defaults changed (a route change). |
+| `armature:element:edit:start` / `input` / `commit` / `cancel` | kit → editor | In-place editing of a heading or button (a string) or the Text Editor (a rich-text document). |
+| `armature:element:edit:start` / `armature:element:edit:stop` | editor → kit | Begin or end in-place editing. |
+| `armature:richtext:command` / `armature:richtext:state` | both ways | Formatting commands from the floating toolbar and the marks in force at the caret. |
+| `armature:scroll` | editor → kit | Scroll the frame (auto-scroll while dragging). |
+| `armature:key` | kit → editor | Adds copy, paste, paste style, duplicate, delete, preview and arrow keys. |
+
+While an element is typed into, the kit's renderer leaves that element's DOM alone (layout
+updates keep arriving and render everywhere else), and a rich-text edit stays open while
+focus is in the editor's toolbar; the kit restores the last selection before each command.
+When the edit ends the kit writes the value into its draft and remounts the element from
+it, so the browser's editing markup never survives: what the page shows is always the
+stored document rendered by the kit.
+
+### Publishing from the page builder
+
+When a draft touches a layout, the kit, default alt text or a picture added in the
+editor, the dashboard publishes through `builder-publish` instead of
+`content-publish-batch`. It is one commit on the site's branch holding everything in the
+draft: `content/pages.json` for fields, `content/layouts/<slug>.json` for each changed or
+new page (a deleted builder page's file is removed), `content/site-kit.json`,
+`content/media.json`, and each new picture under `public/assets/uploads/<page>-<hash>.<ext>`
+with its data URL in the layout replaced by that path. Before writing it validates every
+file with the same zod schemas the kit uses, refuses a page address that another page
+already uses, and enforces the person's editing level, locked elements and agency-only
+widgets against the committed files. If the branch moved since the editor loaded, layouts
+merge element by element: separate edits are both kept, the same value changed on both
+sides comes back as a named conflict for the person to decide. Nothing is ever
+force-pushed. The site then rebuilds as it does for any commit.
+
 ## Versioning
 
-This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) is purely additive and keeps the same number: a site that adds the bridge still declares `1`, and a site without it still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` (the file) and `PROTOCOL_VERSION` (the messages) so the two can move independently.
+This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) and version 2 (the page builder) are purely additive and keep the same number: a site that adds the bridge or the kit still declares `1`, and a site without either still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` and `PROTOCOL_VERSION` (1); the kit carries `KIT_VERSION` and `PROTOCOL_VERSION` (2), negotiated so either side can be older.

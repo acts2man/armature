@@ -28,7 +28,12 @@ export type CommitFile = {
   path: string;
   content: string;
   encoding: "utf-8" | "base64";
+  /** Remove the file instead of writing it (content is ignored). */
+  delete?: boolean;
 };
+
+/** One file in the repository tree. */
+export type TreeEntry = { path: string; sha: string; size: number };
 
 export type CommitResult = { commitSha: string; commitUrl: string };
 
@@ -41,6 +46,8 @@ export interface ContentRepo {
   getBranchHead(): Promise<string>;
   /** UTF-8 text of a file at a given commit-ish, with its blob sha. */
   readTextFile(path: string, ref: string): Promise<{ text: string; sha: string }>;
+  /** Every file under a directory at a commit (recursive), or [] when the directory does not exist. */
+  listTree(directory: string, ref: string): Promise<TreeEntry[]>;
   /** One commit updating/adding every file, then a non-forced branch ref update. */
   commit(input: {
     message: string;
@@ -143,6 +150,19 @@ export function createGithubContentRepo(
       return { text: base64ToUtf8(file.content), sha: file.sha };
     },
 
+    async listTree(directory, ref) {
+      const commit = await call<{ tree?: { sha?: string } }>(`/repos/${repo}/git/commits/${encodeURIComponent(ref)}`);
+      const treeSha = commit.tree?.sha;
+      if (!treeSha) throw new ArmatureError("github_error", `GitHub did not return a tree for commit ${ref}`);
+      const tree = await call<{ tree?: { path?: string; type?: string; sha?: string; size?: number }[]; truncated?: boolean }>(
+        `/repos/${repo}/git/trees/${treeSha}?recursive=1`,
+      );
+      const prefix = directory.replace(/\/+$/, "") + "/";
+      return (tree.tree ?? [])
+        .filter((entry) => entry.type === "blob" && typeof entry.path === "string" && entry.path.startsWith(prefix) && typeof entry.sha === "string")
+        .map((entry) => ({ path: entry.path as string, sha: entry.sha as string, size: entry.size ?? 0 }));
+    },
+
     async commit({ message, files, parentCommitSha }) {
       if (files.length === 0) {
         throw new ArmatureError("invalid", "Nothing to commit");
@@ -159,8 +179,13 @@ export function createGithubContentRepo(
         );
       }
 
-      const entries = [];
+      const entries: { path: string; mode: string; type: string; sha: string | null }[] = [];
       for (const file of files) {
+        if (file.delete) {
+          // A null sha in a tree entry removes the path from the new tree.
+          entries.push({ path: file.path, mode: "100644", type: "blob", sha: null });
+          continue;
+        }
         const blob = await call<{ sha?: string }>(`/repos/${repo}/git/blobs`, {
           method: "POST",
           body: { content: file.content, encoding: file.encoding },

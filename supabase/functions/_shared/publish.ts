@@ -257,20 +257,33 @@ export type BatchPublishOutcome = {
  * - `conflict`  — someone else changed the same fields (on any page). Nothing committed.
  * - `forbidden` / `not_configured` / `github_error` — see githubRepo.ts.
  */
-export async function runBatchPublish(opts: {
+/** What a content publish would write, checked and merged but not committed yet. */
+export type BatchPlan = {
+  head: string;
+  files: CommitFile[];
+  fields: string[];
+  images: string[];
+  slugs: string[];
+  pageLabels: string[];
+};
+
+export async function planBatchPublish(opts: {
   repo: ContentRepo;
   input: BatchPublishInput;
-  userEmail: string;
   now?: () => number;
   /** Prefix conflict labels with the page label ("Home → Hero → Headline"). */
   labelPages?: boolean;
-}): Promise<BatchPublishOutcome> {
-  const { repo, input, userEmail } = opts;
+  /** The builder publish may carry no content changes at all (layouts only). */
+  allowEmpty?: boolean;
+  /** The branch head the whole publish is based on (read once by the caller). */
+  head?: string;
+}): Promise<BatchPlan> {
+  const { repo, input } = opts;
   const now = opts.now ?? (() => Date.now());
 
   const pagesInput = (input.pages ?? []).filter((page) => page && typeof page.slug === "string");
   const anyChange = pagesInput.some((page) => (page.fields ?? []).length > 0 || (page.images ?? []).length > 0);
-  if (!anyChange) {
+  if (!anyChange && !opts.allowEmpty) {
     throw new ArmatureError("invalid", "There are no changes to publish.");
   }
 
@@ -283,8 +296,9 @@ export async function runBatchPublish(opts: {
 
   // --- read the current state -----------------------------------------------
   // The schema is read first because every validation below depends on it.
-  const head = await repo.getBranchHead();
+  const head = opts.head ?? (await repo.getBranchHead());
   const current = await loadSiteFiles(repo, head);
+  if (!anyChange) return { head, files: [], fields: [], images: [], slugs: [], pageLabels: [] };
   const pages = current.pages;
 
   // --- validate everything before touching anything that writes -----------
@@ -415,29 +429,39 @@ export async function runBatchPublish(opts: {
 
   const allPrepared = plans.flatMap((plan) => plan.prepared);
   const nextText = serializeContent(merged);
-  if (nextText === current.contentText && allPrepared.length === 0) {
+  if (nextText === current.contentText && allPrepared.length === 0 && !opts.allowEmpty) {
     throw new ArmatureError("invalid", "There are no changes to publish.");
   }
-
-  // --- one commit ---------------------------------------------------------------
-  const files: CommitFile[] = [
-    { path: CONTENT_PATH, content: utf8ToBase64(nextText), encoding: "base64" },
-    ...allPrepared.map((image) => image.file),
-  ];
-
-  const result = await repo.commit({
-    message: `Content: ${plans.map((plan) => plan.page.label).join(", ")} updated by ${userEmail}`,
-    files,
-    parentCommitSha: head,
-  });
+  const files: CommitFile[] =
+    nextText === current.contentText && allPrepared.length === 0
+      ? []
+      : [{ path: CONTENT_PATH, content: utf8ToBase64(nextText), encoding: "base64" }, ...allPrepared.map((image) => image.file)];
 
   return {
-    commitSha: result.commitSha,
-    commitUrl: result.commitUrl,
+    head,
+    files,
     fields: plans.flatMap((plan) => [...plan.updates.keys()].map((key) => `${plan.page.slug}.${key}`)),
     images: allPrepared.map((image) => image.url),
     slugs: plans.map((plan) => plan.page.slug),
+    pageLabels: plans.map((plan) => plan.page.label),
   };
+}
+
+export async function runBatchPublish(opts: {
+  repo: ContentRepo;
+  input: BatchPublishInput;
+  userEmail: string;
+  now?: () => number;
+  /** Prefix conflict labels with the page label ("Home → Hero → Headline"). */
+  labelPages?: boolean;
+}): Promise<BatchPublishOutcome> {
+  const plan = await planBatchPublish({ repo: opts.repo, input: opts.input, now: opts.now, labelPages: opts.labelPages });
+  const result = await opts.repo.commit({
+    message: `Content: ${plan.pageLabels.join(", ")} updated by ${opts.userEmail}`,
+    files: plan.files,
+    parentCommitSha: plan.head,
+  });
+  return { commitSha: result.commitSha, commitUrl: result.commitUrl, fields: plan.fields, images: plan.images, slugs: plan.slugs };
 }
 
 /**

@@ -6,6 +6,7 @@
  * `Failure`. Nothing is ever signalled by a bare thrown error or an empty body: the
  * editor renders `message` verbatim, which is what keeps every failure visible.
  */
+import type { LayoutDoc, SiteKit } from "../kit/types.ts";
 import type { ContentTree, ContentValue } from "./contentFile.ts";
 import type { SiteSchema } from "./schema.ts";
 
@@ -15,7 +16,8 @@ export type FailureCode =
   | "invalid"
   | "conflict"
   | "github_error"
-  | "not_found";
+  | "not_found"
+  | "rate_limited";
 
 export type Failure = {
   ok: false;
@@ -23,7 +25,12 @@ export type Failure = {
   message: string;
   /** For conflicts: the human labels of the fields someone else changed. */
   fields?: string[];
+  /** Builder publish conflicts: what both sides changed, keyed for a "mine" / "theirs" choice. */
+  conflicts?: ConflictItem[];
 };
+
+/** One element (or kit value, or page) both the editor and someone else changed. */
+export type ConflictItem = { key: string; label: string; page?: string; elementId?: string };
 
 export const isFailure = (value: unknown): value is Failure =>
   typeof value === "object" &&
@@ -46,7 +53,7 @@ export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"] as
 
 // --- content-get --------------------------------------------------------------
 
-export type ContentGetRequest = { site_id: string };
+export type ContentGetRequest = { site_id: string; /** A commit to read instead of the branch head (revision previews). */ ref?: string };
 
 export type ContentGetResponse = {
   ok: true;
@@ -59,7 +66,22 @@ export type ContentGetResponse = {
   repo: string;
   /** Warnings from the content check, shown but not blocking. */
   warnings: string[];
+  /** Site contract v2: every valid layout under content/layouts/, by page slug. */
+  layouts: Record<string, LayoutDoc>;
+  /** content/site-kit.json when present and valid, else null (the default kit applies). */
+  siteKit: SiteKit | null;
+  /** Pictures and videos under public/assets/, for the media library. */
+  media: MediaFile[];
+  /** The site's editing level for clients (agency staff always get the full builder). */
+  editingLevel: EditingLevel;
 };
+
+export type EditingLevel = "content" | "style" | "builder";
+
+export type MediaFile = { path: string; bytes: number; kind: "image" | "video"; alt: string };
+
+/** content/media.json: default alt text per asset path. */
+export type MediaMeta = Record<string, { alt: string }>;
 
 // --- content-publish ----------------------------------------------------------
 
@@ -261,3 +283,37 @@ export type ClientCreateResponse = {
 export type PasswordSetRequest = { password: string };
 
 export type PasswordSetResponse = { ok: true };
+
+// --- builder-publish (the page builder) -------------------------------------------
+
+/**
+ * Everything a page builder draft changes, published as ONE commit: content fields and
+ * their pictures (as content-publish-batch), layouts (null deletes a page's layout),
+ * the site kit and media metadata. Pictures added in the editor travel inside the
+ * layouts as data: URLs; the function commits each under public/assets/uploads/.
+ */
+export type BuilderPublishRequest = {
+  site_id: string;
+  baseCommitSha: string;
+  pages: BatchPageUpdate[];
+  layouts: Record<string, unknown>;
+  kit: unknown;
+  media: unknown;
+  /** Choices for earlier conflicts: key -> "mine" | "theirs". */
+  resolutions: Record<string, "mine" | "theirs">;
+};
+
+export type BuilderPublishResponse = {
+  ok: true;
+  commitSha: string;
+  commitUrl: string;
+  fields: string[];
+  images: string[];
+  slugs: string[];
+  /** Page slugs whose layout was written or removed. */
+  layouts: string[];
+  kit: boolean;
+  media: boolean;
+  /** True when someone else had published in between and the draft was merged onto it. */
+  merged: boolean;
+};

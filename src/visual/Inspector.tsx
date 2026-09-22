@@ -327,6 +327,8 @@ export function Inspector({
   actions,
   replaceRequest,
   agencyName,
+  elementPanel,
+  builder = false,
 }: {
   schema: SiteSchema;
   baseline: ContentTree;
@@ -338,6 +340,10 @@ export function Inspector({
   /** Bumped when the toolbar's Replace image is pressed, to open the file picker. */
   replaceRequest: number;
   agencyName: string;
+  /** Site contract v2: the selected builder element's panel, shown instead of a field. */
+  elementPanel?: ReactNode;
+  /** The page builder is on: the left panel is the Navigator, not Layers. */
+  builder?: boolean;
 }) {
   const meta = selectedPath ? fieldMeta(schema, selectedPath) : null;
   const root = selectedPath ? fieldRoot(selectedPath) : null;
@@ -345,12 +351,14 @@ export function Inspector({
   const value = root ? currentValue(draft, baseline, root) : undefined;
 
   let body: ReactNode;
-  if (!meta || !root || !selectedPath) {
+  if (elementPanel) {
+    body = elementPanel;
+  } else if (!meta || !root || !selectedPath) {
     body = (
       <div className="flex flex-col gap-3 px-5 py-6 text-[13px] leading-relaxed text-muted">
         <p className="font-semibold text-text">Nothing selected</p>
-        <p>Click any text, picture or button on the page to edit it. Click it again to type straight on the page.</p>
-        <p>Or pick a field under Layers on the left.</p>
+        <p>{builder ? "Click anything on the page to select it. Click text twice to type straight on the page." : "Click any text, picture or button on the page to edit it. Click it again to type straight on the page."}</p>
+        <p>{builder ? "Or pick an element in the Navigator on the left." : "Or pick a field under Layers on the left."}</p>
       </div>
     );
   } else {

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "A tiny site that follows the Armature site contract (v1.1, visual editing). Used by the editor's end-to-end tests.",
+  "description": "A tiny site that follows the Armature site contract (v2, page builder). Used by the editor's end-to-end tests.",
   "scripts": {
     "dev": "vite --port 5174 --strictPort",
     "build": "vite build",

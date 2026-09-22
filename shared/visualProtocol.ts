@@ -11,13 +11,23 @@
  * minted by the editor for one iframe load and echoed by the bridge; either side
  * drops a message whose origin, source window or nonce is not the one it expects.
  *
- * Reserved for later stages (not sent by anything yet):
- *   armature:tokens:*    Stage 2, colours and fonts from design tokens
- *   armature:sections:*  Stage 3, add / move / hide sections
+ * Protocol 2 (site contract v2, the page builder) adds the `armature:layout:*`,
+ * `armature:element:*`, `armature:elements:map`, `armature:slot` and
+ * `armature:richtext:*` messages. The kit in kit/ carries its own copy of the shapes;
+ * kit/kit.test.ts asserts the two stay in step.
  */
+import type { LayoutDoc, RichDoc, SiteKit, SiteSectionInfo } from "../kit/types.ts";
+export type { LayoutDoc, RichDoc, SiteKit, SiteSectionInfo };
 
-/** Bumped only when a message shape changes incompatibly. Both sides compare it. */
+/**
+ * The Stage 1 protocol every bridge speaks. The editor says hello with this number and
+ * `wants: BUILDER_PROTOCOL_VERSION`; a v1.1 bridge answers with 1 (content editing only),
+ * a v2 kit answers with 2 (the page builder). Both are accepted.
+ */
 export const VISUAL_PROTOCOL_VERSION = 1 as const;
+/** Site contract v2: the page builder. Negotiated through `wants` so old sites keep working. */
+export const BUILDER_PROTOCOL_VERSION = 2 as const;
+export type ProtocolVersion = 1 | 2;
 
 /** The query flag the editor adds to the site URL. Nothing activates without it. */
 export const EDIT_MODE_PARAM = "armature";
@@ -84,6 +94,8 @@ export type MappedField = {
   inline: boolean;
   /** For links: the destination the site rendered. */
   href?: string;
+  /** v2: the id of the builder element (usually a site section) that contains this field. */
+  owner?: string;
 };
 
 export type Viewport = { width: number; height: number; scrollX: number; scrollY: number };
@@ -92,7 +104,15 @@ export type BridgeErrorCode = "protocol_mismatch" | "not_allowed" | "edit_failed
 
 // --- editor -> bridge ---------------------------------------------------------
 
-export type HelloMessage = { type: "armature:hello"; nonce: string; protocolVersion: number };
+export type HelloMessage = { type: "armature:hello"; nonce: string; protocolVersion: number; wants?: number };
+/** Every draft layout (null = deleted in the draft) and the draft kit, for a v2 kit to render. */
+export type LayoutApplyMessage = { type: "armature:layout:apply"; nonce: string; layouts: Record<string, LayoutDoc | null> | null; kit: SiteKit | null };
+export type ElementSelectRequestMessage = { type: "armature:element:select"; nonce: string; id: string | null; scroll?: boolean };
+export type ElementEditStartRequestMessage = { type: "armature:element:edit:start"; nonce: string; id: string };
+export type ElementEditStopMessage = { type: "armature:element:edit:stop"; nonce: string; commit: boolean };
+export type RichTextCommandMessage = { type: "armature:richtext:command"; nonce: string; command: RichTextCommand; value?: string };
+export type ScrollMessage = { type: "armature:scroll"; nonce: string; deltaY?: number; top?: number };
+export type RichTextCommand = "bold" | "italic" | "underline" | "strike" | "bulletList" | "orderedList" | "block" | "align" | "link" | "color" | "clear";
 export type DraftApplyMessage = { type: "armature:draft:apply"; nonce: string; fields: Record<FieldPath, unknown> };
 export type SelectRequestMessage = { type: "armature:select"; nonce: string; path: FieldPath | null; scroll?: boolean };
 export type EditStartRequestMessage = { type: "armature:edit:start"; nonce: string; path: FieldPath };
@@ -105,7 +125,13 @@ export type EditorToBridge =
   | SelectRequestMessage
   | EditStartRequestMessage
   | NavigateRequestMessage
-  | ModeMessage;
+  | ModeMessage
+  | LayoutApplyMessage
+  | ElementSelectRequestMessage
+  | ElementEditStartRequestMessage
+  | ElementEditStopMessage
+  | RichTextCommandMessage
+  | ScrollMessage;
 
 // --- bridge -> editor ---------------------------------------------------------
 
@@ -116,7 +142,48 @@ export type ReadyMessage = {
   bridgeVersion: string;
   route: string;
   title: string;
+  /** v2 only. */
+  kitVersion?: string;
+  sections?: SiteSectionInfo[];
+  slots?: SlotInfo[];
+  /** Slugs of the layouts the site was built with. */
+  layouts?: string[];
 };
+
+/** A coded page's <ArmatureSlot>: the section keys it shows when it has no layout. */
+export type SlotInfo = { slug: string; defaults: string[] };
+
+/** One builder element on the page, with its boxes in the frame's viewport pixels. */
+export type ElementRect = {
+  id: string;
+  type: string;
+  tag: string;
+  rect: Rect;
+  padding: Box;
+  margin: Box;
+  parentId: string | null;
+  page: string | null;
+  /** A container with no children. */
+  empty: boolean;
+  /** For images the <img>; for containers the inner flex box. */
+  inner?: Rect;
+  /** For site sections: the registered key. */
+  section?: string;
+};
+export type Box = { top: number; right: number; bottom: number; left: number };
+
+export type ElementsMapMessage = { type: "armature:elements:map"; nonce: string; elements: ElementRect[]; viewport: Viewport };
+export type ElementHoverMessage = { type: "armature:element:hover"; nonce: string; id: string | null };
+export type ElementSelectMessage = { type: "armature:element:select"; nonce: string; id: string | null; source: "canvas" | "editor" | "refresh" };
+export type ElementContextMenuMessage = { type: "armature:element:contextmenu"; nonce: string; id: string; x: number; y: number };
+export type SlotMessage = { type: "armature:slot"; nonce: string; slots: SlotInfo[]; sections: SiteSectionInfo[]; layouts: string[] };
+/** `value` is a string for headings and buttons, a rich-text document for the Text Editor. */
+export type ElementEditStartMessage = { type: "armature:element:edit:start"; nonce: string; id: string; value: string | RichDoc };
+export type ElementEditInputMessage = { type: "armature:element:edit:input"; nonce: string; id: string; value: string | RichDoc };
+export type ElementEditCommitMessage = { type: "armature:element:edit:commit"; nonce: string; id: string; value: string | RichDoc };
+export type ElementEditCancelMessage = { type: "armature:element:edit:cancel"; nonce: string; id: string };
+export type RichTextState = { bold: boolean; italic: boolean; underline: boolean; strike: boolean; bulletList: boolean; orderedList: boolean; block: string; link: string | null; align: string };
+export type RichTextStateMessage = { type: "armature:richtext:state"; nonce: string; id: string; state: RichTextState };
 export type FieldsMapMessage = { type: "armature:fields:map"; nonce: string; fields: MappedField[]; viewport: Viewport };
 export type HoverMessage = { type: "armature:hover"; nonce: string; field: MappedField | null };
 /** `source`: "canvas" for a click on the page, "editor" answering a select request, "refresh" a fresh rectangle for the same selection. */
@@ -134,7 +201,7 @@ export type NavigateMessage = { type: "armature:navigate"; nonce: string; href: 
 export type ViewportMessage = { type: "armature:viewport"; nonce: string; viewport: Viewport };
 export type ErrorMessage = { type: "armature:error"; nonce: string; code: BridgeErrorCode; message: string };
 /** A keyboard shortcut pressed while the frame had focus, forwarded so the editor can act on it. */
-export type ShortcutKey = "undo" | "redo" | "publish" | "next" | "help";
+export type ShortcutKey = "undo" | "redo" | "publish" | "next" | "help" | "preview" | "copy" | "paste" | "pasteStyle" | "duplicate" | "delete" | "up" | "down" | "left" | "right";
 export type KeyMessage = { type: "armature:key"; nonce: string; key: ShortcutKey };
 
 export type BridgeToEditor =
@@ -150,7 +217,17 @@ export type BridgeToEditor =
   | NavigateMessage
   | ViewportMessage
   | ErrorMessage
-  | KeyMessage;
+  | KeyMessage
+  | ElementsMapMessage
+  | ElementHoverMessage
+  | ElementSelectMessage
+  | ElementContextMenuMessage
+  | SlotMessage
+  | ElementEditStartMessage
+  | ElementEditInputMessage
+  | ElementEditCommitMessage
+  | ElementEditCancelMessage
+  | RichTextStateMessage;
 
 export const EDITOR_MESSAGE_TYPES: readonly EditorToBridge["type"][] = [
   "armature:hello",
@@ -159,6 +236,12 @@ export const EDITOR_MESSAGE_TYPES: readonly EditorToBridge["type"][] = [
   "armature:edit:start",
   "armature:navigate",
   "armature:mode",
+  "armature:layout:apply",
+  "armature:element:select",
+  "armature:element:edit:start",
+  "armature:element:edit:stop",
+  "armature:richtext:command",
+  "armature:scroll",
 ];
 
 export const BRIDGE_MESSAGE_TYPES: readonly BridgeToEditor["type"][] = [
@@ -175,6 +258,16 @@ export const BRIDGE_MESSAGE_TYPES: readonly BridgeToEditor["type"][] = [
   "armature:viewport",
   "armature:error",
   "armature:key",
+  "armature:elements:map",
+  "armature:element:hover",
+  "armature:element:select",
+  "armature:element:contextmenu",
+  "armature:slot",
+  "armature:element:edit:start",
+  "armature:element:edit:input",
+  "armature:element:edit:commit",
+  "armature:element:edit:cancel",
+  "armature:richtext:state",
 ];
 
 export function isBridgeMessage(value: unknown): value is BridgeToEditor {

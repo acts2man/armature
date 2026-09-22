@@ -15,5 +15,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "../../bridge/armature-bridge.ts"]
+  "include": ["src", "../../kit"]
 }

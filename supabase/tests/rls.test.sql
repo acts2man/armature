@@ -369,5 +369,188 @@ do $$ begin
     'a failed publish does not stamp the site';
 end $$;
 
+-- ---------------------------------------------------------------------------
+-- 7. Form entries: read by the site's people, written only by the function
+-- ---------------------------------------------------------------------------
+insert into public.form_submissions (id, site_id, page_slug, element_id, form_name, data, ip_hash) values
+  ('00000000-0000-0000-0000-00000000f00a', '00000000-0000-0000-0000-00000000000a', 'contact', 'form0001', 'Contact', '{"name":"Ada"}', repeat('a', 64)),
+  ('00000000-0000-0000-0000-00000000f00b', '00000000-0000-0000-0000-00000000000b', 'contact', 'form0002', 'Contact', '{"name":"Bo"}', repeat('b', 64)),
+  ('00000000-0000-0000-0000-00000000f00c', '00000000-0000-0000-0000-00000000000c', 'contact', 'form0003', 'Contact', '{"name":"Cy"}', repeat('c', 64));
+
+-- The recipients list only takes real-looking addresses, at most ten.
+do $$ begin
+  insert into public.site_services (site_id, form_recipients) values ('00000000-0000-0000-0000-00000000000b', array['office@example.com', 'owner@example.com'])
+  on conflict (site_id) do update set form_recipients = excluded.form_recipients;
+  begin
+    update public.site_services set form_recipients = array['not an email'] where site_id = '00000000-0000-0000-0000-00000000000b';
+    raise exception 'a malformed form recipient was accepted';
+  exception when check_violation then null;
+  end;
+end $$;
+
+-- Client A: reads site A's entry only, marks it read, cannot change it, add one or delete it.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.form_submissions) = 1, 'client A reads only site A form entries';
+  update public.form_submissions set read_at = now() where id = '00000000-0000-0000-0000-00000000f00a';
+  assert (select read_at from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00a') is not null, 'client A can mark an entry read';
+  begin
+    update public.form_submissions set data = '{"name":"Forged"}' where id = '00000000-0000-0000-0000-00000000f00a';
+    raise exception 'client A changed what a visitor sent';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.form_submissions (site_id, page_slug, element_id, data, ip_hash)
+    values ('00000000-0000-0000-0000-00000000000a', 'contact', 'form0001', '{}', repeat('d', 64));
+    raise exception 'client A inserted a form entry directly';
+  exception when insufficient_privilege then null;
+  end;
+  delete from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00a';
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00a') = 1, 'a client cannot delete form entries';
+end $$;
+
+-- Agency X staff: read both of X's sites, delete one, never see agency Y's.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.form_submissions) = 2, 'agency X staff read the entries of agency X sites only';
+  delete from public.form_submissions where id = '00000000-0000-0000-0000-00000000f00b';
+  assert (select count(*) from public.form_submissions) = 1, 'agency staff can delete an entry';
+  assert (select count(*) from public.site_services where form_recipients <> '{}') = 1, 'agency staff read where entries go';
+end $$;
+reset role;
+
+-- Clients cannot see where entries go (site_services stays with the agency).
+-- (Client B was promoted to staff earlier in this file, so client A stands in.)
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.site_services) = 0, 'a client cannot read form recipients';
+end $$;
+reset role;
+
+-- Anonymous visitors have no access to entries at all.
+set local role anon;
+do $$ begin
+  begin
+    perform count(*) from public.form_submissions;
+    raise exception 'anon was able to query form entries';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 8. Page builder: editing levels, drafts, templates
+-- ---------------------------------------------------------------------------
+do $$ begin
+  assert (select editing_level from public.sites where id = '00000000-0000-0000-0000-00000000000a') = 'content', 'sites default to the content editing level';
+  begin
+    update public.sites set editing_level = 'designer' where id = '00000000-0000-0000-0000-00000000000a';
+    raise exception 'an unknown editing level was accepted';
+  exception when check_violation then null;
+  end;
+end $$;
+
+-- A client cannot raise their own editing level.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  update public.sites set editing_level = 'builder' where id = '00000000-0000-0000-0000-00000000000a';
+end $$;
+reset role;
+do $$ begin
+  assert (select editing_level from public.sites where id = '00000000-0000-0000-0000-00000000000a') = 'content', 'a client cannot change the editing level';
+end $$;
+
+-- Drafts: client A saves their own for site A, not for site B, not as someone else.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  insert into public.builder_drafts (site_id, user_id, draft, change_count) values ('00000000-0000-0000-0000-00000000000a', auth.uid(), '{"v":2}', 3);
+  update public.builder_drafts set change_count = 4 where site_id = '00000000-0000-0000-0000-00000000000a';
+  begin
+    insert into public.builder_drafts (site_id, user_id, draft) values ('00000000-0000-0000-0000-00000000000b', auth.uid(), '{}');
+    raise exception 'client A saved a draft for site B';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.builder_drafts (site_id, user_id, draft) values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000a002', '{}');
+    raise exception 'client A saved a draft as someone else';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- Agency Y sees none of it; agency X staff see it and may delete it.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000b001","role":"authenticated","email":"y-owner@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.builder_drafts) = 0, 'another agency cannot read drafts';
+end $$;
+reset role;
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select change_count from public.builder_drafts where site_id = '00000000-0000-0000-0000-00000000000a') = 4, 'agency staff read a client draft';
+  update public.builder_drafts set change_count = 99 where site_id = '00000000-0000-0000-0000-00000000000a';
+end $$;
+reset role;
+do $$ begin
+  assert (select change_count from public.builder_drafts where site_id = '00000000-0000-0000-0000-00000000000a') = 4, 'agency staff cannot rewrite a client draft';
+end $$;
+
+-- Templates: staff save agency-wide ones; a client saves site templates only.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  insert into public.builder_templates (id, agency_id, site_id, name, kind, content, created_by)
+  values ('00000000-0000-0000-0000-0000000e0001', '00000000-0000-0000-0000-0000000000aa', null, 'Agency hero', 'section', '{}', auth.uid());
+  insert into public.builder_templates (id, agency_id, site_id, name, kind, content, created_by)
+  values ('00000000-0000-0000-0000-0000000e0002', '00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-00000000000b', 'Site B footer', 'section', '{}', auth.uid());
+  begin
+    insert into public.builder_templates (agency_id, site_id, name, kind, content, created_by)
+    values ('00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-00000000000c', 'Wrong agency', 'section', '{}', auth.uid());
+    raise exception 'a template was tied to another agency''s site';
+  exception when check_violation then null;
+  end;
+end $$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from public.builder_templates) = 1, 'client A reads the agency-wide template but not site B''s';
+  insert into public.builder_templates (id, agency_id, site_id, name, kind, content, created_by)
+  values ('00000000-0000-0000-0000-0000000e0003', '00000000-0000-0000-0000-0000000000aa', '00000000-0000-0000-0000-00000000000a', 'My section', 'section', '{}', auth.uid());
+  begin
+    insert into public.builder_templates (agency_id, site_id, name, kind, content, created_by)
+    values ('00000000-0000-0000-0000-0000000000aa', null, 'Agency-wide by a client', 'section', '{}', auth.uid());
+    raise exception 'a client saved an agency-wide template';
+  exception when insufficient_privilege then null;
+  end;
+  delete from public.builder_templates where id = '00000000-0000-0000-0000-0000000e0001';
+  delete from public.builder_templates where id = '00000000-0000-0000-0000-0000000e0003';
+end $$;
+reset role;
+do $$ begin
+  assert (select count(*) from public.builder_templates where id = '00000000-0000-0000-0000-0000000e0001') = 1, 'a client cannot delete an agency template';
+  assert (select count(*) from public.builder_templates where id = '00000000-0000-0000-0000-0000000e0003') = 0, 'a client deletes their own site template';
+end $$;
+
+set local role anon;
+do $$ begin
+  begin
+    perform count(*) from public.builder_drafts;
+    raise exception 'anon was able to query drafts';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 select 'rls.test.sql: all assertions passed' as result;
 rollback;

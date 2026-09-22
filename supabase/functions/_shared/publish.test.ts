@@ -22,6 +22,7 @@ function fakeRepo(opts: { head: string; byRef: Record<string, unknown>; schema?:
   const commits: Recorded[] = [];
   const repo: ContentRepo = {
     getBranchHead: () => Promise.resolve(opts.head),
+    listTree: () => Promise.resolve([]),
     readTextFile: (path, ref) => {
       if (path === SCHEMA_PATH) {
         return Promise.resolve({ text: JSON.stringify(opts.schema ?? exampleSchema), sha: `schema-${ref}` });

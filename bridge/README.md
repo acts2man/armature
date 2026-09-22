@@ -1,4 +1,9 @@
-# The Armature bridge
+# The Armature bridge (site contract v1.1)
+
+> **Newer sites use the kit.** The `kit/` folder (site contract v2) contains this bridge's
+> successor plus the page builder's renderer, widgets and CSS generator. A site that wants
+> drag-and-drop editing copies `kit/` instead of this file; see docs/SITE_CONTRACT.md,
+> "Site contract v2". This file stays for sites that only need click-to-edit content.
 
 `armature-bridge.ts` is the one file a site adds to support **visual editing** (site
 contract v1.1, optional). It has no dependencies. Copy it into your site's source

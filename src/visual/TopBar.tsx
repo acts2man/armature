@@ -6,7 +6,7 @@
 import { clsx } from "clsx";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router";
-import { IconCheck, IconChevronDown, IconDesktop, IconEye, IconEyeOff, IconPage, IconPhone, IconRedo, IconTablet, IconUndo, WireA } from "@/components/icons.tsx";
+import { IconCheck, IconChevronDown, IconDesktop, IconEye, IconEyeOff, IconHistory, IconPage, IconPhone, IconRedo, IconTablet, IconTree, IconUndo, WireA } from "@/components/icons.tsx";
 import { Monogram, SrOnly } from "@/components/ui.tsx";
 import type { Agency } from "@/lib/types.ts";
 import type { PageDefinition } from "@shared/schema.ts";
@@ -67,6 +67,8 @@ export function TopBar({
   onPreview,
   canPublish,
   onPublish,
+  builder,
+  deviceWidths,
 }: {
   siteName: string;
   siteId: string;
@@ -88,6 +90,10 @@ export function TopBar({
   onPreview: (next: boolean) => void;
   canPublish: boolean;
   onPublish: () => void;
+  /** Site contract v2 only: the History and Navigator panel toggles. */
+  builder?: { onHistory: () => void; onNavigator: () => void; historyOpen: boolean; navigatorOpen: boolean };
+  /** Widths per device, from the kit breakpoints when the site has a kit. */
+  deviceWidths?: Record<Device, number>;
 }) {
   const [siteMenu, setSiteMenu] = useState(false);
   const [pageMenu, setPageMenu] = useState(false);
@@ -164,12 +170,13 @@ export function TopBar({
         {DEVICES.map((item) => {
           const Icon = item.id === "desktop" ? IconDesktop : item.id === "tablet" ? IconTablet : IconPhone;
           const active = item.id === device;
+          const width = deviceWidths?.[item.id] ?? item.width;
           return (
             <button
               key={item.id}
               type="button"
-              aria-label={`${item.label} view, ${item.width} pixels wide`}
-              title={`${item.label} · ${item.width}px`}
+              aria-label={`${item.label} view, ${width} pixels wide`}
+              title={`${item.label} · ${width}px`}
               aria-pressed={active}
               onClick={() => onDevice(item.id)}
               className={clsx("inline-flex h-10 w-10 items-center justify-center rounded-control", active ? "bg-blue-soft text-accent" : "text-muted hover:text-text")}
@@ -187,6 +194,16 @@ export function TopBar({
         <button type="button" aria-label="Redo" title={`Redo (Shift+${mod}+Z)`} disabled={!canRedo} onClick={onRedo} className={clsx(barButton, "w-10 justify-center px-0 text-muted")}>
           <IconRedo size={18} />
         </button>
+        {builder && (
+          <>
+            <button type="button" aria-label="History" title="History" aria-pressed={builder.historyOpen} onClick={builder.onHistory} data-testid="topbar-history" className={clsx(barButton, "w-10 justify-center px-0", builder.historyOpen ? "bg-blue-soft text-accent" : "text-muted")}>
+              <IconHistory size={18} />
+            </button>
+            <button type="button" aria-label="Navigator" title="Navigator" aria-pressed={builder.navigatorOpen} onClick={builder.onNavigator} data-testid="topbar-navigator" className={clsx(barButton, "w-10 justify-center px-0", builder.navigatorOpen ? "bg-blue-soft text-accent" : "text-muted")}>
+              <IconTree size={18} />
+            </button>
+          </>
+        )}
         <span className="inline-flex items-center gap-1.5 text-[13px] text-muted" role="status" data-testid="draft-status">
           {status.kind === "saving" ? (
             <span className="h-2 w-2 animate-pulse rounded-full bg-amber" />

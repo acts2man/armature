@@ -11,6 +11,7 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@shared": fileURLToPath(new URL("./shared", import.meta.url)),
+      "@kit": fileURLToPath(new URL("./kit", import.meta.url)),
     },
   },
   build: {
@@ -18,7 +19,7 @@ export default defineConfig({
     target: "es2022",
   },
   test: {
-    include: ["shared/**/*.test.ts", "bridge/**/*.test.ts", "examples/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
+    include: ["shared/**/*.test.ts", "bridge/**/*.test.ts", "kit/**/*.test.ts", "kit/**/*.test.tsx", "examples/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
   },
 });

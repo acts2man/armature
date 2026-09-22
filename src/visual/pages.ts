@@ -12,6 +12,17 @@ export const DEVICES: { id: Device; label: string; width: number }[] = [
 
 export const deviceWidth = (device: Device): number => DEVICES.find((item) => item.id === device)?.width ?? 1440;
 
+/** Site contract v2: the tablet canvas is as wide as the kit's tablet breakpoint; the phone stays a real phone (below the mobile breakpoint). */
+export function deviceWidthFor(device: Device, breakpoints: { tablet: number; mobile: number } | null): number {
+  if (!breakpoints) return deviceWidth(device);
+  if (device === "tablet") return breakpoints.tablet;
+  if (device === "phone") return Math.min(390, breakpoints.mobile);
+  return deviceWidth(device);
+}
+
+/** The editor's device names map to the model's ("phone" is "mobile"). */
+export const modelDevice = (device: Device): "desktop" | "tablet" | "mobile" => (device === "phone" ? "mobile" : device);
+
 /** "/about/" and "/about" and "/About" are the same page. */
 export function normalizePath(path: string): string {
   let out = path.trim().split(/[?#]/)[0] ?? "";
@@ -43,18 +54,19 @@ export const modKey = (): string => (isMac() ? "⌘" : "Ctrl");
 
 // --- first-run tour ------------------------------------------------------------------------
 export const TOUR_KEY = "armature:visual:tour:v1";
+export const BUILDER_TOUR_KEY = "armature:builder:tour:v1";
 
-export function tourSeen(): boolean {
+export function tourSeen(kind: "content" | "builder" = "content"): boolean {
   try {
-    return localStorage.getItem(TOUR_KEY) === "done";
+    return localStorage.getItem(kind === "builder" ? BUILDER_TOUR_KEY : TOUR_KEY) === "done";
   } catch {
     return true;
   }
 }
 
-export function markTourSeen(): void {
+export function markTourSeen(kind: "content" | "builder" = "content"): void {
   try {
-    localStorage.setItem(TOUR_KEY, "done");
+    localStorage.setItem(kind === "builder" ? BUILDER_TOUR_KEY : TOUR_KEY, "done");
   } catch {
     // storage unavailable: the tour just shows again next time
   }

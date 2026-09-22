@@ -14,6 +14,7 @@ import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconGithub, Ic
 import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
 import { SiteServicesPanel } from "@/components/SiteServicesPanel.tsx";
+import { EditingLevelPanel } from "@/components/EditingLevelPanel.tsx";
 import { Button, EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
 import { formatDateTime, plural, relativeTime, shortSha } from "@/lib/format.ts";
 import { callFunction } from "@/lib/functions.ts";
@@ -312,6 +313,7 @@ export function SiteHome() {
 
         <div className="flex min-w-0 flex-col gap-5">
           {isStaff && <SiteServicesPanel siteId={site.id} siteName={site.name} />}
+          {isStaff && !hostingOnly && <EditingLevelPanel site={site} />}
           <Panel title="Site health" aside={<StatusPill site={site} />}>
             <div className="flex flex-col gap-2.5 p-5 text-[13px] text-text">
               <div className="flex items-center gap-2.5">

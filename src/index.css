@@ -107,6 +107,11 @@ select {
   min-height: 44px;
 }
 
+/* The page builder's inspector and site settings pack controls densely (a desktop-only tool). */
+.dense-controls select {
+  min-height: 0;
+}
+
 /* Subtle, consistent motion. */
 button,
 a,

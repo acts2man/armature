@@ -1,0 +1,246 @@
+{
+  "label": "Contact",
+  "path": "/contact/",
+  "pageSlug": "contact",
+  "root": [
+    {
+      "advanced": {},
+      "children": [
+        {
+          "advanced": {},
+          "id": "cthead01",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "tag": "h1",
+            "text": "Let's talk about your home"
+          },
+          "style": {
+            "typography": {
+              "preset": "kit:type.h1"
+            }
+          },
+          "type": "heading"
+        },
+        {
+          "advanced": {},
+          "id": "cttext01",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "text": "Tell us about the lot, the house you have in mind and when you would like to move in. A real person answers within one business day.",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {
+            "typography": {
+              "preset": "kit:type.body"
+            }
+          },
+          "type": "text"
+        },
+        {
+          "advanced": {},
+          "id": "ctdivide",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "color": "kit:color.secondary",
+            "style": "solid",
+            "weight": {
+              "unit": "px",
+              "value": 1
+            },
+            "width": {
+              "unit": "%",
+              "value": 100
+            }
+          },
+          "style": {},
+          "type": "divider"
+        },
+        {
+          "advanced": {},
+          "id": "ctbutton",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "link": {
+              "href": "mailto:hello@alderstone.example"
+            },
+            "preset": "kit:button.primary",
+            "size": "lg",
+            "text": "Email hello@alderstone.example"
+          },
+          "style": {},
+          "type": "button"
+        },
+        {
+          "advanced": {},
+          "id": "ctform01",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "style": {},
+          "type": "form",
+          "props": {
+            "name": "Contact",
+            "submitText": "Send",
+            "success": "Thanks, we'll call you within one business day.",
+            "labels": true,
+            "fields": [
+              {
+                "id": "fname",
+                "type": "text",
+                "label": "Your name",
+                "name": "full_name",
+                "required": true,
+                "width": 50
+              },
+              {
+                "id": "femail",
+                "type": "email",
+                "label": "Email",
+                "name": "email",
+                "required": true,
+                "width": 50
+              },
+              {
+                "id": "fproject",
+                "type": "select",
+                "label": "Project",
+                "name": "project",
+                "options": [
+                  "New home",
+                  "Remodel",
+                  "Lot evaluation"
+                ],
+                "width": 100
+              },
+              {
+                "id": "fmessage",
+                "type": "textarea",
+                "label": "Tell us about it",
+                "name": "message",
+                "required": true,
+                "width": 100
+              }
+            ]
+          }
+        },
+        {
+          "advanced": {},
+          "id": "ctfaq001",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "style": {},
+          "type": "accordion",
+          "props": {
+            "open": "first",
+            "titleTag": "h3",
+            "iconPosition": "right",
+            "items": [
+              {
+                "id": "q1",
+                "title": "How soon can you start?",
+                "content": "Most projects start design within four weeks of the first visit."
+              },
+              {
+                "id": "q2",
+                "title": "Do you work outside Sacramento?",
+                "content": "Yes: Placer, El Dorado and Yolo counties too."
+              }
+            ]
+          }
+        },
+        {
+          "advanced": {},
+          "id": "ctsocial",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "style": {},
+          "type": "social-icons",
+          "props": {
+            "shape": "circle",
+            "colors": "brand",
+            "align": "left",
+            "items": [
+              {
+                "id": "s1",
+                "network": "instagram",
+                "href": "https://instagram.com/"
+              },
+              {
+                "id": "s2",
+                "network": "facebook",
+                "href": "https://facebook.com/"
+              },
+              {
+                "id": "s3",
+                "network": "email",
+                "href": "hello@alderstone.example"
+              }
+            ]
+          }
+        },
+        {
+          "advanced": {},
+          "id": "ctspacer",
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "height": {
+              "unit": "px",
+              "value": 40
+            }
+          },
+          "style": {},
+          "type": "spacer"
+        }
+      ],
+      "id": "ctsectio",
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-22T00:00:00.000Z"
+      },
+      "props": {
+        "align": "flex-start",
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "container"
+    }
+  ],
+  "seo": {
+    "description": "Get in touch with Alder & Stone about your custom home.",
+    "title": "Contact | Alder & Stone"
+  },
+  "version": 1
+}
