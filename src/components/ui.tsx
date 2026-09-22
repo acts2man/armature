@@ -722,7 +722,7 @@ export function Modal({
   }, [open]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-ink/50 p-4 sm:items-center" onClick={onClose}>
+    <div className="fixed inset-0 z-40 flex items-end justify-center backdrop p-4 sm:items-center" onClick={onClose}>
       <div
         ref={panel}
         role="dialog"
@@ -771,7 +771,7 @@ export function Drawer({
   }, [open]);
   if (!open) return null;
   return (
-    <div className={clsx("fixed inset-0 z-40 flex bg-ink/50", side === "right" && "justify-end")} onClick={onClose}>
+    <div className={clsx("fixed inset-0 z-40 flex backdrop", side === "right" && "justify-end")} onClick={onClose}>
       <div
         ref={panel}
         role="dialog"

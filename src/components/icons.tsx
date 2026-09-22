@@ -324,3 +324,78 @@ export const IconStethoscope = make(
     <circle cx="19" cy="11" r="2" />
   </>,
 );
+
+// --- visual editor -------------------------------------------------------------------------
+export const IconRedo = make(
+  "Redo",
+  <>
+    <path d="m16 6 5 5-5 5" />
+    <path d="M21 11H10a6 6 0 0 0-6 6v1" />
+  </>,
+);
+export const IconDesktop = make(
+  "Desktop",
+  <>
+    <rect x="3" y="4" width="18" height="12" rx="2" />
+    <path d="M8 20h8M12 16v4" />
+  </>,
+);
+export const IconTablet = make(
+  "Tablet",
+  <>
+    <rect x="5" y="3" width="14" height="18" rx="2" />
+    <path d="M11 17.5h2" />
+  </>,
+);
+export const IconPhone = make(
+  "Phone",
+  <>
+    <rect x="7" y="3" width="10" height="18" rx="2" />
+    <path d="M11 17.5h2" />
+  </>,
+);
+export const IconGrip = make(
+  "Grip",
+  <>
+    <circle cx="9" cy="6" r="1.2" />
+    <circle cx="15" cy="6" r="1.2" />
+    <circle cx="9" cy="12" r="1.2" />
+    <circle cx="15" cy="12" r="1.2" />
+    <circle cx="9" cy="18" r="1.2" />
+    <circle cx="15" cy="18" r="1.2" />
+  </>,
+);
+export const IconKeyboard = make(
+  "Keyboard",
+  <>
+    <rect x="2.5" y="6" width="19" height="12" rx="2" />
+    <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" />
+  </>,
+);
+export const IconSection = make(
+  "Section",
+  <>
+    <path d="M12 3 3 8l9 5 9-5z" />
+    <path d="m3 13 9 5 9-5" />
+  </>,
+);
+export const IconLayout = make(
+  "Layout",
+  <>
+    <rect x="3" y="4" width="18" height="6" rx="1.5" />
+    <rect x="3" y="14" width="18" height="6" rx="1.5" />
+  </>,
+);
+export const IconVideo = make(
+  "Video",
+  <>
+    <rect x="3" y="5" width="13" height="14" rx="2" />
+    <path d="m16 10 5-3v10l-5-3z" />
+  </>,
+);
+export const IconPointer = make(
+  "Pointer",
+  <>
+    <path d="M5 4l14 7-6 2-3 6z" />
+  </>,
+);

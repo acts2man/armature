@@ -267,16 +267,16 @@ function ClientSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        <button
-          type="button"
-          disabled
-          title="Coming soon"
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-control bg-accent text-[14px] font-semibold text-accent-fg opacity-60"
-        >
-          <IconPencil size={16} />
-          <span>Edit site visually</span>
-          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-bold">Soon</span>
-        </button>
+        {current && current.site.status !== "hosting_only" && (
+          <NavLink
+            to={`/sites/${current.site.id}/visual`}
+            onClick={onNavigate}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-control bg-accent text-[14px] font-semibold text-accent-fg hover:opacity-90"
+          >
+            <IconPencil size={16} />
+            <span>Edit site visually</span>
+          </NavLink>
+        )}
         <UserBlock
           name={name}
           line={current ? `${current.role === "client_owner" ? "Owner" : SITE_ROLE_LABELS[current.role].replace("Client ", "")}, ${current.site.name}` : "Client"}

@@ -23,6 +23,7 @@ import { SignIn } from "@/pages/SignIn.tsx";
 import { SiteHome } from "@/pages/SiteHome.tsx";
 import { SitePages } from "@/pages/SitePages.tsx";
 import { Team } from "@/pages/Team.tsx";
+import { VisualEditor } from "@/visual/VisualEditor.tsx";
 
 const router = createBrowserRouter([
   { path: "/signin", element: <SignIn /> },
@@ -36,6 +37,8 @@ const router = createBrowserRouter([
       {
         element: <RequirePasswordChosen />,
         children: [
+          // The visual editor is a full-screen workspace with its own frame.
+          { path: "/sites/:siteId/visual/:pageSlug?", element: <VisualEditor /> },
           {
             element: <AppShell />,
             children: [

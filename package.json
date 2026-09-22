@@ -16,7 +16,9 @@
     "test:functions": "deno test --allow-env --allow-read supabase/functions",
     "check:secrets": "bash scripts/check-secrets.sh",
     "db:test": "bash scripts/db-test.sh",
-    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run check:secrets"
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run check:secrets",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

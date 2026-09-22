@@ -5,7 +5,7 @@
  */
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { IconArrowLeft, IconSend, IconUpload, IconX } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
@@ -76,8 +76,10 @@ export function NewChangeRequest() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const [title, setTitle] = useState("");
-  const [details, setDetails] = useState("");
+  // The visual editor's "Request a change" bar prefills the form through the query string.
+  const [searchParams] = useSearchParams();
+  const [title, setTitle] = useState(() => (searchParams.get("title") ?? "").slice(0, TITLE_MAX));
+  const [details, setDetails] = useState(() => (searchParams.get("details") ?? "").slice(0, DETAILS_MAX));
   const [images, setImages] = useState<PickedImage[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const [preparing, setPreparing] = useState(false);

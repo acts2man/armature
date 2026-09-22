@@ -150,6 +150,11 @@ textarea,
   animation: toast-in 180ms var(--ease-standard);
 }
 
+/* The dim behind dialogs and drawers, as a plain rgba so every browser composites it the same. */
+.backdrop {
+  background: rgba(22, 32, 43, 0.5);
+}
+
 /* The "wire" selection style from the visual editor: an accent outline with corner handles. */
 .wire {
   outline: 2px solid var(--accent);
