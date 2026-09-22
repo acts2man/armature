@@ -1,4 +1,4 @@
-# The site contract (v1)
+# The site contract (v1, with the optional v1.1 visual-editing addition)
 
 This is what a website repository must contain before Armature can connect to it and let people edit it. It is short on purpose: two JSON files and one folder. Everything the dashboard does, from the "Add a site" checklist to the Publish button, is defined by the rules on this page, and the same rules are enforced in code by the `shared/` folder of this repository, which both the browser and the edge functions import.
 
@@ -312,6 +312,133 @@ These two files, plus an empty `public/assets/uploads/` folder (with a `.gitkeep
 }
 ```
 
+## Site contract v1.1: visual editing (optional)
+
+Version 1.1 adds one optional capability on top of everything above: the dashboard can
+open the live site in a frame and let people edit it in place (click a headline and type,
+click a picture to replace it, drag FAQ items into a new order). A site that does not add
+it still connects and still has the form editor; the visual editor simply says "This site
+isn't set up for visual editing yet" and points to the form editor.
+
+`armatureContract` stays `1`. Nothing in `schema.json` or `pages.json` changes. The
+addition is one file and one header.
+
+### What the site adds
+
+1. **The bridge.** Copy `bridge/armature-bridge.ts` from this repository into the site's
+   source (it has no dependencies; `bridge/README.md` explains it) and read every editable
+   value through it:
+
+   ```ts
+   import schema from "../../content/schema.json";
+   import content from "../../content/pages.json";
+   import { createArmatureBridge } from "./armature-bridge";
+
+   export const armature = createArmatureBridge({
+     allowedOrigins: ["https://armature-sites.netlify.app"], // the dashboard's exact origin
+     schema,
+     content,
+   });
+   ```
+
+   Then, in a component, subscribe with `useSyncExternalStore(armature.subscribe,
+   armature.getSnapshot, armature.getSnapshot)` and render `armature.text(slug, section,
+   field)`, `armature.link(...)`, `armature.image(...)`, `armature.list(...)`. Use
+   `armature.plain(...)` for anything that goes into an attribute or `<head>` (alt text,
+   `<title>`, `<meta>`). The demo in `examples/demo-site/src/content.ts` is a complete,
+   tested `usePageCopy` hook.
+
+2. **The frame header.** The site must let the dashboard embed it. Do not send
+   `X-Frame-Options`; send a Content-Security-Policy that names the dashboard:
+
+   ```
+   Content-Security-Policy: frame-ancestors 'self' https://armature-sites.netlify.app
+   ```
+
+3. **A route per page.** The `path` of each page in `schema.json` (already required) is
+   what the editor loads and what it matches against the route the bridge reports, so the
+   page switcher and the site stay in step. Paths are compared with trailing slashes
+   ignored (`/about` and `/about/` are the same page). When two pages share a path (the
+   `shared` page conventionally uses `/`), the editor keeps the non-shared page selected.
+
+That is all. The bridge, not the site, does the rest.
+
+### How the bridge finds fields
+
+- Every text value rendered through `armature.text()` (and the text-type item fields from
+  `armature.list()`) carries an invisible marker in edit mode: zero-width characters in the
+  same encoding as the MIT `@vercel/stega` package, holding `{ "armature": "<field path>" }`.
+  A field path is `slug.section.field`, or `slug.section.field[index].itemKey` for a list
+  item. The bridge finds the markers, records which element shows which field, and removes
+  them from the DOM. Outside edit mode no marker is ever added.
+- Images are matched by value: an `<img>` whose `src` (or a `srcset` candidate) equals an
+  image field's value belongs to that field. `<iframe>`, `<video>` and `<source>` match
+  video/url fields the same way; an `<a href>` matches a url field only when the value is
+  an absolute `http(s)` address.
+- A link field's label is marked; the bridge takes the destination from the enclosing
+  `<a>`.
+- Anything the marker cannot reach (text assembled from several fields, a background
+  image, an SVG) can be mapped by hand with `data-armature-field="home.hero.title"` on the
+  element to select.
+- Markers are never written into attribute values, `<title>`, `<meta>` or `<head>`; the
+  bridge also strips any marker it finds in `document.title` as a safety net.
+
+### When the bridge is active
+
+Only when all three hold: the page is in an iframe, the URL has `?armature=edit`, and the
+embedding window's origin is in `allowedOrigins`. Otherwise the bridge is inert: no
+listeners, no markers, no messages. The dashboard's origin is the only thing in the
+allowlist; never put `*` there.
+
+### The handshake and the messages
+
+Every message is `{ type: "armature:<name>", nonce, ...payload }` sent with
+`postMessage` to an exact origin, never `*`. The editor mints a random nonce for each
+iframe load and sends `armature:hello`; the bridge answers only if `event.origin` is in
+its allowlist and `event.source` is its parent window, and it echoes the nonce. From then
+on both sides drop any message whose origin, source window or nonce is wrong. The editor
+waits 10 seconds for `armature:ready` and then explains what went wrong. Protocol version
+1 (`VISUAL_PROTOCOL_VERSION` in `shared/visualProtocol.ts`, `PROTOCOL_VERSION` in the
+bridge; a mismatch is reported to the person rather than guessed around).
+
+| Message | Direction | Payload | Meaning |
+| --- | --- | --- | --- |
+| `armature:hello` | editor → bridge | `protocolVersion` | Start of a session; carries the nonce every later message must echo. |
+| `armature:ready` | bridge → editor | `protocolVersion`, `bridgeVersion`, `route`, `title` | The bridge is active and accepts the nonce. |
+| `armature:fields:map` | bridge → editor | `fields: MappedField[]`, `viewport` | Every mapped element with its path, kind (`text`, `image`, `link`), tag, rectangle in the frame's viewport, and whether it can be typed into in place. Sent after `ready`, after every DOM change and after every draft. |
+| `armature:hover` | bridge → editor | `field \| null` | The pointer is over a mapped element (or none). Re-sent with fresh rectangles on scroll and resize, once per animation frame. |
+| `armature:select` | bridge → editor | `field \| null`, `source` | The person clicked a mapped element (or empty space). `source` is `canvas` for a click, `editor` when answering a select request. |
+| `armature:select` | editor → bridge | `path \| null`, `scroll?` | Select (and scroll to) the first element for that path, for example from the Layers panel. |
+| `armature:edit:start` | editor → bridge | `path` | Begin typing in place on that element. |
+| `armature:edit:start` | bridge → editor | `path`, `value` | In-place editing began (from a second click, a double-click, Enter, or the editor's request). |
+| `armature:edit:input` | bridge → editor | `path`, `value` | The text changed while typing. |
+| `armature:edit:commit` | bridge → editor | `path`, `value` | Enter (single-line), Ctrl/Cmd+Enter (paragraph) or blur: the value is final. |
+| `armature:edit:cancel` | bridge → editor | `path` | Esc: the original text is restored. |
+| `armature:draft:apply` | editor → bridge | `fields: { "<slug.section.field>": value }` | The complete draft (whole field values, lists included). The bridge merges it over the built-in content and re-renders through the store. A field being typed into is held back until the typing ends. |
+| `armature:route:changed` | bridge → editor | `route`, `title` | The site moved to another page (client-side router or a reload). |
+| `armature:navigate` | editor → bridge | `path` | Go to that page, keeping the edit flag. |
+| `armature:navigate` | bridge → editor | `href`, `external`, `followed` | A link was clicked. `followed` is true for Ctrl/Cmd+click (and any click in preview); false for a plain click in edit mode, which the editor answers with a hint. External links are never followed inside the editor. |
+| `armature:viewport` | bridge → editor | `viewport` | Size and scroll position of the frame, once per animation frame while scrolling. |
+| `armature:mode` | editor → bridge | `mode: "edit" \| "preview"` | Preview turns off hover, selection and click interception so the site behaves normally. |
+| `armature:error` | bridge → editor | `code`, `message` | `protocol_mismatch`, `edit_failed` or `navigate_failed`, with a sentence for the person. |
+
+Reserved, not sent by anything yet: `armature:tokens:*` (Stage 2, colours and fonts from
+design tokens) and `armature:sections:*` (Stage 3, adding, moving and hiding sections).
+
+The bridge never evaluates code, never sets `innerHTML`, and never follows a link to
+another origin inside the editor. Everything it writes into the page is text.
+
+### Publishing from the visual editor
+
+The visual editor keeps one draft per site across all of its pages and publishes it with
+`content-publish-batch`: one request carrying every changed field and every new picture
+for every page, and **one commit** for all of it. The request is validated exactly as a
+form-editor publish is (each field against the schema, the whole merged file before the
+commit), conflicts are detected per field across all the pages in the batch, nothing is
+force-pushed, and one `publishes` row records every field that changed
+(`slug.section.field`) with the page slugs joined by commas. A list item picture is sent
+with its `index` and `itemKey`; the function writes the committed path into that item.
+
 ## Versioning
 
-This is contract version 1, declared by `"armatureContract": 1`. Future versions will be additive where possible; a breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess.
+This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) is purely additive and keeps the same number: a site that adds the bridge still declares `1`, and a site without it still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` (the file) and `PROTOCOL_VERSION` (the messages) so the two can move independently.

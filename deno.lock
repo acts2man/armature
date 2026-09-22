@@ -23,6 +23,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@eslint/js@^10.0.1",
+        "npm:@playwright/test@^1.63.0",
         "npm:@supabase/supabase-js@^2.116.0",
         "npm:@tailwindcss/vite@^4.3.3",
         "npm:@tanstack/react-query@^5.103.2",
@@ -31,8 +32,10 @@
         "npm:@types/node@24",
         "npm:@types/react-dom@^19.3.0",
         "npm:@types/react@^19.3.0",
+        "npm:@vercel/stega@^1.1.0",
         "npm:@vitejs/plugin-react@^6.1.1",
         "npm:clsx@^2.1.1",
+        "npm:deno@^2.9.6",
         "npm:eslint-plugin-react-hooks@^7.1.1",
         "npm:eslint-plugin-react-refresh@~0.5.7",
         "npm:eslint@^10.11.0",

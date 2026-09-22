@@ -1,0 +1,85 @@
+{
+  "about": {
+    "intro": {
+      "body": "Alder & Stone is a design-build studio. Architecture, engineering and construction under one contract and one schedule, from the first sketch to the final walkthrough.",
+      "photo": "/assets/team.svg",
+      "photo_alt": "The Alder & Stone team on a job site",
+      "title": "One team, first sketch to final walkthrough",
+      "website": "https://example.com/partners"
+    },
+    "seo": {
+      "description": "Alder & Stone is a Sacramento design-build studio.",
+      "title": "About | Alder & Stone"
+    }
+  },
+  "home": {
+    "faq": {
+      "heading": "Questions people ask",
+      "items": [
+        {
+          "answer": "Yes. Walk the lot with us before you buy. Slope, utilities and setbacks, explained in plain English.",
+          "question": "Can you look at a lot before we buy it?"
+        },
+        {
+          "answer": "Most custom homes take twelve to sixteen months from permit to keys.",
+          "question": "How long does a build take?"
+        },
+        {
+          "answer": "One team, one contract, one schedule. You never referee between an architect and a builder.",
+          "question": "What does design-build mean?"
+        }
+      ]
+    },
+    "hero": {
+      "body": "Design-build custom homes across Sacramento and the foothills. One team from the first sketch to the final walkthrough.",
+      "cta": {
+        "href": "/about/",
+        "label": "See recent builds"
+      },
+      "image": "/assets/hero.svg",
+      "image_alt": "A timber-framed house at dusk",
+      "title": "Homes built around the way you live",
+      "video": ""
+    },
+    "seo": {
+      "description": "Design-build custom homes across Sacramento and the foothills.",
+      "title": "Alder & Stone Custom Homes"
+    },
+    "services": {
+      "heading": "What we do",
+      "items": [
+        {
+          "body": "Architecture, engineering and construction under one contract and one schedule.",
+          "title": "Design-build"
+        },
+        {
+          "body": "Whole-home renovations and second stories that match the original house.",
+          "title": "Remodels and additions"
+        },
+        {
+          "body": "Walk the site with us before you buy. Slope, utilities and setbacks, explained.",
+          "title": "Lot evaluation"
+        }
+      ]
+    }
+  },
+  "shared": {
+    "footer": {
+      "blurb": "Alder & Stone is a small design-build studio in Sacramento, California.",
+      "copyright": "© 2026 Alder & Stone. All rights reserved."
+    },
+    "header": {
+      "brand": "Alder & Stone",
+      "nav": [
+        {
+          "href": "/",
+          "label": "Homes"
+        },
+        {
+          "href": "/about/",
+          "label": "About"
+        }
+      ]
+    }
+  }
+}

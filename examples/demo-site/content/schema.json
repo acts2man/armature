@@ -1,0 +1,124 @@
+{
+  "armatureContract": 1,
+  "pages": [
+    {
+      "slug": "shared",
+      "label": "Header & footer",
+      "path": "/",
+      "description": "Logo, navigation and footer text used on every page.",
+      "sections": [
+        {
+          "key": "header",
+          "label": "Header",
+          "fields": [
+            { "key": "brand", "label": "Brand name", "type": "text" },
+            {
+              "key": "nav",
+              "label": "Navigation links",
+              "type": "list",
+              "itemFields": [
+                { "key": "label", "label": "Label", "type": "text" },
+                { "key": "href", "label": "Destination", "type": "url" }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "footer",
+          "label": "Footer",
+          "fields": [
+            { "key": "blurb", "label": "Footer paragraph", "type": "textarea" },
+            { "key": "copyright", "label": "Copyright line", "type": "text" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "home",
+      "label": "Home",
+      "path": "/",
+      "description": "The front page.",
+      "sections": [
+        {
+          "key": "hero",
+          "label": "Hero",
+          "fields": [
+            { "key": "title", "label": "Headline", "type": "text" },
+            { "key": "body", "label": "Intro paragraph", "type": "textarea" },
+            { "key": "image", "label": "Hero photo", "type": "image" },
+            { "key": "image_alt", "label": "Hero photo alt text", "type": "text" },
+            { "key": "cta", "label": "Button", "type": "link" },
+            { "key": "video", "label": "Video embed URL", "type": "video", "help": "Paste the embed URL from YouTube or Vimeo. Leave empty for no video." }
+          ]
+        },
+        {
+          "key": "services",
+          "label": "Services",
+          "fields": [
+            { "key": "heading", "label": "Heading", "type": "text" },
+            {
+              "key": "items",
+              "label": "Services",
+              "type": "list",
+              "itemFields": [
+                { "key": "title", "label": "Title", "type": "text" },
+                { "key": "body", "label": "Description", "type": "textarea" }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "faq",
+          "label": "FAQ",
+          "fields": [
+            { "key": "heading", "label": "Heading", "type": "text" },
+            {
+              "key": "items",
+              "label": "Questions",
+              "type": "list",
+              "itemFields": [
+                { "key": "question", "label": "Question", "type": "text" },
+                { "key": "answer", "label": "Answer", "type": "textarea" }
+              ]
+            }
+          ]
+        },
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            { "key": "title", "label": "Browser / search title", "type": "text" },
+            { "key": "description", "label": "Meta description", "type": "textarea" }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "about",
+      "label": "About",
+      "path": "/about/",
+      "description": "Who we are.",
+      "sections": [
+        {
+          "key": "intro",
+          "label": "Introduction",
+          "fields": [
+            { "key": "title", "label": "Headline", "type": "text" },
+            { "key": "body", "label": "Story", "type": "textarea" },
+            { "key": "photo", "label": "Team photo", "type": "image" },
+            { "key": "photo_alt", "label": "Team photo alt text", "type": "text" },
+            { "key": "website", "label": "Partner website", "type": "url" }
+          ]
+        },
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            { "key": "title", "label": "Browser / search title", "type": "text" },
+            { "key": "description", "label": "Meta description", "type": "textarea" }
+          ]
+        }
+      ]
+    }
+  ]
+}
