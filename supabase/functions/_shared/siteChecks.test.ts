@@ -32,7 +32,9 @@ function fakeGithub(overrides: Overrides = {}, files: Record<string, unknown> = 
     if (key === "GET /repos/acme/site/installation") {
       return json({ id: 42, account: { login: "acme", type: "Organization" }, repository_selection: "selected", permissions: { contents: "write" } });
     }
-    if (key === "POST /app/installations/42/access_tokens") return json({ token: "ghs_fake", expires_at: "x" }, 201);
+    if (key === "POST /app/installations/42/access_tokens") {
+      return json({ token: "ghs_fake", expires_at: "x", permissions: { contents: "write", metadata: "read" } }, 201);
+    }
     if (key === "GET /repos/acme/site") return json({ permissions: { push: true } });
     if (key === "GET /repos/acme/site/git/ref/heads/main") return json({ object: { sha: "0123456789abcdef0123456789abcdef01234567" } });
     if (key === "GET /repos/acme/site/contents/content/schema.json") return json({ sha: "s", encoding: "base64", content: utf8ToBase64(JSON.stringify(schema)) });
@@ -116,11 +118,43 @@ Deno.test("GitHub refuses to scope a token", async () => {
   assertEquals(find(result.checks, "repo-access").status, "skipped");
 });
 
-Deno.test("read-only access is flagged", async () => {
+Deno.test("write access is decided from the token's permissions, not the repository's push flag", async () => {
+  // GitHub's GET /repos permissions.push is unreliable for App installation tokens:
+  // it reads false on real deploys even when the token was issued with Contents: write.
   const result = await runRepoChecks(base({ fetch: fakeGithub({ "GET /repos/acme/site": () => json({ permissions: { push: false } }) }) }));
   const check = find(result.checks, "repo-access");
+  assertEquals(check.status, "ok", JSON.stringify(check));
+  assertStringIncludes(check.detail, "Contents: write");
+  assertEquals(result.allPassed, true, JSON.stringify(result.checks, null, 2));
+});
+
+Deno.test("a token with Contents: read fails the write check", async () => {
+  const result = await runRepoChecks(base({ fetch: fakeGithub({
+    "POST /app/installations/42/access_tokens": () => json({ token: "ghs_fake", expires_at: "x", permissions: { contents: "read", metadata: "read" } }, 201),
+  }) }));
+  assertEquals(find(result.checks, "installation-token").status, "ok");
+  const check = find(result.checks, "repo-access");
   assertEquals(check.status, "fail");
+  assertStringIncludes(check.detail, '"read"');
   assertStringIncludes(check.fix ?? "", "Read and write");
+  assertEquals(find(result.checks, "branch").status, "skipped");
+});
+
+Deno.test("a token with no Contents permission fails the write check", async () => {
+  const result = await runRepoChecks(base({ fetch: fakeGithub({
+    "POST /app/installations/42/access_tokens": () => json({ token: "ghs_fake", expires_at: "x", permissions: { metadata: "read" } }, 201),
+  }) }));
+  const check = find(result.checks, "repo-access");
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.detail, "no Contents permission");
+  assertStringIncludes(check.fix ?? "", "Read and write");
+});
+
+Deno.test("an unreadable repository still fails the write check as a reachability problem", async () => {
+  const result = await runRepoChecks(base({ fetch: fakeGithub({ "GET /repos/acme/site": () => json({ message: "Not Found" }, 404) }) }));
+  const check = find(result.checks, "repo-access");
+  assertEquals(check.status, "fail");
+  assertStringIncludes(check.detail, "HTTP 404");
 });
 
 Deno.test("missing branch names the branch", async () => {

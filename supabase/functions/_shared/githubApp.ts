@@ -297,7 +297,17 @@ export async function getInstallation(
   return { status: result.status, installation, message: result.message };
 }
 
-export type InstallationToken = { token: string; expiresAt: string };
+export type InstallationToken = {
+  token: string;
+  expiresAt: string;
+  /**
+   * The permissions GitHub actually granted the token, from the access_tokens
+   * response (for example `{ contents: "write", metadata: "read" }`). This is the
+   * reliable signal for what the token can do: the `permissions.push` flag on
+   * GET /repos/{owner}/{repo} is not trustworthy for App installation tokens.
+   */
+  permissions: Record<string, string>;
+};
 
 /**
  * Mint a one-hour installation token limited to one repository and to the two
@@ -327,7 +337,11 @@ export async function requestInstallationToken(
   fetchImpl: typeof fetch = fetch,
 ): Promise<{ status: number; token?: InstallationToken; message: string }> {
   const jwt = await createAppJwt(config);
-  const result = await githubJson<{ token?: string; expires_at?: string }>(
+  const result = await githubJson<{
+    token?: string;
+    expires_at?: string;
+    permissions?: Record<string, unknown>;
+  }>(
     fetchImpl,
     jwt,
     `/app/installations/${installationId}/access_tokens`,
@@ -356,9 +370,23 @@ export async function requestInstallationToken(
   }
   return {
     status: result.status,
-    token: { token, expiresAt: result.body?.expires_at ?? "" },
+    token: {
+      token,
+      expiresAt: result.body?.expires_at ?? "",
+      permissions: readTokenPermissions(result.body?.permissions),
+    },
     message: "ok",
   };
+}
+
+/** Keep only the string-valued entries of the token's `permissions` object. */
+function readTokenPermissions(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value === "string") out[key] = value;
+  }
+  return out;
 }
 
 /** Where an agency installs the App. `state` round-trips to the setup page. */

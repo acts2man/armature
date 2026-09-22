@@ -3,6 +3,12 @@
 All notable changes to Armature are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- "Add a site" / "Check connection": the step "The App can write to the repository" now passes when the installation token GitHub issued carries Contents: write. It used to read `permissions.push` from the repository response, which GitHub does not report reliably for App installation tokens, so the step failed on real deploys right after the token step had passed.
+
 ## [0.1.0] - 2026-09-21
 
 The first version: a manual-only editing dashboard. No AI features anywhere.

@@ -212,8 +212,6 @@ export type ProbeResult = {
   ok: boolean;
   /** GitHub's own message, or the transport error, with the token redacted. */
   message: string;
-  /** Whether the token carries push (write) access, from `permissions.push`. */
-  canPush?: boolean;
   /** Short commit sha, for the branch probe. */
   sha?: string;
   /** Decoded file text, for the file probes. */
@@ -278,14 +276,10 @@ export function createGithubProbe(
   }
 
   return {
-    repository: () =>
-      probe(`/repos/${repo}`, (body) => {
-        const permissions =
-          body && typeof body === "object" && "permissions" in body
-            ? (body as { permissions?: { push?: unknown } }).permissions
-            : undefined;
-        return { canPush: permissions?.push === true };
-      }),
+    // A reachability check only. Whether the token can write is decided from the
+    // permissions GitHub granted the token (see requestInstallationToken), never
+    // from `permissions.push` here: that flag is unreliable for App tokens.
+    repository: () => probe(`/repos/${repo}`),
 
     branch: () =>
       probe(`/repos/${repo}/git/ref/heads/${branch}`, (body) => {

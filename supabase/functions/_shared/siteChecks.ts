@@ -171,7 +171,11 @@ export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckRes
   };
   const probe = makeProbe(repoConfig);
 
-  // 6. repo readable and writable
+  // 6. repo reachable with the token, and the token carries Contents: write.
+  // The write decision comes from the permissions GitHub granted the token, not
+  // from `permissions.push` on the repository response: that flag is not a
+  // reliable signal for App installation tokens and reads false even when the
+  // token was issued with Contents: write.
   const repository = await probe.repository();
   if (!repository.ok) {
     fail(
@@ -181,15 +185,18 @@ export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckRes
     );
     return finish({ installation });
   }
-  if (repository.canPush !== true) {
+  const contentsPermission = tokenResult.token.permissions["contents"];
+  if (contentsPermission !== "write") {
     fail(
       "repo-access",
-      "permissions.push is false — the App can read but not write",
+      contentsPermission
+        ? `The token's Contents permission is "${contentsPermission}", not "write" — the App can read but not write`
+        : "The token carries no Contents permission — the App can read but not write",
       "The App needs Contents: Read and write. Open the App's settings on GitHub → Permissions & events → Repository permissions → Contents → Read and write, save, then approve the new permissions on the installation.",
     );
     return finish({ installation });
   }
-  pass("repo-access", "permissions.push is true");
+  pass("repo-access", "The token carries Contents: write");
 
   // 7. branch
   const branch = await probe.branch();

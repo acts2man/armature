@@ -106,11 +106,16 @@ Deno.test("requestInstallationToken scopes the token and sends the app JWT", asy
       auth: new Headers(init?.headers).get("Authorization") ?? "",
       body: init?.body ? JSON.parse(String(init.body)) : undefined,
     };
-    return jsonResponse({ token: "ghs_fake", expires_at: "2026-01-01T00:00:00Z" }, 201);
+    return jsonResponse(
+      { token: "ghs_fake", expires_at: "2026-01-01T00:00:00Z", permissions: { contents: "write", metadata: "read" } },
+      201,
+    );
   }) as unknown as typeof fetch;
 
   const result = await requestInstallationToken(config, 42, "site-repo", fakeFetch);
   assertEquals(result.token?.token, "ghs_fake");
+  assertEquals(result.token?.expiresAt, "2026-01-01T00:00:00Z");
+  assertEquals(result.token?.permissions, { contents: "write", metadata: "read" });
   assert(seen);
   assertEquals(seen.method, "POST");
   assertStringIncludes(seen.url, "/app/installations/42/access_tokens");
@@ -119,6 +124,15 @@ Deno.test("requestInstallationToken scopes the token and sends the app JWT", asy
     repositories: ["site-repo"],
     permissions: { contents: "write", metadata: "read" },
   });
+});
+
+Deno.test("requestInstallationToken tolerates a missing or odd permissions object", async () => {
+  const none = (async () => jsonResponse({ token: "ghs_fake", expires_at: "x" }, 201)) as unknown as typeof fetch;
+  assertEquals((await requestInstallationToken(config, 42, "site-repo", none)).token?.permissions, {});
+
+  const odd = (async () =>
+    jsonResponse({ token: "ghs_fake", expires_at: "x", permissions: { contents: "read", nested: { a: 1 } } }, 201)) as unknown as typeof fetch;
+  assertEquals((await requestInstallationToken(config, 42, "site-repo", odd)).token?.permissions, { contents: "read" });
 });
 
 Deno.test("requestInstallationToken explains 401, 404 and 422 in plain English", async () => {

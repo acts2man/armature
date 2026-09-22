@@ -97,8 +97,13 @@ Deno.test("createGithubContentRepo maps a 404 to a readable hint and decodes fil
 });
 
 Deno.test("createGithubProbe reports instead of throwing", async () => {
-  const push = (async () => json({ permissions: { push: true } })) as unknown as typeof fetch;
-  assertEquals((await createGithubProbe(config, push).repository()).canPush, true);
+  // The repository probe is a reachability check only: it reports the status and
+  // never derives write access from the repository's permissions.push flag.
+  const readable = (async () => json({ permissions: { push: false } })) as unknown as typeof fetch;
+  const repository = await createGithubProbe(config, readable).repository();
+  assertEquals(repository.ok, true);
+  assertEquals(repository.status, 200);
+  assert(!("canPush" in repository));
 
   const unauthorised = (async () => json({ message: `Bad credentials ${config.token}` }, 401)) as unknown as typeof fetch;
   const result = await createGithubProbe(config, unauthorised).repository();
