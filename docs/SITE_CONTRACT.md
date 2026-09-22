@@ -407,20 +407,21 @@ bridge; a mismatch is reported to the person rather than guessed around).
 | `armature:ready` | bridge → editor | `protocolVersion`, `bridgeVersion`, `route`, `title` | The bridge is active and accepts the nonce. |
 | `armature:fields:map` | bridge → editor | `fields: MappedField[]`, `viewport` | Every mapped element with its path, kind (`text`, `image`, `link`), tag, rectangle in the frame's viewport, and whether it can be typed into in place. Sent after `ready`, after every DOM change and after every draft. |
 | `armature:hover` | bridge → editor | `field \| null` | The pointer is over a mapped element (or none). Re-sent with fresh rectangles on scroll and resize, once per animation frame. |
-| `armature:select` | bridge → editor | `field \| null`, `source` | The person clicked a mapped element (or empty space). `source` is `canvas` for a click, `editor` when answering a select request. |
+| `armature:select` | bridge → editor | `field \| null`, `source` | The person clicked a mapped element (or empty space). `source` is `canvas` for a click, `editor` when answering a select request, `refresh` for a fresh rectangle of the same selection after scrolling or a DOM change. |
 | `armature:select` | editor → bridge | `path \| null`, `scroll?` | Select (and scroll to) the first element for that path, for example from the Layers panel. |
 | `armature:edit:start` | editor → bridge | `path` | Begin typing in place on that element. |
 | `armature:edit:start` | bridge → editor | `path`, `value` | In-place editing began (from a second click, a double-click, Enter, or the editor's request). |
 | `armature:edit:input` | bridge → editor | `path`, `value` | The text changed while typing. |
 | `armature:edit:commit` | bridge → editor | `path`, `value` | Enter (single-line), Ctrl/Cmd+Enter (paragraph) or blur: the value is final. |
 | `armature:edit:cancel` | bridge → editor | `path` | Esc: the original text is restored. |
-| `armature:draft:apply` | editor → bridge | `fields: { "<slug.section.field>": value }` | The complete draft (whole field values, lists included). The bridge merges it over the built-in content and re-renders through the store. A field being typed into is held back until the typing ends. |
+| `armature:draft:apply` | editor → bridge | `fields: { "<slug.section.field>": value }` | Whole field values (lists included) the bridge merges over the built-in content and re-renders through the store. The editor sends every field of the site, published values and draft alike, so the frame matches the repository even before the host has rebuilt. A field being typed into is held back until the typing ends. |
 | `armature:route:changed` | bridge → editor | `route`, `title` | The site moved to another page (client-side router or a reload). |
 | `armature:navigate` | editor → bridge | `path` | Go to that page, keeping the edit flag. |
 | `armature:navigate` | bridge → editor | `href`, `external`, `followed` | A link was clicked. `followed` is true for Ctrl/Cmd+click (and any click in preview); false for a plain click in edit mode, which the editor answers with a hint. External links are never followed inside the editor. |
 | `armature:viewport` | bridge → editor | `viewport` | Size and scroll position of the frame, once per animation frame while scrolling. |
 | `armature:mode` | editor → bridge | `mode: "edit" \| "preview"` | Preview turns off hover, selection and click interception so the site behaves normally. |
 | `armature:error` | bridge → editor | `code`, `message` | `protocol_mismatch`, `edit_failed` or `navigate_failed`, with a sentence for the person. |
+| `armature:key` | bridge → editor | `key` | A shortcut pressed while the frame had focus (`undo`, `redo`, `publish`, `next`, `help`), so Ctrl/Cmd+Z, Ctrl/Cmd+S, Tab and ? work wherever the person clicked last. |
 
 Reserved, not sent by anything yet: `armature:tokens:*` (Stage 2, colours and fonts from
 design tokens) and `armature:sections:*` (Stage 3, adding, moving and hiding sections).

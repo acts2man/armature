@@ -244,9 +244,28 @@ const currentRoute = (): string => window.location.pathname;
 
 // --- the bridge ----------------------------------------------------------------------------
 
+/** The embedding window's origin when the browser tells us (ancestorOrigins or the referrer), else null. */
+function parentOriginHint(): string | null {
+  try {
+    const ancestors = window.location.ancestorOrigins;
+    if (ancestors && ancestors.length > 0) return ancestors[0] ?? null;
+  } catch {
+    // not supported
+  }
+  try {
+    return document.referrer ? new URL(document.referrer).origin : null;
+  } catch {
+    return null;
+  }
+}
+
 export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBridge {
   const allowedOrigins = (config.allowedOrigins ?? []).map((origin) => origin.replace(/\/+$/, ""));
-  const active = typeof document !== "undefined" && allowedOrigins.length > 0 && isInIframe() && hasEditFlag();
+  // Active only in an iframe, with the flag, with an allowlist, and (when the browser
+  // reveals the embedder) only for an allowed embedder. Even then nothing touches the
+  // page until an allowed origin has said hello.
+  const hint = typeof document !== "undefined" && isInIframe() ? parentOriginHint() : null;
+  const active = typeof document !== "undefined" && allowedOrigins.length > 0 && isInIframe() && hasEditFlag() && (hint === null || allowedOrigins.includes(hint));
 
   // Field types by root path, from the schema, so the bridge knows what to mark.
   const fieldTypes = new Map<string, FieldType>();
@@ -371,6 +390,8 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
     if (element instanceof HTMLImageElement || element instanceof HTMLPictureElement || element instanceof HTMLVideoElement || element instanceof HTMLIFrameElement) return "image";
     const type = fieldTypeOfPath(path);
     if (type === "link" || (type === "url" && element instanceof HTMLAnchorElement)) return "link";
+    // Any text that sits inside a link is a link to the editor: it shows the destination and the Ctrl-click hint.
+    if (element.closest("a[href]")) return "link";
     return "text";
   };
 
@@ -528,7 +549,7 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
   };
 
   const sendMap = () => send({ type: `${PREFIX}fields:map`, fields: allFields(), viewport: viewport() });
-  const sendSelect = (source: "canvas" | "editor") => {
+  const sendSelect = (source: "canvas" | "editor" | "refresh") => {
     const info = selected ? elementInfo.get(selected) : undefined;
     send({ type: `${PREFIX}select`, field: selected && info ? describe(selected, info) : null, source });
   };
@@ -554,7 +575,7 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
       } else {
         send({ type: `${PREFIX}viewport`, viewport: viewport() });
       }
-      sendSelect("canvas");
+      sendSelect("refresh");
       sendHover();
     });
   };
@@ -693,7 +714,7 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
     return null;
   };
 
-  const select = (element: Element | null, source: "canvas" | "editor") => {
+  const select = (element: Element | null, source: "canvas" | "editor" | "refresh") => {
     if (editing && editing.element !== element) finishEdit(true);
     selected = element;
     sendSelect(source);
@@ -792,6 +813,20 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
 
   const onKeydownDocument = (event: KeyboardEvent) => {
     if (mode !== "edit" || editing) return;
+    const target = event.target as Element | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
+    const meta = event.metaKey || event.ctrlKey;
+    let key: string | null = null;
+    if (meta && event.key.toLowerCase() === "z") key = event.shiftKey ? "redo" : "undo";
+    else if (meta && event.key.toLowerCase() === "y") key = "redo";
+    else if (meta && event.key.toLowerCase() === "s") key = "publish";
+    else if (event.key === "Tab" && !meta && !event.altKey) key = "next";
+    else if (event.key === "?" && !meta) key = "help";
+    if (key) {
+      event.preventDefault();
+      send({ type: `${PREFIX}key`, key });
+      return;
+    }
     if (event.key === "Enter" && selected && elementInfo.get(selected)?.inline) {
       event.preventDefault();
       startEdit(selected);
@@ -823,6 +858,7 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
     if (data.type === `${PREFIX}hello`) {
       parentOrigin = event.origin;
       nonce = data.nonce;
+      installOnce();
       if (data.protocolVersion !== PROTOCOL_VERSION) {
         send({
           type: `${PREFIX}error`,
@@ -908,9 +944,12 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
     } as History["pushState"];
   };
 
-  const install = () => {
+  let installed = false;
+  /** Wire up the page. Runs once, on the first hello from an allowed origin. */
+  const installOnce = () => {
+    if (installed) return;
+    installed = true;
     document.documentElement.setAttribute("data-armature-mode", mode);
-    window.addEventListener("message", onMessage);
     document.addEventListener("click", onClick, true);
     document.addEventListener("dblclick", onDoubleClick, true);
     document.addEventListener("mousemove", onMouseMove, { passive: true });
@@ -928,11 +967,8 @@ export function createArmatureBridge(config: ArmatureBridgeConfig): ArmatureBrid
     if (typeof ResizeObserver === "function") new ResizeObserver(() => scheduleFrame(true)).observe(document.body);
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", install, { once: true });
-  } else {
-    install();
-  }
+  // Until an allowed editor says hello, the only thing on the page is this listener.
+  window.addEventListener("message", onMessage);
 
   return bridge;
 }

@@ -119,7 +119,8 @@ export type ReadyMessage = {
 };
 export type FieldsMapMessage = { type: "armature:fields:map"; nonce: string; fields: MappedField[]; viewport: Viewport };
 export type HoverMessage = { type: "armature:hover"; nonce: string; field: MappedField | null };
-export type SelectMessage = { type: "armature:select"; nonce: string; field: MappedField | null; source: "canvas" | "editor" };
+/** `source`: "canvas" for a click on the page, "editor" answering a select request, "refresh" a fresh rectangle for the same selection. */
+export type SelectMessage = { type: "armature:select"; nonce: string; field: MappedField | null; source: "canvas" | "editor" | "refresh" };
 export type EditStartMessage = { type: "armature:edit:start"; nonce: string; path: FieldPath; value: string };
 export type EditInputMessage = { type: "armature:edit:input"; nonce: string; path: FieldPath; value: string };
 export type EditCommitMessage = { type: "armature:edit:commit"; nonce: string; path: FieldPath; value: string };
@@ -132,6 +133,9 @@ export type RouteChangedMessage = { type: "armature:route:changed"; nonce: strin
 export type NavigateMessage = { type: "armature:navigate"; nonce: string; href: string; external: boolean; followed: boolean };
 export type ViewportMessage = { type: "armature:viewport"; nonce: string; viewport: Viewport };
 export type ErrorMessage = { type: "armature:error"; nonce: string; code: BridgeErrorCode; message: string };
+/** A keyboard shortcut pressed while the frame had focus, forwarded so the editor can act on it. */
+export type ShortcutKey = "undo" | "redo" | "publish" | "next" | "help";
+export type KeyMessage = { type: "armature:key"; nonce: string; key: ShortcutKey };
 
 export type BridgeToEditor =
   | ReadyMessage
@@ -145,7 +149,8 @@ export type BridgeToEditor =
   | RouteChangedMessage
   | NavigateMessage
   | ViewportMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | KeyMessage;
 
 export const EDITOR_MESSAGE_TYPES: readonly EditorToBridge["type"][] = [
   "armature:hello",
@@ -169,6 +174,7 @@ export const BRIDGE_MESSAGE_TYPES: readonly BridgeToEditor["type"][] = [
   "armature:navigate",
   "armature:viewport",
   "armature:error",
+  "armature:key",
 ];
 
 export function isBridgeMessage(value: unknown): value is BridgeToEditor {

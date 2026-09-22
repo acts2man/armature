@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>A page that is not allowed to edit the demo site</title></head>
+<body style="margin:0">
+<!-- Used by the end-to-end tests: opened from http://127.0.0.1:5174, an origin the demo site does not allow. -->
+<iframe id="f" src="http://localhost:5174/?armature=edit" style="width:900px;height:600px;border:0"></iframe>
+<script>
+  window.replies = [];
+  window.addEventListener("message", (event) => window.replies.push(event.data));
+  const frame = document.getElementById("f");
+  frame.addEventListener("load", () => {
+    const hello = () => frame.contentWindow.postMessage({ type: "armature:hello", nonce: "n", protocolVersion: 1 }, "*");
+    hello();
+    setInterval(hello, 200);
+  });
+</script>
+</body>
+</html>

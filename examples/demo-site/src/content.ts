@@ -10,7 +10,6 @@ import content from "../content/pages.json";
 
 const origins = (import.meta.env.VITE_ARMATURE_EDITOR_ORIGINS as string | undefined)?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? [
   "http://localhost:5173",
-  "http://127.0.0.1:5173",
   "https://armature-sites.netlify.app",
 ];
 
