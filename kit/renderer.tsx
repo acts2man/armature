@@ -210,6 +210,20 @@ export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: L
   useKitFonts(snapshot.kit);
   const root = useRef<HTMLDivElement>(null);
   usePageSeo(layout, builderPage);
+  // Page settings the site's own frame responds to: <html data-armature-canvas="full"> for a
+  // full-canvas page (hide the header and footer) and data-armature-hide-title.
+  const canvas = layout?.pageSettings?.fullCanvas ? "full" : null;
+  const hideTitle = !!layout?.pageSettings?.hideTitle;
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const html = document.documentElement;
+    if (canvas) html.setAttribute("data-armature-canvas", canvas);
+    if (hideTitle) html.setAttribute("data-armature-hide-title", "");
+    return () => {
+      html.removeAttribute("data-armature-canvas");
+      html.removeAttribute("data-armature-hide-title");
+    };
+  }, [canvas, hideTitle]);
   useEffect(() => {
     if (!root.current) return;
     const stopEntrances = installEntranceAnimations(root.current);

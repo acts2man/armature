@@ -7,7 +7,7 @@ import { registerNavigate, usePageCopy } from "./content.ts";
 function Header() {
   const copy = usePageCopy("shared");
   return (
-    <header className="site-header">
+    <header className="site-header" data-armature-chrome="">
       <Link to="/" className="brand">
         {copy.text("header", "brand")}
       </Link>
@@ -28,7 +28,7 @@ function Header() {
 function Footer() {
   const copy = usePageCopy("shared");
   return (
-    <footer className="site-footer">
+    <footer className="site-footer" data-armature-chrome="">
       <p>{copy.text("footer", "blurb")}</p>
       <small>{copy.text("footer", "copyright")}</small>
     </footer>
@@ -124,7 +124,7 @@ function About() {
     <section className="about">
       <img src={copy.image("intro", "photo")} alt={copy.plain("intro", "photo_alt")} width="480" height="320" />
       <div>
-        <h1>{copy.text("intro", "title")}</h1>
+        <h1 data-armature-page-title="">{copy.text("intro", "title")}</h1>
         <p className="lead">{copy.text("intro", "body")}</p>
         <p>
           <a href={copy.image("intro", "website")} target="_blank" rel="noreferrer">

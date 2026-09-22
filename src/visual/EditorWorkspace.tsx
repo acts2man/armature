@@ -28,10 +28,12 @@ import { draftChangeCount, draftKey, isEmptyEditorDraft, legacyDraftKey, parseEd
 import {
   changedElementIds,
   changedPages,
+  deletePage,
   findElement,
   insertElement,
   kitChanged,
   mediaChanged,
+  setMediaAlt,
   isContainerType,
   moveElement,
   removeElement,
@@ -45,10 +47,15 @@ import {
   type BuilderState,
 } from "@/builder/store.ts";
 import { SiteSettingsPanel } from "@/builder/SiteSettingsPanel.tsx";
+import { PagesPanel, type PagesPanelActions } from "@/builder/PagesPanel.tsx";
+import { describeTree, useTemplateActions, useTemplates, type TemplateKind, type TemplateRow } from "@/builder/templates.ts";
+import { SaveTemplateDialog, TemplateLibrary } from "@/builder/TemplatesUI.tsx";
 import { StructurePicker } from "@/builder/StructurePicker.tsx";
 import { withKitFont } from "@/builder/fonts.ts";
 import { useDrag, type DragSource } from "@/builder/useDrag.ts";
-import { createStructure, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
+import { createStructure, widgetDefinition, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
+import { mediaEntries, mediaUsage } from "@/builder/media.ts";
+import { MediaPanel, MediaPicker } from "@/builder/MediaPanel.tsx";
 import "@/builder/widgets/library.ts";
 import { IconCopy, IconEraser, IconEye, IconEyeOff, IconLock, IconPaste, IconPencil, IconTemplate, IconTrash, IconTree, IconUnlock } from "@/components/icons.tsx";
 import { siteQueryKey } from "@/components/SiteLayout.tsx";
@@ -92,8 +99,8 @@ import {
 import { createGeometryStore } from "./geometry.ts";
 import { IconRail } from "./IconRail.tsx";
 import { Inspector } from "./Inspector.tsx";
-import { LeftPanel, PagesList, type LeftTab } from "./LeftPanel.tsx";
-import { defaultPage, deviceWidthFor, editablePages, modKey, modelDevice, pageForRoute, tourSeen, type Device } from "./pages.ts";
+import { LeftPanel, type LeftTab } from "./LeftPanel.tsx";
+import { defaultPage, deviceWidthFor, editablePages, modKey, modelDevice, normalizePath, pageForRoute, tourSeen, type Device } from "./pages.ts";
 import { PublishDialog, type PublishState } from "./PublishDialog.tsx";
 import { RequestBar, RestorePrompt, ShortcutsSheet, Tour } from "./Sheets.tsx";
 import { TopBar } from "./TopBar.tsx";
@@ -278,8 +285,19 @@ export function EditorWorkspace({
   }
 
   // --- page, device, mode, selection -----------------------------------------------------------------
-  const [pageSlug, setPageSlug] = useState<string>(() => (initialSlug && schema.pages.some((page) => page.slug === initialSlug) ? initialSlug : (defaultPage(schema)?.slug ?? "")));
-  const page = schema.pages.find((item) => item.slug === pageSlug);
+  // Builder-only pages (a layout for a slug the schema does not declare) are pages too:
+  // no Stage 1 fields, just their layout. They come and go with the draft.
+  const builderPages = useMemo<PageDefinition[]>(
+    () =>
+      Object.values(builderView.layouts)
+        .filter((layout) => !schema.pages.some((item) => item.slug === layout.pageSlug))
+        .map((layout) => ({ slug: layout.pageSlug, label: layout.label || layout.pageSlug, path: layout.path, sections: [] }))
+        .sort((a, b) => a.label.localeCompare(b.label)),
+    [builderView.layouts, schema.pages],
+  );
+  const allPages = useMemo(() => [...schema.pages, ...builderPages], [schema.pages, builderPages]);
+  const [pageSlug, setPageSlug] = useState<string>(() => (initialSlug && (schema.pages.some((page) => page.slug === initialSlug) || !!content.layouts?.[initialSlug]) ? initialSlug : (defaultPage(schema)?.slug ?? "")));
+  const page = allPages.find((item) => item.slug === pageSlug);
   const [device, setDevice] = useState<Device>("desktop");
   const [preview, setPreview] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>("layers");
@@ -388,15 +406,15 @@ export function EditorWorkspace({
   const selectElement = useCallback((id: string | null, scroll = true) => select(id ? { kind: "element", id, slug: pageSlug } : null, scroll), [select, pageSlug]);
 
   const goToPage = useCallback(
-    (slug: string) => {
-      const target = schema.pages.find((item) => item.slug === slug);
+    (slug: string, override?: PageDefinition) => {
+      const target = override ?? allPages.find((item) => item.slug === slug);
       if (!target) return;
       setPageSlug(slug);
       setSelection(null);
       if (ready) send({ type: "armature:navigate", path: target.path });
       else bridge.load(target.path);
     },
-    [schema, ready, send, bridge],
+    [allPages, ready, send, bridge],
   );
 
   // --- element commands ------------------------------------------------------------------------------
@@ -434,6 +452,7 @@ export function EditorWorkspace({
         );
       },
       onEditOnPage: (id: string) => send({ type: "armature:element:edit:start", id }),
+      onPickImage: (onPick: (src: string, alt: string) => void) => setPicker({ onPick }),
       onRename: (id: string, label: string) => builderCommand("Renamed element", pageSlug, (current) => setElementPath(current, id, pageSlug, ["label"], label || undefined), `rename:${id}`),
     }),
     [builderCommand, isLockedForMe, pageSlug, selectElement, send],
@@ -775,7 +794,7 @@ export function EditorWorkspace({
   const onBridgeMessage = (message: BridgeToEditor) => {
     switch (message.type) {
       case "armature:ready": {
-        const target = pageForRoute(schema, message.route);
+        const target = pageForRoute(schema, message.route) ?? builderPages.find((item) => normalizePath(item.path) === normalizePath(message.route));
         if (target && target.slug !== pageSlug) setPageSlug(target.slug);
         if (!tourSeen() && !pendingRestore) setTourOpen(true);
         return;
@@ -874,7 +893,7 @@ export function EditorWorkspace({
         return;
       }
       case "armature:route:changed": {
-        const target = pageForRoute(schema, message.route);
+        const target = pageForRoute(schema, message.route) ?? builderPages.find((item) => normalizePath(item.path) === normalizePath(message.route));
         if (target && target.slug !== pageSlug) {
           setPageSlug(target.slug);
           setSelection(null);
@@ -1015,6 +1034,88 @@ export function EditorWorkspace({
   const sharedPage = schema.pages.find((item) => item.slug === "shared" && item.slug !== page?.slug);
   const fieldLabel = (path: FieldPath): string => fieldMeta(schema, path)?.label ?? path;
 
+  // --- pages and templates ------------------------------------------------------------------------------
+  const templatesQuery = useTemplates(site.id, site.agency_id);
+  const templateActions = useTemplateActions(site.id);
+  const templates = useMemo(() => (builder ? (templatesQuery.data ?? []) : []), [builder, templatesQuery.data]);
+  const [saveTemplate, setSaveTemplate] = useState<{ kind: TemplateKind; name: string; content: TemplateRow["content"] } | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const canStructure = isStaff || editingLevel === "builder";
+
+  const pageActions: PagesPanelActions = {
+    onOpen: (slug) => goToPage(slug),
+    onCreate: (layout) => {
+      builderCommand(`Created the page "${layout.label ?? layout.pageSlug}"`, layout.pageSlug, (current) => setLayout(current, layout));
+      goToPage(layout.pageSlug, { slug: layout.pageSlug, label: layout.label ?? layout.pageSlug, path: layout.path, sections: [] });
+    },
+    onSettings: (slug, patch) => {
+      builderCommand("Changed page settings", slug, (current) => {
+        const layout = current.layouts[slug];
+        if (!layout) return null;
+        const next: LayoutDoc = { ...layout, ...patch };
+        for (const key of ["seo", "pageSettings"] as const) if (next[key] === undefined) delete next[key];
+        return setLayout(current, next);
+      });
+      if (patch.path && slug === pageSlug) goToPage(slug, { slug, label: patch.label ?? page?.label ?? slug, path: patch.path, sections: [] });
+    },
+    onDuplicate: (slug) => {
+      const layout = builderView.layouts[slug];
+      if (!layout) return;
+      const taken = new Set(allPages.map((item) => item.slug));
+      let copySlug = `${slug}-copy`;
+      let n = 2;
+      while (taken.has(copySlug)) copySlug = `${slug}-copy-${n++}`;
+      const copy: LayoutDoc = { ...layout, pageSlug: copySlug, path: `/${copySlug}/`, label: `${layout.label ?? slug} (copy)`, root: layout.root.map((element) => withFreshIds(element)) };
+      builderCommand(`Duplicated the page "${layout.label ?? slug}"`, copySlug, (current) => setLayout(current, copy));
+      goToPage(copySlug, { slug: copySlug, label: copy.label ?? copySlug, path: copy.path, sections: [] });
+    },
+    onDelete: (slug) => {
+      const label = builderView.layouts[slug]?.label ?? slug;
+      builderCommand(`Deleted the page "${label}"`, slug, (current) => deletePage(current, slug));
+      if (slug === pageSlug) {
+        const fallback = defaultPage(schema);
+        if (fallback) goToPage(fallback.slug);
+      }
+    },
+    onSaveTemplate: (slug) => {
+      const layout = builderView.layouts[slug];
+      if (!layout) return;
+      setSaveTemplate({ kind: "page", name: layout.label ?? slug, content: { root: layout.root, label: layout.label, seo: layout.seo, pageSettings: layout.pageSettings } });
+    },
+  };
+  const sectionTemplates = useMemo(
+    () =>
+      templates
+        .filter((row) => row.kind === "section" && row.content.root[0])
+        .map((row) => ({ id: row.id, name: row.name, count: row.element_count, create: () => withFreshIds(row.content.root[0] as Element) })),
+    [templates],
+  );
+
+  // --- the context menu -------------------------------------------------------------------------------------------------
+  // --- the media library ------------------------------------------------------------------------------------------------
+  const mediaList = useMemo(() => mediaEntries(content.media ?? [], builderView.layouts), [content.media, builderView.layouts]);
+  const mediaUses = useMemo(() => mediaUsage(published, builderView.layouts, (slug) => allPages.find((item) => item.slug === slug)?.label ?? slug), [published, builderView.layouts, allPages]);
+  const [picker, setPicker] = useState<{ onPick: (src: string, alt: string) => void } | null>(null);
+  /** A picture from this computer, resized in the browser; it travels in the draft as a data: URL until publish. */
+  const uploadPicture = useCallback(
+    async (file: File): Promise<string | null> => {
+      try {
+        const prepared = await prepareImage(file);
+        URL.revokeObjectURL(prepared.previewUrl);
+        return `data:${prepared.file.type};base64,${await fileToBase64(prepared.file)}`;
+      } catch (error) {
+        toast.show(error instanceof Error ? error.message : String(error), "danger");
+        return null;
+      }
+    },
+    [toast],
+  );
+  const insertPicture = (src: string, alt: string) => {
+    const base = widgetDefinition("image")?.create();
+    if (!base) return;
+    insertAt({ ...base, props: { ...base.props, src, alt } }, insertionPoint(), "Image");
+  };
+
   // --- the context menu -------------------------------------------------------------------------------------------------
   const menuItems = (id: string): MenuItem[] => {
     const entry = findElement(builderView, id, pageSlug);
@@ -1030,7 +1131,13 @@ export function EditorWorkspace({
       { key: "paste-style", label: "Paste style", icon: <IconPaste size={14} />, shortcut: `${mod}+Shift+V`, disabled: locked, onSelect: () => void pasteStyle() },
       { key: "reset-style", label: "Reset style", icon: <IconEraser size={14} />, disabled: locked, onSelect: () => resetStyle(id) },
       { key: "s1", separator: true },
-      { key: "template", label: "Save as template", icon: <IconTemplate size={14} />, disabled: true, onSelect: () => undefined },
+      {
+        key: "template",
+        label: "Save as template",
+        icon: <IconTemplate size={14} />,
+        disabled: !entry || !isContainerType(entry.element.type),
+        onSelect: () => entry && setSaveTemplate({ kind: "section", name: entry.element.label || describeTree([entry.element]).heading || widgetLabel(entry.element.type), content: { root: [entry.element] } }),
+      },
       { key: "navigator", label: "Show in Navigator", icon: <IconTree size={14} />, onSelect: () => setBuilderTab("navigator") },
       ...(isStaff ? [{ key: "lock", label: entry?.element.locked ? "Unlock for clients" : "Lock for clients", icon: entry?.element.locked ? <IconUnlock size={14} /> : <IconLock size={14} />, onSelect: () => toggleLock(id) } satisfies MenuItem] : []),
       { key: "hide", label: hidden ? `Show on ${which}` : `Hide on ${which}`, icon: hidden ? <IconEye size={14} /> : <IconEyeOff size={14} />, disabled: locked, onSelect: () => toggleHidden(id) },
@@ -1071,7 +1178,7 @@ export function EditorWorkspace({
       <div className="flex min-h-0 flex-1">
         <IconRail siteId={site.id} isStaff={isStaff} />
         {builder ? (
-          <BuilderPanel tab={builderTab} tabs={["elements", "navigator", "pages", "site"]} onTab={setBuilderTab}>
+          <BuilderPanel tab={builderTab} tabs={["elements", "navigator", "pages", "media", "site"]} onTab={setBuilderTab}>
             {builderTab === "elements" && (
               <ElementsPanel
                 isStaff={isStaff}
@@ -1080,6 +1187,8 @@ export function EditorWorkspace({
                 onBeginDrag={beginDrag}
                 onInsert={(element, label) => insertAt(element, insertionPoint(), label)}
                 onStructure={() => setStructureAt({ index: -1 })}
+                templates={sectionTemplates}
+                onOpenLibrary={() => setLibraryOpen(true)}
               />
             )}
             {builderTab === "navigator" && (
@@ -1107,9 +1216,23 @@ export function EditorWorkspace({
               </div>
             )}
             {builderTab === "pages" && (
-              <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-                <PagesList pages={pages} page={page} changedByPage={changedByPage} onPage={goToPage} shared={sharedPage} />
+              <div className="flex min-h-0 flex-1 flex-col">
+                <PagesPanel coded={schema.pages} builderPages={builderPages} layouts={builderView.layouts} activeSlug={pageSlug} changedByPage={changedByPage} pageTemplates={templates.filter((row) => row.kind === "page")} canCreate={canStructure} actions={pageActions} />
               </div>
+            )}
+            {builderTab === "media" && (
+              <MediaPanel
+                entries={mediaList}
+                usage={mediaUses}
+                alts={builderView.media ?? {}}
+                siteUrl={site.live_url}
+                onAlt={(src, alt) => builderCommand("Changed alt text", pageSlug, (current) => setMediaAlt(current, src, alt), `alt:${src}`)}
+                onChoose={(entry) => insertPicture(entry.src, builderView.media?.[entry.src]?.alt ?? "")}
+                onUpload={async (file) => {
+                  const src = await uploadPicture(file);
+                  if (src) insertPicture(src, "");
+                }}
+              />
             )}
             {builderTab === "history" && <HistoryPanel history={history} onJump={(steps) => setHistory((current) => jumpTo(current, steps))} />}
             {builderTab === "site" && <SiteSettingsPanel kit={builderView.kit} write={writeKit} device={modelDevice(device)} onDevice={onModelDevice} isStaff={isStaff} />}
@@ -1271,6 +1394,49 @@ export function EditorWorkspace({
       </div>
 
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.id)} onClose={() => setMenu(null)} />}
+      {saveTemplate && (
+        <SaveTemplateDialog
+          open
+          kind={saveTemplate.kind}
+          defaultName={saveTemplate.name}
+          isStaff={isStaff}
+          onClose={() => setSaveTemplate(null)}
+          onSave={async (name, scope) => {
+            const problem = await templateActions.save({ agencyId: site.agency_id, siteId: scope === "agency" && isStaff ? null : site.id, name, kind: saveTemplate.kind, content: saveTemplate.content, userId });
+            if (!problem) toast.show(`Saved "${name}" as a template.`, "success");
+            return problem;
+          }}
+        />
+      )}
+      <TemplateLibrary
+        open={libraryOpen}
+        templates={templates}
+        canDelete={(row) => isStaff || (row.site_id === site.id && row.created_by === userId)}
+        onClose={() => setLibraryOpen(false)}
+        onInsert={(row) => {
+          const first = row.content.root[0];
+          if (first) insertAt(withFreshIds(first), insertionPoint(), `the template "${row.name}"`);
+          setLibraryOpen(false);
+        }}
+        onDelete={(row) => void templateActions.remove(row.id).then((problem) => toast.show(problem ?? `Deleted "${row.name}".`, problem ? "danger" : "info"))}
+      />
+      <MediaPicker
+        open={!!picker}
+        entries={mediaList}
+        usage={mediaUses}
+        alts={builderView.media ?? {}}
+        siteUrl={site.live_url}
+        onClose={() => setPicker(null)}
+        onChoose={(entry) => {
+          picker?.onPick(entry.src, builderView.media?.[entry.src]?.alt ?? "");
+          setPicker(null);
+        }}
+        onUpload={async (file) => {
+          const src = await uploadPicture(file);
+          if (src) picker?.onPick(src, "");
+          setPicker(null);
+        }}
+      />
       <StructurePicker open={structureAt !== null} onClose={() => setStructureAt(null)} onPick={(structure) => addStructure(structure, structureAt && structureAt.index >= 0 ? structureAt.index : null)} />
 
       <PublishDialog

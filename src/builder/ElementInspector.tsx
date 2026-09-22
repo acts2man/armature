@@ -22,6 +22,8 @@ export type ElementInspectorActions = {
   onSetPath: (id: string, path: string[], value: unknown, label: string, group?: string) => void;
   onEditOnPage: (id: string) => void;
   onRename: (id: string, label: string) => void;
+  /** Opens the media library; the chosen picture comes back through onPick. */
+  onPickImage?: (onPick: (src: string, alt: string) => void) => void;
 };
 
 function Crumbs({ state, slug, id, onSelect }: { state: BuilderState; slug: string; id: string; onSelect: (id: string) => void }) {
@@ -93,7 +95,7 @@ export function ElementInspector({
       onDevice,
       kit,
       isStaff,
-      actions: { editOnPage: element.type === "text" || element.type === "heading" ? () => actions.onEditOnPage(element.id) : undefined },
+      actions: { editOnPage: element.type === "text" || element.type === "heading" ? () => actions.onEditOnPage(element.id) : undefined, pickImage: actions.onPickImage },
     };
   }, [element, actions, device, onDevice, kit, isStaff]);
 

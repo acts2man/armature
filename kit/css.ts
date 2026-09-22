@@ -505,6 +505,8 @@ const BASE_CSS = `
 .ae-root .ae-icon-svg { display: inline-block; width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
 .ae-root .ae-site-section { position: relative; }
 [data-armature-mode] .ae-root .ae-con.ae-empty > .ae-con-inner { min-height: 96px; }
+html[data-armature-canvas="full"] [data-armature-chrome] { display: none !important; }
+html[data-armature-hide-title] [data-armature-page-title] { display: none !important; }
 @keyframes ae-fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ae-fadeInUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 @keyframes ae-fadeInDown { from { opacity: 0; transform: translateY(-24px); } to { opacity: 1; transform: none; } }

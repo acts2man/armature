@@ -150,6 +150,40 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, []);
         case "site_billing":
           return json(route, []);
+        case "builder_templates":
+        case "builder_drafts": {
+          const rows = (state.rows[table] ??= []);
+          const method = request.method();
+          if (method === "GET" || method === "HEAD") {
+            // Honour "column=eq.value" filters (enough for id / site_id / user_id lookups).
+            let shown = rows;
+            for (const [column, filter] of url.searchParams) {
+              if (filter.startsWith("eq.")) shown = shown.filter((row) => String(row[column]) === filter.slice(3));
+            }
+            const single = (request.headers()["accept"] ?? "").includes("vnd.pgrst.object");
+            if (single) return shown[0] ? json(route, shown[0]) : json(route, { code: "PGRST116", message: "no rows" }, 406);
+            return json(route, shown);
+          }
+          if (method === "POST") {
+            const incoming = JSON.parse(request.postData() ?? "{}") as Record<string, unknown> | Record<string, unknown>[];
+            const list = Array.isArray(incoming) ? incoming : [incoming];
+            const upsert = (request.headers()["prefer"] ?? "").includes("resolution=merge-duplicates");
+            const saved = list.map((row) => {
+              const existing = upsert ? rows.findIndex((other) => other["site_id"] === row["site_id"] && other["user_id"] === row["user_id"]) : -1;
+              const full = { id: `tpl-${rows.length + 1}-${Math.random().toString(16).slice(2, 8)}`, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), ...row };
+              if (existing >= 0) rows[existing] = { ...rows[existing], ...full, id: rows[existing]!["id"] };
+              else rows.push(full);
+              return full;
+            });
+            return json(route, saved, 201);
+          }
+          if (method === "DELETE") {
+            const id = url.searchParams.get("id")?.replace(/^eq\./, "");
+            state.rows[table] = rows.filter((row) => row["id"] !== id);
+            return json(route, [], 200);
+          }
+          return json(route, []);
+        }
         default:
           return json(route, []);
       }

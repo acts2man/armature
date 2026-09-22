@@ -747,3 +747,129 @@ test.describe("the builder publish", () => {
     expect((state.builderPublishRequests[1] as { resolutions: Record<string, string> }).resolutions).toEqual({ "layout:home:hdbuilds": "mine" });
   });
 });
+
+test.describe("pages and templates", () => {
+  test("a new page: its address is checked, it starts from a starter page, and its settings publish with it", async ({ page }) => {
+    const state = await openBuilder(page);
+    const frame = siteFrame(page);
+    await page.getByTestId("tab-pages").click();
+    const panel = page.getByTestId("pages-panel");
+    await expect(panel).toContainText("Pages in the site's code");
+    await expect(page.getByTestId("page-contact")).toBeVisible();
+    await page.getByTestId("new-page").click();
+    await page.getByLabel("Title", { exact: true }).fill("About");
+    await expect(page.getByText('The page "About" already uses this address.')).toBeVisible();
+    await expect(page.getByTestId("new-page-create")).toBeDisabled();
+    await page.getByLabel("Title", { exact: true }).fill("Our services");
+    await expect(page.getByLabel("Address")).toHaveValue("/our-services/");
+    await page.getByLabel("Landing page").check();
+    await page.getByTestId("new-page-create").click();
+    await expect(frame.locator("h1")).toHaveText("A clear promise in one line");
+    await expect(page.getByTestId("page-our-services")).toBeVisible();
+
+    // Page settings: a search title and a full-canvas layout that hides the site's header.
+    await page.getByTestId("page-settings-our-services").click();
+    await page.getByLabel("Title in search results").fill("Services | Alder & Stone");
+    await page.getByLabel("Page background").fill("not a colour");
+    await expect(page.getByTestId("page-settings-save")).toBeDisabled();
+    await page.getByLabel("Page background").fill("#f3efe6");
+    await page.getByRole("switch", { name: "Full canvas" }).click();
+    await page.getByTestId("page-settings-save").click();
+    await expect(frame.locator("html")).toHaveAttribute("data-armature-canvas", "full");
+    await expect(frame.locator(".site-header")).toBeHidden();
+
+    // Duplicate, then delete the copy.
+    await page.getByRole("button", { name: "Duplicate Our services" }).click();
+    await expect(page.getByTestId("page-our-services-copy")).toBeVisible();
+    await page.getByRole("button", { name: "Delete Our services (copy)" }).click();
+    await page.getByTestId("page-delete-confirm").click();
+    await expect(page.getByTestId("page-our-services-copy")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(page.getByTestId("publish-builder")).toContainText("Our services");
+    await page.getByTestId("publish-confirm").click();
+    await expect(page.getByTestId("publish-done")).toBeVisible();
+    const request = state.builderPublishRequests[0] as { layouts: Record<string, { path: string; label: string; seo?: { title?: string }; pageSettings?: { fullCanvas?: boolean; bodyBackground?: string } }> };
+    expect(Object.keys(request.layouts)).toEqual(["our-services"]);
+    const published = request.layouts["our-services"]!;
+    expect(published.path).toBe("/our-services/");
+    expect(published.label).toBe("Our services");
+    expect(published.seo?.title).toBe("Services | Alder & Stone");
+    expect(published.pageSettings).toEqual({ fullCanvas: true, bodyBackground: "#f3efe6" });
+  });
+
+  test("a section saved as a template is listed, inserts with fresh ids, and can be deleted", async ({ page }) => {
+    const state = await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-secbuild").click({ button: "right", position: { x: 6, y: 6 } });
+    await page.getByRole("menuitem", { name: "Save as template" }).click();
+    await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Recent builds");
+    await page.getByLabel("Name", { exact: true }).fill("Builds showcase");
+    await page.getByTestId("template-save").click();
+    await expect(page.getByText('Saved "Builds showcase" as a template.')).toBeVisible();
+    const rows = state.rows["builder_templates"] ?? [];
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ name: "Builds showcase", kind: "section", element_count: 8, first_heading: "Recent builds" });
+
+    await page.getByTestId("tab-elements").click();
+    await expect(page.getByRole("region", { name: "Saved templates" })).toContainText("Builds showcase");
+    await page.getByTestId("open-template-library").click();
+    const library = page.getByTestId("template-library");
+    await expect(library.getByTestId("template-card")).toHaveCount(1);
+    await library.getByLabel("Search templates").fill("nothing like it");
+    await expect(library.getByTestId("template-card")).toHaveCount(0);
+    await library.getByLabel("Search templates").fill("builds");
+    await library.getByRole("button", { name: "Insert" }).click();
+    await expect(frame.getByText("Recent builds", { exact: true })).toHaveCount(2);
+    // The copy has new ids: only the original keeps the hdbuilds class.
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCount(1);
+
+    await page.getByTestId("open-template-library").click();
+    await page.getByRole("button", { name: "Delete Builds showcase" }).click();
+    await expect(page.getByText('Deleted "Builds showcase".')).toBeVisible();
+    expect(state.rows["builder_templates"] ?? []).toHaveLength(0);
+  });
+});
+
+test.describe("the media library", () => {
+  const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  test("shows where pictures are used, edits alt text, inserts, uploads and picks for an image", async ({ page }) => {
+    const state = await openBuilder(page);
+    const frame = siteFrame(page);
+    await page.getByTestId("tab-media").click();
+    const item = (src: string) => page.getByTestId("media-panel").locator(`[data-testid="media-item"][data-src="${src}"]`);
+    await expect(item("/assets/hero.svg").getByTestId("media-used")).toHaveText("Used on Home");
+    await expect(item("/assets/team.svg").getByTestId("media-used")).toHaveText("Used on About");
+    await page.getByLabel("Search media").fill("team");
+    await expect(page.getByTestId("media-panel").getByTestId("media-item")).toHaveCount(1);
+    await page.getByLabel("Search media").fill("");
+
+    await item("/assets/team.svg").getByLabel("Alt text for team.svg").fill("The Alder & Stone crew");
+    await frame.locator(".ae-hdbuilds").click();
+    await item("/assets/team.svg").getByRole("button", { name: "Insert on the page" }).click();
+    await expect(frame.locator('img[alt="The Alder & Stone crew"]')).toBeVisible();
+    await expect(item("/assets/team.svg").getByTestId("media-used")).toHaveText("Used on About, Home");
+
+    // An upload is resized to WebP in the browser and travels in the draft.
+    await page.getByTestId("media-panel").getByTestId("media-upload").setInputFiles({ name: "porch.png", mimeType: "image/png", buffer: Buffer.from(PNG, "base64") });
+    await expect(item("draft")).toHaveCount(1);
+    await expect(item("draft")).toContainText("publishes with your changes");
+    await expect(frame.locator('img[src^="data:image/webp"]')).toHaveCount(1);
+
+    // The new image is selected: the inspector's picker swaps in a library picture and its alt text.
+    await page.getByRole("button", { name: "Choose from the media library" }).click();
+    await page.getByTestId("media-picker").locator('[data-src="/assets/hero.svg"]').getByRole("button", { name: "Use this picture" }).click();
+    await expect(page.getByTestId("media-picker")).toBeHidden();
+    await expect(frame.locator('img[src^="data:image/webp"]')).toHaveCount(0);
+    // The site's own hero uses the same picture and alt text, so there are two now.
+    await expect(frame.locator('img[alt="A timber-framed house at dusk"]')).toHaveCount(2);
+    await expect(item("draft")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Publish", exact: true }).click();
+    await page.getByTestId("publish-confirm").click();
+    await expect(page.getByTestId("publish-done")).toBeVisible();
+    const request = state.builderPublishRequests[0] as { media: Record<string, { alt: string }> };
+    expect(request.media).toEqual({ "/assets/hero.svg": { alt: "A timber-framed house at dusk" }, "/assets/team.svg": { alt: "The Alder & Stone crew" } });
+  });
+});

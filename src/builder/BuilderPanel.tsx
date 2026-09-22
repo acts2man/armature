@@ -1,7 +1,6 @@
 /**
- * The 264px panel on the left for a v2 site: Elements, Navigator, Pages and History
- * tabs (Site settings and Media join in later milestones). The Pages tab is the same
- * list the Stage 1 panel shows.
+ * The 264px panel on the left for a v2 site: Elements, Navigator, Pages, Media and Site
+ * settings (History opens from the top bar).
  */
 import { clsx } from "clsx";
 import type { ReactNode } from "react";
@@ -16,7 +15,7 @@ export function BuilderPanel({ tab, tabs, onTab, children }: { tab: BuilderTab; 
       <div className="px-3 pb-2.5 pt-3.5">
         <div role="tablist" aria-label="Panel" className="flex gap-0.5 rounded-control bg-ground p-0.5">
           {tabs.map((item) => (
-            <button key={item} type="button" role="tab" aria-selected={tab === item} data-testid={`tab-${item}`} onClick={() => onTab(item)} className={clsx("h-8 flex-1 rounded-sm px-1 text-[12px] font-semibold", tab === item ? "bg-panel text-text shadow-segment" : "text-muted hover:text-text")}>
+            <button key={item} type="button" role="tab" aria-selected={tab === item} data-testid={`tab-${item}`} onClick={() => onTab(item)} className={clsx("h-8 min-w-0 flex-auto whitespace-nowrap rounded-sm px-1 text-[11px] font-semibold", tab === item ? "bg-panel text-text shadow-segment" : "text-muted hover:text-text")}>
               {LABELS[item]}
             </button>
           ))}

@@ -28,6 +28,8 @@ export function ElementsPanel({
   onBeginDrag,
   onInsert,
   onStructure,
+  templates = [],
+  onOpenLibrary,
 }: {
   isStaff: boolean;
   sections: SiteSectionInfo[];
@@ -36,6 +38,9 @@ export function ElementsPanel({
   onBeginDrag: (event: React.PointerEvent, source: DragSource) => void;
   onInsert: (element: Element, label: string) => void;
   onStructure: () => void;
+  /** Saved section templates (this site's and the agency's). */
+  templates?: { id: string; name: string; create: () => Element; count: number }[];
+  onOpenLibrary?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const groups = useMemo(() => {
@@ -61,8 +66,15 @@ export function ElementsPanel({
         })),
       });
     }
+    if (templates.length) {
+      out.push({
+        key: "templates",
+        label: "Saved templates",
+        items: templates.map((template) => ({ key: `template:${template.id}`, label: template.name, icon: <icons.IconTemplate size={18} />, keywords: [template.name, "template", "saved"], create: template.create })),
+      });
+    }
     return out;
-  }, [isStaff, sections, sectionsInUse]);
+  }, [isStaff, sections, sectionsInUse, templates]);
 
   const needle = query.trim().toLowerCase();
   const visible = groups
@@ -91,6 +103,11 @@ export function ElementsPanel({
         {!needle && (
           <button type="button" onClick={onStructure} className="mb-3 flex h-10 w-full items-center justify-center gap-2 rounded-control border border-dashed border-line text-[13px] font-semibold text-text hover:border-accent hover:text-accent" data-testid="add-section">
             <icons.IconPlus size={16} /> Add a section
+          </button>
+        )}
+        {!needle && onOpenLibrary && (
+          <button type="button" onClick={onOpenLibrary} className="mb-3 flex h-9 w-full items-center justify-center gap-2 rounded-control border border-line text-[13px] font-semibold text-text hover:border-accent hover:text-accent" data-testid="open-template-library">
+            <icons.IconTemplate size={15} /> Template library
           </button>
         )}
         {visible.length === 0 && <p className="px-1 py-6 text-center text-[13px] text-muted">Nothing matches "{query}".</p>}
