@@ -16,7 +16,7 @@ const shoot = async (name: string, run: (page: import("@playwright/test").Page) 
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true, deviceScaleFactor: 1 });
   const page = await context.newPage();
   await installMocks(page, { allowFonts: true, ...options });
-  await page.addInitScript(() => window.localStorage.setItem("armature:visual:tour:v1", "done"));
+  await page.addInitScript(() => { window.localStorage.setItem("armature:visual:tour:v1", "done"); window.localStorage.setItem("armature:builder:tour:v1", "done"); });
   await run(page);
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${OUT}/${name}.png` });

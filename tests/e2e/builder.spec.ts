@@ -4,14 +4,17 @@
  * public visitors get no bridge activity.
  */
 import { expect, test, type FrameLocator, type Page } from "@playwright/test";
-import { DEMO_SITE_URL, demoLayouts, editorUrl, installMocks } from "./mocks.ts";
+import { COMMIT_SHA, DEMO_SITE_URL, SITE_ID, STAFF_ID, demoLayouts, editorUrl, installMocks } from "./mocks.ts";
 
 const ZERO_WIDTH = new RegExp(`[${[0x200b, 0x200c, 0x200d, 0xfeff].map((point) => `\\u{${point.toString(16)}}`).join("")}]`, "u");
 const siteFrame = (page: Page): FrameLocator => page.frameLocator(`iframe[title$="live site"]`);
 
 async function openEditor(page: Page, options: Parameters<typeof installMocks>[1] = {}) {
   const state = await installMocks(page, options);
-  await page.addInitScript(() => window.localStorage.setItem("armature:visual:tour:v1", "done"));
+  await page.addInitScript(() => {
+    window.localStorage.setItem("armature:visual:tour:v1", "done");
+    window.localStorage.setItem("armature:builder:tour:v1", "done");
+  });
   await page.goto(editorUrl());
   await expect(page.getByTestId("visual-editor")).toBeVisible();
   return state;
@@ -287,6 +290,40 @@ test.describe("the page builder canvas", () => {
     await expect(frame.locator(".ae-hdbuilds")).toHaveCount(1);
     await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
     await expect(page.getByTestId("element-toolbar")).toBeVisible();
+  });
+});
+
+test.describe("editing levels", () => {
+  test("agency staff set what clients may do from the site overview", async ({ page }) => {
+    const state = await installMocks(page);
+    await page.goto(`/sites/${SITE_ID}`);
+    const panel = page.getByTestId("editing-level");
+    await expect(panel.getByLabel("Words and pictures", { exact: true })).toBeChecked();
+    await panel.getByLabel("Words, pictures and styling").click();
+    await expect(page.getByText("Clients now get: words, pictures and styling.")).toBeVisible();
+    expect(state.rows["sites"]).toEqual([{ editing_level: "style" }]);
+    await expect(panel.getByLabel("Words, pictures and styling")).toBeChecked();
+  });
+
+  test("a client at the style level restyles, but cannot add, move or remove", async ({ page }) => {
+    await openEditor(page, { role: "client", editingLevel: "style" });
+    await waitForReady(page);
+    await expect(page.getByTestId("visual-editor")).toHaveAttribute("data-builder", "on");
+    await expect(page.getByTestId("tab-elements")).toHaveCount(0);
+    await expect(page.getByTestId("tab-media")).toHaveCount(0);
+    await expect(page.getByTestId("new-page")).toHaveCount(0);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-hdbuilds").click();
+    await page.keyboard.press("Delete");
+    await expect(page.getByText("Your account can restyle this page but not add, move or remove elements.")).toBeVisible();
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCount(1);
+    await frame.locator(".ae-hdbuilds").click({ button: "right" });
+    await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeDisabled();
+    await page.keyboard.press("Escape");
+    // Restyling is allowed: a site colour, and the page's own layout.
+    await page.getByTestId("tab-site").click();
+    await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#aa0000");
+    await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
   });
 });
 
@@ -871,5 +908,84 @@ test.describe("the media library", () => {
     await expect(page.getByTestId("publish-done")).toBeVisible();
     const request = state.builderPublishRequests[0] as { media: Record<string, { alt: string }> };
     expect(request.media).toEqual({ "/assets/hero.svg": { alt: "A timber-framed house at dusk" }, "/assets/team.svg": { alt: "The Alder & Stone crew" } });
+  });
+});
+
+test.describe("drafts saved to the account", () => {
+  test("follow the person to another browser, and a publish clears them", async ({ page, browser }) => {
+    const first = await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-hdbuilds").dblclick();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" nearby");
+    await page.keyboard.press("Enter");
+    await expect.poll(() => first.rows["builder_drafts"]?.[0]?.["change_count"], { timeout: 10_000 }).toBe(1);
+    const row = first.rows["builder_drafts"]![0]!;
+    expect(row["base_commit"]).toMatch(/^[0-9a-f]{40}$/);
+
+    // A second browser: nothing stored locally, the account's draft is offered back.
+    const other = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const second = await other.newPage();
+    const secondState = await openEditor(second, { rows: { builder_drafts: [row] } });
+    const prompt = second.getByRole("dialog", { name: "You have unpublished changes" });
+    await expect(prompt).toContainText("saved to your account");
+    await second.getByTestId("restore-keep").click();
+    await waitForReady(second);
+    await expect(siteFrame(second).locator(".ae-hdbuilds")).toHaveText("Recent builds nearby");
+    await second.getByRole("button", { name: "Publish", exact: true }).click();
+    await second.getByTestId("publish-confirm").click();
+    await expect(second.getByTestId("publish-done")).toBeVisible();
+    await expect.poll(() => secondState.rows["builder_drafts"]?.length ?? 0, { timeout: 10_000 }).toBe(0);
+    await other.close();
+  });
+});
+
+test.describe("published versions", () => {
+  const publishRow = (id: string, sha: string, at: string) => ({ id, site_id: SITE_ID, user_id: STAFF_ID, page_slug: "home", fields_changed: [], commit_sha: sha, commit_url: null, status: "committed", error: null, created_at: at });
+
+  test("preview an older publish on the canvas, go back, then restore it as an undoable draft", async ({ page }) => {
+    await openBuilder(page, { rows: { publishes: [publishRow("p2", COMMIT_SHA, "2026-09-20T15:00:00Z"), publishRow("p1", "1111111aaaaaaa2222222bbbbbbb3333333ccccc", "2026-09-10T15:00:00Z")] } });
+    const frame = siteFrame(page);
+    await page.getByTestId("topbar-history").click();
+    const versions = page.getByTestId("revisions").getByTestId("revision");
+    await expect(versions).toHaveCount(2);
+    await expect(versions.first()).toContainText("live now");
+    await expect(versions.nth(1)).toContainText("You · Home");
+    await versions.nth(1).click();
+    await expect(page.getByTestId("revision-banner")).toContainText("Previewing the version published");
+    await expect(frame.locator(".ae-hdbuilds")).toHaveText("Builds from last spring");
+    await page.getByRole("button", { name: "Back to your draft" }).click();
+    await expect(frame.locator(".ae-hdbuilds")).toHaveText("Recent builds");
+    await expect(page.getByTestId("draft-status")).toContainText("Nothing to publish");
+
+    await versions.nth(1).click();
+    await page.getByTestId("revision-restore").click();
+    await expect(page.getByTestId("revision-banner")).toHaveCount(0);
+    await expect(frame.locator(".ae-hdbuilds")).toHaveText("Builds from last spring");
+    await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
+    await expect(page.getByTestId("history-panel")).toContainText("Restored the version from");
+    await page.keyboard.press("ControlOrMeta+z");
+    await expect(frame.locator(".ae-hdbuilds")).toHaveText("Recent builds");
+  });
+});
+
+test.describe("the builder tour", () => {
+  test("shows five tips once, and not again after it is finished", async ({ page }) => {
+    await installMocks(page);
+    await page.goto(editorUrl());
+    await waitForReady(page);
+    const tour = page.getByTestId("tour");
+    await expect(tour).toHaveAttribute("aria-label", "Tip 1 of 5");
+    await expect(tour).toContainText("Drag in what you need");
+    for (const title of ["Click to select, twice to type", "Fine-tune on the right", "Drag the handles", "Publish when you're ready"]) {
+      await tour.getByRole("button", { name: "Next" }).click();
+      await expect(tour).toContainText(title);
+    }
+    await tour.getByRole("button", { name: "Got it" }).click();
+    await expect(tour).toHaveCount(0);
+    await page.reload();
+    await waitForReady(page);
+    await expect(page.getByTestId("visual-editor")).toHaveAttribute("data-builder", "on");
+    await expect(page.getByTestId("tour")).toHaveCount(0);
   });
 });

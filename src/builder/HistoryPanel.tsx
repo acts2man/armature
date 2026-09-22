@@ -1,13 +1,25 @@
 /**
  * The History panel: every step of this session, newest at the bottom, with the
  * current position marked. Click a step to jump there (undo or redo as many times as
- * it takes). Revisions (past publishes) join it in milestone 6.
+ * it takes). Below them, the published versions of the site: preview one on the canvas,
+ * then restore it as a draft if it is the one you want.
  */
 import { clsx } from "clsx";
-import { IconCheck } from "@/components/icons.tsx";
+import { IconCheck, IconEye } from "@/components/icons.tsx";
+import { relativeTime } from "@/lib/format.ts";
 import type { EditorHistory } from "./history.ts";
+import type { Revision } from "./revisions.ts";
 
-export function HistoryPanel({ history, onJump }: { history: EditorHistory; onJump: (steps: number) => void }) {
+export type RevisionList = {
+  revisions: Revision[];
+  loading: boolean;
+  previewing: string | null;
+  pageLabel: (slug: string) => string;
+  who: (userId: string | null) => string;
+  onPreview: (revision: Revision) => void;
+};
+
+export function HistoryPanel({ history, onJump, versions }: { history: EditorHistory; onJump: (steps: number) => void; versions?: RevisionList }) {
   const entries = [...history.past, ...history.future];
   const current = history.past.length;
   return (
@@ -34,6 +46,36 @@ export function HistoryPanel({ history, onJump }: { history: EditorHistory; onJu
           );
         })}
       </ol>
+      {versions && (
+        <section aria-label="Published versions" className="max-h-[45%] shrink-0 overflow-y-auto border-t border-line px-2 pb-3 pt-2" data-testid="revisions">
+          <p className="px-2 pb-1 text-[11px] font-bold uppercase tracking-wide text-muted">Published versions</p>
+          {versions.loading && <p className="px-2 py-1 text-[12px] text-muted">Loading…</p>}
+          {!versions.loading && versions.revisions.length === 0 && <p className="px-2 py-1 text-[12px] text-muted">Nothing published from the editor yet.</p>}
+          <ul>
+            {versions.revisions.map((revision, index) => (
+              <li key={revision.sha}>
+                <button
+                  type="button"
+                  onClick={() => versions.onPreview(revision)}
+                  className={clsx("flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left", versions.previewing === revision.sha ? "bg-blue-soft text-blue" : "text-text hover:bg-ground")}
+                  data-testid="revision"
+                >
+                  <IconEye size={14} className="mt-0.5 shrink-0 text-muted" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-medium">
+                      {relativeTime(revision.at)}
+                      {index === 0 && " · live now"}
+                    </span>
+                    <span className="block truncate text-[11px] text-muted">
+                      {versions.who(revision.userId)} · {revision.pages.map(versions.pageLabel).join(", ")}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

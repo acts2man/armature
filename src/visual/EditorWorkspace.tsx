@@ -55,15 +55,19 @@ import { withKitFont } from "@/builder/fonts.ts";
 import { useDrag, type DragSource } from "@/builder/useDrag.ts";
 import { createStructure, widgetDefinition, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
 import { mediaEntries, mediaUsage } from "@/builder/media.ts";
+import { restoreRevision, useRevisions, type Revision, type RevisionSnapshot } from "@/builder/revisions.ts";
+import { deleteServerDraft, fetchServerDraft, newerDraft, saveServerDraft, SERVER_AUTOSAVE_MS, type DraftSource } from "@/builder/serverDrafts.ts";
 import { MediaPanel, MediaPicker } from "@/builder/MediaPanel.tsx";
 import "@/builder/widgets/library.ts";
 import { IconCopy, IconEraser, IconEye, IconEyeOff, IconLock, IconPaste, IconPencil, IconTemplate, IconTrash, IconTree, IconUnlock } from "@/components/icons.tsx";
 import { siteQueryKey } from "@/components/SiteLayout.tsx";
 import { Button, Modal, useToast } from "@/components/ui.tsx";
+import { relativeTime } from "@/lib/format.ts";
 import { callFunction, type Failure } from "@/lib/functions.ts";
 import { fileToBase64, prepareImage } from "@/lib/resizeImage.ts";
 import type { Agency, Site } from "@/lib/types.ts";
 import { defaultSiteKit, setAt, validateSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
+import { layoutPermissionErrors } from "@shared/builder/permissions.ts";
 import type { ContentValue } from "@shared/contentFile.ts";
 import type { BuilderPublishRequest, BuilderPublishResponse, ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
 import type { Resolution } from "@shared/builder/merge.ts";
@@ -190,6 +194,8 @@ export function EditorWorkspace({
   );
   const editingLevel = content.editingLevel ?? "content";
   const canBuild = isStaff || editingLevel === "builder";
+  /** The style level: the builder's canvas and inspector, but nothing added, moved or removed. */
+  const styleOnly = !isStaff && editingLevel === "style";
 
   // --- the draft: one history for every kind of change ------------------------------------------------
   const storageKey = draftKey(site.id, userId);
@@ -232,17 +238,44 @@ export function EditorWorkspace({
   }, [builderView]);
   const materialize = useCallback((builder: BuilderState, slug: string): BuilderState => (builder.layouts[slug] || !seeds[slug] ? builder : setLayout(builder, seeds[slug] as LayoutDoc)), [seeds]);
   /** A builder change: seeds the page if needed, then runs the command against the builder state. */
+  const codedSlugs = useMemo(() => new Set(schema.pages.map((item) => item.slug)), [schema.pages]);
+  /** At the style level, the same check the publish function makes: why this change is not allowed, or null. */
+  const styleProblem = useCallback(
+    (next: BuilderState, slug: string): string | null => {
+      if (!styleOnly) return null;
+      const slugs = new Set([slug, ...Object.keys(next.layouts)]);
+      for (const each of slugs) {
+        const theirs = baseline.layouts[each] ?? null;
+        const mine = next.deletedPages.includes(each) ? null : (next.layouts[each] ?? null);
+        if (!mine && !theirs) continue;
+        const problem = layoutPermissionErrors(theirs, mine, { staff: false, level: "style" }, { coded: codedSlugs.has(each) })[0];
+        if (problem) return problem;
+      }
+      return null;
+    },
+    [styleOnly, baseline.layouts, codedSlugs],
+  );
   const builderCommand = useCallback(
-    (label: string, slug: string, fn: (builder: BuilderState) => BuilderState | null, group?: string) =>
+    (label: string, slug: string, fn: (builder: BuilderState) => BuilderState | null, group?: string) => {
+      if (styleOnly) {
+        // Checked up front so the person hears why; the command itself checks again.
+        const next = fn(materialize(builderRef.current, slug));
+        const problem = next ? styleProblem(next, slug) : null;
+        if (problem) {
+          toast.show(problem.replace(/^[^:]+: /, "").replace(/^your account/, "Your account"), "info");
+          return;
+        }
+      }
       run({
         label,
         group,
         run: (current) => {
           const next = fn(materialize(current.builder, slug));
-          return next ? { ...current, builder: next } : null;
+          return next && !styleProblem(next, slug) ? { ...current, builder: next } : null;
         },
-      }),
-    [run, materialize],
+      });
+    },
+    [run, materialize, styleOnly, styleProblem, toast],
   );
 
   const changed = useMemo(() => changedRoots(draft), [draft]);
@@ -267,6 +300,54 @@ export function EditorWorkspace({
     return () => window.clearTimeout(timer);
   }, [state, baseline, storageKey, pendingRestore, site.id, userId]);
   const saveState: "clean" | "saving" | "saved" = !dirty ? "clean" : savedState === state ? "saved" : "saving";
+
+  // The draft saved to the person's account, so it follows them to another browser. On
+  // opening, the newer of the two drafts is offered back (only while nothing is edited yet);
+  // after that the account copy is kept in step every couple of seconds.
+  const [restoreSource, setRestoreSource] = useState<DraftSource>("browser");
+  const [serverChecked, setServerChecked] = useState(false);
+  const serverHasDraft = useRef(false);
+  const pendingRef = useRef(pendingRestore);
+  const historyRef = useRef(history);
+  useLayoutEffect(() => {
+    pendingRef.current = pendingRestore;
+    historyRef.current = history;
+  });
+  useEffect(() => {
+    let cancelled = false;
+    void fetchServerDraft(site.id, userId).then((account) => {
+      if (cancelled) return;
+      serverHasDraft.current = !!account;
+      setServerChecked(true);
+      if (!account || historyRef.current.past.length > 0) return;
+      const pick = newerDraft(pendingRef.current, account);
+      if (pick && pick.draft !== pendingRef.current) {
+        setRestoreSource(pick.source);
+        setPendingRestore(pick.draft);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [site.id, userId]);
+  const lastServerState = useRef<EditorState | null>(null);
+  useEffect(() => {
+    if (!serverChecked || pendingRestore || lastServerState.current === state) return;
+    const timer = window.setTimeout(() => {
+      lastServerState.current = state;
+      if (isEmptyEditorDraft(state, baseline)) {
+        if (serverHasDraft.current) {
+          serverHasDraft.current = false;
+          void deleteServerDraft(site.id, userId);
+        }
+        return;
+      }
+      void saveServerDraft({ siteId: site.id, userId, serialized: serializeEditorDraft(state, baseline), baseCommit: content.commitSha, changeCount: draftChangeCount(state, baseline) }).then((saved) => {
+        if (saved) serverHasDraft.current = true;
+      });
+    }, SERVER_AUTOSAVE_MS);
+    return () => window.clearTimeout(timer);
+  }, [state, baseline, serverChecked, pendingRestore, site.id, userId, content.commitSha]);
 
   // Fresh content (after a publish or a reload) may already carry some of the draft: rebase it.
   const [seen, setSeen] = useState({ commit: content.commitSha, baseline });
@@ -335,7 +416,7 @@ export function EditorWorkspace({
   const { send, connection } = bridge;
   const ready = connection.status === "ready";
   const protocol = connection.status === "ready" ? connection.protocol : null;
-  const builder = protocol === 2 && canBuild;
+  const builder = protocol === 2 && (canBuild || styleOnly);
   const sections = useMemo(() => (connection.status === "ready" ? connection.sections : []), [connection]);
 
   const loadedOnce = useRef(false);
@@ -346,28 +427,36 @@ export function EditorWorkspace({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page?.path]);
 
-  const bridgeContent = useMemo(() => contentForBridge(schema, published, draft), [schema, published, draft]);
+  // A published version shown on the canvas instead of the draft (History → Published versions).
+  const [revision, setRevision] = useState<(RevisionSnapshot & { at: string }) | null>(null);
+  const bridgeContent = useMemo(() => (revision ? contentForBridge(schema, revision.content, emptyDraft()) : contentForBridge(schema, published, draft)), [schema, published, draft, revision]);
   useEffect(() => {
     if (!ready) return;
     send({ type: "armature:draft:apply", fields: bridgeContent });
   }, [ready, bridgeContent, send]);
   useEffect(() => {
     if (!ready) return;
-    send({ type: "armature:mode", mode: preview ? "preview" : "edit" });
-  }, [ready, preview, send]);
+    send({ type: "armature:mode", mode: preview || revision ? "preview" : "edit" });
+  }, [ready, preview, revision, send]);
   useEffect(() => {
     if (!ready) geometry.reset();
   }, [ready, geometry]);
   // Site contract v2: the kit renders the draft layouts and kit.
   const layoutsForBridge = useMemo(() => {
+    if (revision) {
+      const out: Record<string, LayoutDoc | null> = { ...revision.layouts };
+      for (const slug of Object.keys(builderView.layouts)) if (!revision.layouts[slug]) out[slug] = null;
+      return out;
+    }
     const out: Record<string, LayoutDoc | null> = { ...builderView.layouts };
     for (const slug of builderView.deletedPages) out[slug] = null;
     return out;
-  }, [builderView]);
+  }, [builderView, revision]);
+  const kitForBridge = revision ? (revision.kit ?? defaultSiteKit()) : builderView.kit;
   useEffect(() => {
     if (!ready || protocol !== 2) return;
-    send({ type: "armature:layout:apply", layouts: layoutsForBridge, kit: builderView.kit });
-  }, [ready, protocol, layoutsForBridge, builderView.kit, send]);
+    send({ type: "armature:layout:apply", layouts: layoutsForBridge, kit: kitForBridge });
+  }, [ready, protocol, layoutsForBridge, kitForBridge, send]);
 
   const seedFromSlots = useCallback(
     (slots: { slug: string; defaults: string[] }[]) => {
@@ -796,7 +885,10 @@ export function EditorWorkspace({
       case "armature:ready": {
         const target = pageForRoute(schema, message.route) ?? builderPages.find((item) => normalizePath(item.path) === normalizePath(message.route));
         if (target && target.slug !== pageSlug) setPageSlug(target.slug);
-        if (!tourSeen() && !pendingRestore) setTourOpen(true);
+        {
+          const builderTour = message.protocolVersion === 2 && (canBuild || styleOnly);
+          if (!tourSeen(builderTour ? "builder" : "content") && !pendingRestore) setTourOpen(true);
+        }
         return;
       }
       case "armature:fields:map":
@@ -1116,6 +1208,24 @@ export function EditorWorkspace({
     insertAt({ ...base, props: { ...base.props, src, alt } }, insertionPoint(), "Image");
   };
 
+  // --- published versions ----------------------------------------------------------------------------------------------
+  const revisionsQuery = useRevisions(site.id, builder && builderTab === "history");
+  const previewRevision = async (item: Revision) => {
+    if (revision?.sha === item.sha) return setRevision(null);
+    const result = await callFunction<ContentGetResponse>("content-get", { site_id: site.id, ref: item.sha });
+    if (!result.ok) return toast.show(result.message, "danger");
+    send({ type: "armature:element:edit:stop", commit: true });
+    setSelection(null);
+    setRevision({ sha: item.sha, at: item.at, content: result.content, layouts: result.layouts ?? {}, kit: result.siteKit });
+  };
+  const restoreShownRevision = () => {
+    if (!revision) return;
+    const snapshot = revision;
+    run({ label: `Restored the version from ${new Date(snapshot.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`, run: (current) => restoreRevision(snapshot, current, published, baseline) });
+    setRevision(null);
+    toast.show("That version is now your draft. Publish to put it live.", "success");
+  };
+
   // --- the context menu -------------------------------------------------------------------------------------------------
   const menuItems = (id: string): MenuItem[] => {
     const entry = findElement(builderView, id, pageSlug);
@@ -1125,9 +1235,9 @@ export function EditorWorkspace({
     const editable = entry && (entry.element.type === "heading" || entry.element.type === "text" || entry.element.type === "button");
     return [
       { key: "edit", label: "Edit", icon: <IconPencil size={14} />, disabled: !editable || locked, onSelect: () => send({ type: "armature:element:edit:start", id }) },
-      { key: "duplicate", label: "Duplicate", icon: <IconCopy size={14} />, shortcut: `${mod}+D`, disabled: locked, onSelect: () => duplicate(id) },
+      { key: "duplicate", label: "Duplicate", icon: <IconCopy size={14} />, shortcut: `${mod}+D`, disabled: locked || styleOnly, onSelect: () => duplicate(id) },
       { key: "copy", label: "Copy", icon: <IconCopy size={14} />, shortcut: `${mod}+C`, onSelect: () => void copyElement(id) },
-      { key: "paste", label: "Paste", icon: <IconPaste size={14} />, shortcut: `${mod}+V`, onSelect: () => void pasteElement() },
+      { key: "paste", label: "Paste", icon: <IconPaste size={14} />, shortcut: `${mod}+V`, disabled: styleOnly, onSelect: () => void pasteElement() },
       { key: "paste-style", label: "Paste style", icon: <IconPaste size={14} />, shortcut: `${mod}+Shift+V`, disabled: locked, onSelect: () => void pasteStyle() },
       { key: "reset-style", label: "Reset style", icon: <IconEraser size={14} />, disabled: locked, onSelect: () => resetStyle(id) },
       { key: "s1", separator: true },
@@ -1142,7 +1252,7 @@ export function EditorWorkspace({
       ...(isStaff ? [{ key: "lock", label: entry?.element.locked ? "Unlock for clients" : "Lock for clients", icon: entry?.element.locked ? <IconUnlock size={14} /> : <IconLock size={14} />, onSelect: () => toggleLock(id) } satisfies MenuItem] : []),
       { key: "hide", label: hidden ? `Show on ${which}` : `Hide on ${which}`, icon: hidden ? <IconEye size={14} /> : <IconEyeOff size={14} />, disabled: locked, onSelect: () => toggleHidden(id) },
       { key: "s2", separator: true },
-      { key: "delete", label: "Delete", icon: <IconTrash size={14} />, shortcut: "Delete", danger: true, disabled: locked, onSelect: () => deleteElement(id) },
+      { key: "delete", label: "Delete", icon: <IconTrash size={14} />, shortcut: "Delete", danger: true, disabled: locked || styleOnly, onSelect: () => deleteElement(id) },
     ];
   };
 
@@ -1178,7 +1288,7 @@ export function EditorWorkspace({
       <div className="flex min-h-0 flex-1">
         <IconRail siteId={site.id} isStaff={isStaff} />
         {builder ? (
-          <BuilderPanel tab={builderTab} tabs={["elements", "navigator", "pages", "media", "site"]} onTab={setBuilderTab}>
+          <BuilderPanel tab={builderTab} tabs={styleOnly ? ["navigator", "pages", "site"] : ["elements", "navigator", "pages", "media", "site"]} onTab={setBuilderTab}>
             {builderTab === "elements" && (
               <ElementsPanel
                 isStaff={isStaff}
@@ -1234,7 +1344,20 @@ export function EditorWorkspace({
                 }}
               />
             )}
-            {builderTab === "history" && <HistoryPanel history={history} onJump={(steps) => setHistory((current) => jumpTo(current, steps))} />}
+            {builderTab === "history" && (
+              <HistoryPanel
+                history={history}
+                onJump={(steps) => setHistory((current) => jumpTo(current, steps))}
+                versions={{
+                  revisions: revisionsQuery.data ?? [],
+                  loading: revisionsQuery.isLoading,
+                  previewing: revision?.sha ?? null,
+                  pageLabel: (slug) => allPages.find((item) => item.slug === slug)?.label ?? slug,
+                  who: (id) => (id === userId ? "You" : "Someone else"),
+                  onPreview: (item) => void previewRevision(item),
+                }}
+              />
+            )}
             {builderTab === "site" && <SiteSettingsPanel kit={builderView.kit} write={writeKit} device={modelDevice(device)} onDevice={onModelDevice} isStaff={isStaff} />}
           </BuilderPanel>
         ) : (
@@ -1257,6 +1380,19 @@ export function EditorWorkspace({
           />
         )}
         <div className="relative flex min-w-0 flex-1">
+          {revision && (
+            <div role="status" className="absolute inset-x-0 top-0 z-30 flex flex-wrap items-center justify-center gap-3 border-b border-line bg-panel px-4 py-2 text-[13px] text-text shadow-segment" data-testid="revision-banner">
+              <span>
+                Previewing the version published {relativeTime(revision.at)}. Nothing here is editable.
+              </span>
+              <Button size="sm" variant="secondary" onClick={() => setRevision(null)}>
+                Back to your draft
+              </Button>
+              <Button size="sm" onClick={restoreShownRevision} data-testid="revision-restore">
+                Restore as a draft
+              </Button>
+            </div>
+          )}
           <Canvas
             iframeRef={bridge.iframeRef}
             src={bridge.src}
@@ -1344,7 +1480,7 @@ export function EditorWorkspace({
             </div>
           )}
           <RequestBar agencyName={agencyName} onSubmit={(text) => requestChange(selectedPath ?? "", text)} />
-          <Tour active={tourOpen} onDone={() => setTourOpen(false)} />
+          <Tour active={tourOpen} kind={builder ? (styleOnly ? "style" : "builder") : "content"} onDone={() => setTourOpen(false)} />
         </div>
         <Inspector
           schema={schema}
@@ -1475,6 +1611,7 @@ export function EditorWorkspace({
       <RestorePrompt
         open={pendingRestore !== null}
         savedAt={pendingRestore?.savedAt ?? ""}
+        source={restoreSource}
         count={pendingRestore ? Object.keys(pendingRestore.content.fields).length + Object.keys(pendingRestore.content.images).length + Object.keys(pendingRestore.layouts).length + (pendingRestore.kit ? 1 : 0) : 0}
         onKeep={() => {
           if (pendingRestore) setHistory(reset(restoreEditorDraft(pendingRestore, baseline, published, schema)));
@@ -1486,6 +1623,10 @@ export function EditorWorkspace({
             localStorage.removeItem(legacyDraftKey(site.id, userId));
           } catch {
             // ignore
+          }
+          if (serverHasDraft.current) {
+            serverHasDraft.current = false;
+            void deleteServerDraft(site.id, userId);
           }
           setPendingRestore(null);
         }}

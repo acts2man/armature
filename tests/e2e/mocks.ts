@@ -46,6 +46,8 @@ export type MockOptions = {
   layouts?: Record<string, unknown>;
   /** builder-publish: "ok" (default), or "conflict-once" (a layout conflict until the person chooses). */
   builderPublish?: "ok" | "conflict-once";
+  /** REST rows present before the test starts (a draft saved on another device, templates). */
+  rows?: Record<string, Record<string, unknown>[]>;
 };
 
 export type MockState = {
@@ -90,7 +92,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     created_at: "2026-09-01T00:00:00Z",
   };
 
-  const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: {} };
+  const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: JSON.parse(JSON.stringify(options.rows ?? {})) as MockState["rows"] };
   // The content "in the repository": a batch publish updates it, as a real one would.
   const content = JSON.parse(JSON.stringify(options.content ?? demoContent)) as Record<string, Record<string, Record<string, unknown>>>;
   const layouts = JSON.parse(JSON.stringify(options.layouts ?? demoLayouts)) as Record<string, unknown>;
@@ -139,9 +141,14 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, [agency]);
         case "sites":
           if (wantsCount) return countOf(1);
+          if (request.method() === "PATCH") {
+            const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+            (state.rows["sites"] ??= []).push(patch);
+            Object.assign(site, patch);
+          }
           return json(route, [site]);
         case "publishes":
-          return json(route, []);
+          return json(route, state.rows["publishes"] ?? []);
         case "change_requests":
           if (wantsCount) return countOf(0);
           if (request.method() === "POST") return json(route, [{ id: "55555555-5555-4555-8555-555555555555" }], 201);
@@ -178,8 +185,8 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             return json(route, saved, 201);
           }
           if (method === "DELETE") {
-            const id = url.searchParams.get("id")?.replace(/^eq\./, "");
-            state.rows[table] = rows.filter((row) => row["id"] !== id);
+            const filters = [...url.searchParams].filter(([, filter]) => filter.startsWith("eq."));
+            state.rows[table] = rows.filter((row) => !filters.every(([column, filter]) => String(row[column]) === filter.slice(3)));
             return json(route, [], 200);
           }
           return json(route, []);
@@ -196,6 +203,11 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
       switch (name) {
         case "content-get":
           state.contentGets += 1;
+          if (typeof body["ref"] === "string") {
+            // An older version: the home layout's "Recent builds" heading read differently then.
+            const older = JSON.parse(JSON.stringify(layouts).replace('"Recent builds"', '"Builds from last spring"')) as Record<string, unknown>;
+            return json(route, { ok: true, schema: demoSchema, content, commitSha: body["ref"], branch: "main", repo: "acme/alder-stone", warnings: [], layouts: older, siteKit, media, editingLevel: options.editingLevel ?? "content" });
+          }
           return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], layouts, siteKit, media, editingLevel: options.editingLevel ?? "content" });
         case "builder-publish": {
           state.builderPublishRequests.push(body);

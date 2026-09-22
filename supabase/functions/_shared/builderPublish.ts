@@ -177,7 +177,7 @@ export async function runBuilderPublish(opts: {
       conflicts.push(...merge.conflicts);
       result = merge.layout;
     }
-    errors.push(...layoutPermissionErrors(theirs, result, permissions));
+    errors.push(...layoutPermissionErrors(theirs, result, permissions, { coded: codedSlugs.has(slug) }));
     finalLayouts.set(slug, result);
   }
 

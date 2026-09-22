@@ -136,3 +136,17 @@ Deno.test("extractUploads refuses oversize or broken pictures and leaves links a
   assertEquals(files.size, 1);
   assertEquals(errors.length, 1);
 });
+
+Deno.test("a style-level client may restyle a coded page's sections, giving it its first layout, but not add to it", async () => {
+  const { repo, commits } = fakeRepo({ [BASE]: {} }, BASE);
+  const section = (id: string, key: string): Element => ({ id, type: "site-section", props: { key }, style: { background: { kind: "color", color: "#f3efe6" } } as Element["style"], advanced: {}, meta });
+  const restyled = page("home", "/", [section("sechero1", "hero"), section("secabout", "about")]);
+  const style = permissionsFor(false, "style");
+  const outcome = await runBuilderPublish({ repo, input: input({ layouts: { home: restyled } }), userEmail: "c", permissions: style });
+  assertEquals(outcome.layouts, ["home"]);
+  const added = { ...restyled, root: [...restyled.root, heading("cccccccc", "New")] };
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { home: added } }), userEmail: "c", permissions: style }), ArmatureError, "not add, move or remove");
+  // A builder-only page is still creation, which the style level cannot do.
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": about } }), userEmail: "c", permissions: style }), ArmatureError, "cannot create or delete pages");
+  assertEquals(commits.length, 1);
+});

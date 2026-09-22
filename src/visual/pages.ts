@@ -54,18 +54,19 @@ export const modKey = (): string => (isMac() ? "⌘" : "Ctrl");
 
 // --- first-run tour ------------------------------------------------------------------------
 export const TOUR_KEY = "armature:visual:tour:v1";
+export const BUILDER_TOUR_KEY = "armature:builder:tour:v1";
 
-export function tourSeen(): boolean {
+export function tourSeen(kind: "content" | "builder" = "content"): boolean {
   try {
-    return localStorage.getItem(TOUR_KEY) === "done";
+    return localStorage.getItem(kind === "builder" ? BUILDER_TOUR_KEY : TOUR_KEY) === "done";
   } catch {
     return true;
   }
 }
 
-export function markTourSeen(): void {
+export function markTourSeen(kind: "content" | "builder" = "content"): void {
   try {
-    localStorage.setItem(TOUR_KEY, "done");
+    localStorage.setItem(kind === "builder" ? BUILDER_TOUR_KEY : TOUR_KEY, "done");
   } catch {
     // storage unavailable: the tour just shows again next time
   }

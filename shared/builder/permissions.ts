@@ -38,7 +38,7 @@ const AGENCY_ADVANCED = ["cssId", "cssClasses", "attributes", "customCss"] as co
 const name = (element: Element) => element.label || element.type.replace(/-/g, " ");
 
 /** Every rule the change breaks, in plain words (empty when it is allowed). */
-export function layoutPermissionErrors(theirs: LayoutDoc | null, mine: LayoutDoc | null, permissions: Permissions): string[] {
+export function layoutPermissionErrors(theirs: LayoutDoc | null, mine: LayoutDoc | null, permissions: Permissions, options: { coded?: boolean } = {}): string[] {
   if (permissions.staff) return [];
   if (stableJson(theirs) === stableJson(mine)) return [];
   const page = mine?.label ?? theirs?.label ?? mine?.pageSlug ?? theirs?.pageSlug ?? "this page";
@@ -47,7 +47,10 @@ export function layoutPermissionErrors(theirs: LayoutDoc | null, mine: LayoutDoc
   const before = index(theirs);
   const after = index(mine);
 
-  if (permissions.level === "style") {
+  // A page coded into the site gets its first layout by being restyled: only its own site
+  // sections, nothing added (the editor seeds them from the site's code, which this cannot see).
+  const firstLayoutOfCodedPage = !theirs && !!mine && options.coded === true && mine.root.every((element) => element.type === "site-section" && !element.children?.length);
+  if (permissions.level === "style" && !firstLayoutOfCodedPage) {
     const structure = (map: Map<string, Entry>) => stableJson([...map].map(([id, entry]) => [id, entry.element.type, entry.parent, entry.index]).sort());
     if (structure(before) !== structure(after)) errors.push(`${page}: your account can restyle this page but not add, move or remove elements.`);
     if (!theirs || !mine) errors.push(`${page}: your account cannot create or delete pages.`);

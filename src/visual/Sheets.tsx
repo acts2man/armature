@@ -58,7 +58,7 @@ export function ShortcutsSheet({ open, onClose, builder }: { open: boolean; onCl
 
 // --- first-run tour --------------------------------------------------------------------
 
-type Step = { title: string; body: string; anchor: "canvas" | "layers" | "publish" };
+type Step = { title: string; body: string; anchor: "canvas" | "layers" | "inspector" | "publish" };
 
 const STEPS: Step[] = [
   { title: "Click anything to edit it", body: "Click a headline, a paragraph, a picture or a button on the page. Click text twice to type right there.", anchor: "canvas" },
@@ -66,23 +66,37 @@ const STEPS: Step[] = [
   { title: "Publish when you're ready", body: "Nothing goes live until you press Publish. Your draft is saved in this browser, across every page.", anchor: "publish" },
 ];
 
-export function Tour({ active, onDone }: { active: boolean; onDone: () => void }) {
+/** The page builder's five steps (the style level skips the first: it cannot add elements). */
+const BUILDER_STEPS: Step[] = [
+  { title: "Drag in what you need", body: "The Elements panel holds every widget and saved template. Drag one onto the page, or click it to add it after what is selected.", anchor: "layers" },
+  { title: "Click to select, twice to type", body: "Click anything on the page to select it; click text twice to type right there. A right-click shows everything you can do with it.", anchor: "canvas" },
+  { title: "Fine-tune on the right", body: "Content, Style and Advanced hold every setting. Switch to tablet or phone at the top to give those screens their own values.", anchor: "inspector" },
+  { title: "Drag the handles", body: "A selected element shows handles for its spacing and size. Hold Alt to change both sides at once, Shift for all four.", anchor: "canvas" },
+  { title: "Publish when you're ready", body: "Nothing goes live until you press Publish. Your draft is saved to your account as you work, so it waits for you on any device.", anchor: "publish" },
+];
+
+export type TourKind = "content" | "builder" | "style";
+const stepsFor = (kind: TourKind): Step[] => (kind === "builder" ? BUILDER_STEPS : kind === "style" ? BUILDER_STEPS.slice(1) : STEPS);
+
+export function Tour({ active, kind = "content", onDone }: { active: boolean; kind?: TourKind; onDone: () => void }) {
   const [step, setStep] = useState(0);
+  const STEPS = stepsFor(kind);
+  const seenKey = kind === "content" ? "content" : "builder";
   const finish = () => {
-    markTourSeen();
+    markTourSeen(seenKey);
     onDone();
   };
   useEffect(() => {
     if (!active) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        markTourSeen();
+        markTourSeen(seenKey);
         onDone();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, onDone]);
+  }, [active, onDone, seenKey]);
   if (!active) return null;
   const current = STEPS[step] ?? STEPS[0]!;
   const position =
@@ -90,7 +104,9 @@ export function Tour({ active, onDone }: { active: boolean; onDone: () => void }
       ? "left-1/2 top-24 -translate-x-1/2"
       : current.anchor === "layers"
         ? "left-[336px] top-24"
-        : "right-[132px] top-[68px]";
+        : current.anchor === "inspector"
+          ? "right-[340px] top-24"
+          : "right-[132px] top-[68px]";
   return (
     <div className={clsx("toast-in absolute z-30 w-72 rounded-card border border-line bg-panel p-4 shadow-pop", position)} role="dialog" aria-label={`Tip ${step + 1} of ${STEPS.length}`} data-testid="tour">
       <div className="flex items-start justify-between gap-2">
@@ -151,7 +167,7 @@ export function RequestBar({ agencyName, onSubmit }: { agencyName: string; onSub
 
 // --- restore prompt ---------------------------------------------------------------------------
 
-export function RestorePrompt({ open, savedAt, count, onKeep, onDiscard }: { open: boolean; savedAt: string; count: number; onKeep: () => void; onDiscard: () => void }) {
+export function RestorePrompt({ open, savedAt, count, source = "browser", onKeep, onDiscard }: { open: boolean; savedAt: string; count: number; source?: "browser" | "account"; onKeep: () => void; onDiscard: () => void }) {
   const when = (() => {
     const date = new Date(savedAt);
     return Number.isNaN(date.getTime()) ? "earlier" : date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
@@ -173,7 +189,7 @@ export function RestorePrompt({ open, savedAt, count, onKeep, onDiscard }: { ope
       }
     >
       <p className="text-[14px] leading-relaxed text-text">
-        You have {count} unpublished {count === 1 ? "change" : "changes"} from {when}, saved in this browser. Keep working on them, or discard them and start from what is published.
+        You have {count} unpublished {count === 1 ? "change" : "changes"} from {when}, {source === "account" ? "saved to your account (you may have made them on another device)" : "saved in this browser"}. Keep working on them, or discard them and start from what is published.
       </p>
     </Modal>
   );

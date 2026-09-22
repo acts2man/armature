@@ -53,7 +53,7 @@ export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"] as
 
 // --- content-get --------------------------------------------------------------
 
-export type ContentGetRequest = { site_id: string };
+export type ContentGetRequest = { site_id: string; /** A commit to read instead of the branch head (revision previews). */ ref?: string };
 
 export type ContentGetResponse = {
   ok: true;

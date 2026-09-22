@@ -44,6 +44,8 @@ export type Site = {
   status: SiteStatus;
   last_published_at: string | null;
   created_at: string;
+  /** What clients may do in the visual editor (agency staff always get the full builder). */
+  editing_level?: "content" | "style" | "builder";
 };
 
 /** What the agency charges a site for. Agency staff only; clients cannot read it. */
