@@ -11,6 +11,7 @@
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useBlocker, useNavigate } from "react-router";
 import { BuilderPanel, type BuilderTab } from "@/builder/BuilderPanel.tsx";
 import { pastedElement, readClipboard, writeClipboard } from "@/builder/clipboard.ts";
@@ -916,8 +917,11 @@ export function EditorWorkspace({
         return;
       case "armature:element:select":
         if (message.source === "canvas") {
-          if (message.id) setSelection({ kind: "element", id: message.id, slug: pageSlug });
-          else if (selection?.kind === "element") setSelection(null);
+          // Committed at once: a shortcut pressed right after the click arrives as the next
+          // message and must already see this selection.
+          const id = message.id;
+          if (id) flushSync(() => setSelection({ kind: "element", id, slug: pageSlug }));
+          else if (selection?.kind === "element") flushSync(() => setSelection(null));
         }
         return;
       case "armature:element:contextmenu": {
@@ -1006,7 +1010,7 @@ export function EditorWorkspace({
         return;
     }
   };
-  useEffect(() => {
+  useLayoutEffect(() => {
     handleMessage.current = onBridgeMessage;
   });
 
@@ -1491,6 +1495,7 @@ export function EditorWorkspace({
           liveUrl={site.live_url}
           replaceRequest={replaceRequest}
           agencyName={agencyName}
+          builder={builder}
           elementPanel={
             builder && selectedId && currentLayout ? (
               <ElementInspector
@@ -1499,6 +1504,7 @@ export function EditorWorkspace({
                 id={selectedId}
                 locked={lockedIn(builderView, selectedId)}
                 agencyName={agencyName}
+                siteUrl={site.live_url}
                 requestChange={() => requestChange("")}
                 device={modelDevice(device)}
                 onDevice={onModelDevice}

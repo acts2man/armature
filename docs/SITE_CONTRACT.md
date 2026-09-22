@@ -520,6 +520,29 @@ exactly as before.
    `https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com` for Google fonts.
    The HTML widget (agency only) runs in a sandboxed `srcdoc` frame with its own origin.
 
+7. **Page settings hooks.** Mark the site's header and footer with `data-armature-chrome`
+   and a coded page's visible title with `data-armature-page-title`. A page set to "Full
+   canvas" puts `data-armature-canvas="full"` on `<html>` and one set to "Hide the page
+   title" puts `data-armature-hide-title` there; the kit's base CSS then hides the marked
+   elements. Unmarked sites simply keep their header, footer and title.
+
+### Upgrading a v1.1 site to the kit
+
+1. Copy `kit/` from this repository into `src/lib/armature-kit/` and delete
+   `armature-bridge.ts`.
+2. Replace the bridge setup with `createArmatureKit({...})` as in step 1 above, keeping
+   the same `allowedOrigins`; every `text`/`plain`/`link`/`image`/`list` call keeps working.
+3. Register the coded sections and render each coded page through `<ArmatureSlot>` with
+   its sections as `defaults` (step 2), so the page looks exactly as before.
+4. Add `<ArmatureRoute fallback={...} />` before the catch-all route (step 3).
+5. Add `data-armature-chrome` to the header and footer, and `data-armature-page-title` to
+   page titles (step 7).
+6. If the site uses forms or sends a Content-Security-Policy, do steps 5 and 6.
+7. Commit an empty `content/layouts/` (a `.gitkeep`) if the site's bundler needs the folder
+   to exist. `content/site-kit.json` is optional; the first save from Site settings writes it.
+8. Deploy, open the site in the visual editor as agency staff and check that the builder
+   switches on (protocol 2). Then choose the clients' editing level on the site overview.
+
 ### The widget library
 
 Beyond the core widgets (Container, Grid, Heading, Text Editor, Image, Button, Spacer,
@@ -600,6 +623,8 @@ of v1):
 | `armature:element:edit:start` / `input` / `commit` / `cancel` | kit → editor | In-place editing of a heading or button (a string) or the Text Editor (a rich-text document). |
 | `armature:element:edit:start` / `armature:element:edit:stop` | editor → kit | Begin or end in-place editing. |
 | `armature:richtext:command` / `armature:richtext:state` | both ways | Formatting commands from the floating toolbar and the marks in force at the caret. |
+| `armature:scroll` | editor → kit | Scroll the frame (auto-scroll while dragging). |
+| `armature:key` | kit → editor | Adds copy, paste, paste style, duplicate, delete, preview and arrow keys. |
 
 While an element is typed into, the kit's renderer leaves that element's DOM alone (layout
 updates keep arriving and render everywhere else), and a rich-text edit stays open while
@@ -607,8 +632,22 @@ focus is in the editor's toolbar; the kit restores the last selection before eac
 When the edit ends the kit writes the value into its draft and remounts the element from
 it, so the browser's editing markup never survives: what the page shows is always the
 stored document rendered by the kit.
-| `armature:scroll` | editor → kit | Scroll the frame (auto-scroll while dragging). |
-| `armature:key` | kit → editor | Adds copy, paste, paste style, duplicate, delete, preview and arrow keys. |
+
+### Publishing from the page builder
+
+When a draft touches a layout, the kit, default alt text or a picture added in the
+editor, the dashboard publishes through `builder-publish` instead of
+`content-publish-batch`. It is one commit on the site's branch holding everything in the
+draft: `content/pages.json` for fields, `content/layouts/<slug>.json` for each changed or
+new page (a deleted builder page's file is removed), `content/site-kit.json`,
+`content/media.json`, and each new picture under `public/assets/uploads/<page>-<hash>.<ext>`
+with its data URL in the layout replaced by that path. Before writing it validates every
+file with the same zod schemas the kit uses, refuses a page address that another page
+already uses, and enforces the person's editing level, locked elements and agency-only
+widgets against the committed files. If the branch moved since the editor loaded, layouts
+merge element by element: separate edits are both kept, the same value changed on both
+sides comes back as a named conflict for the person to decide. Nothing is ever
+force-pushed. The site then rebuilds as it does for any commit.
 
 ## Versioning
 

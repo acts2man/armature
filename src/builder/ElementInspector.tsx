@@ -59,6 +59,7 @@ export function ElementInspector({
   locked,
   actions,
   agencyName,
+  siteUrl = null,
   requestChange,
   device,
   onDevice,
@@ -72,6 +73,8 @@ export function ElementInspector({
   locked: boolean;
   actions: ElementInspectorActions;
   agencyName: string;
+  /** The live site's address, for picture previews. */
+  siteUrl?: string | null;
   requestChange: () => void;
   device: Device;
   onDevice: (device: Device) => void;
@@ -96,8 +99,9 @@ export function ElementInspector({
       kit,
       isStaff,
       actions: { editOnPage: element.type === "text" || element.type === "heading" ? () => actions.onEditOnPage(element.id) : undefined, pickImage: actions.onPickImage },
+      siteUrl,
     };
-  }, [element, actions, device, onDevice, kit, isStaff]);
+  }, [element, actions, device, onDevice, kit, isStaff, siteUrl]);
 
   if (!element || !target) return null;
   const content = contentSpecsFor(element.type);

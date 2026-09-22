@@ -350,6 +350,21 @@ brand marks). The Form posts to a public `form-submit` function that reads the f
 the published layout, never from the request; entries live in `form_submissions` (RLS:
 the site's people read, agency staff delete, nobody inserts but the function) and are
 emailed through Resend with the agency's sender and recipients from `site_services`.
+**Decision (M6):** the builder publishes through its own `builder-publish` function, which
+reuses the content batch engine for fields and adds layouts, the kit, `content/media.json`
+and pictures in the same commit; pictures ride in the draft as data URLs until then, so
+there is no separate upload bucket. Layouts merge per element and per value against the
+base commit (`shared/builder/merge.ts`); the same value changed on both sides is a named
+conflict the person resolves, never a silent overwrite. Permissions (`shared/builder/
+permissions.ts`) are checked by the function against what is committed, and the editor
+runs the same check for the style level so it can say no before publish. A coded page
+may get its first layout at the style level as long as it holds only its own sections.
+Drafts live in the browser and in `builder_drafts`; the newer is offered back on opening.
+Revisions are the publish history: preview reads the site at that commit through
+`content-get` with `ref`, and a restore is an ordinary draft, so publishing it is one more
+commit and history is never rewritten. Template thumbnails are placeholder cards (kind,
+element count, first heading) rather than rendered images, to keep the templates table
+small and free of screenshots. The editor never calls an AI service; everything is manual.
 Connection states never silent. Under 900px, the friendly note and the
 form editor. Security: no eval, no innerHTML in site or editor, everything sanitized,
 all URLs validated, secrets server-side only, RLS on every new table, rate limits on the
@@ -381,7 +396,7 @@ dialog) compared against the design.
       handles, column resize, padding/margin handles, spacer/min-height drag.
 - [x] **M5 Widget library.** Every remaining widget in section 3 (Form last), motion
       effects, background gradient/image/video/overlay, icon picker.
-- [ ] **M6 Pages and platform.** Site sections integration, new pages and page settings,
+- [x] **M6 Pages and platform.** Site sections integration, new pages and page settings,
       templates, media library, Supabase drafts, element-level conflict publish,
       revisions, roles and locking, first-run tour, full Playwright suite, screenshots,
       polish pass.

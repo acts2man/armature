@@ -16,6 +16,7 @@ import { FontPicker } from "./FontPicker.tsx";
 import { IconPicker } from "./IconPicker.tsx";
 import { Choice, ColorInput, controlInputClass, DeviceButton, NumberInput, Row, SizeInput, UnitMenu } from "./inputs.tsx";
 import { FONT_UNITS, LETTER_UNITS, LINE_HEIGHT_UNITS, PX_UNITS, SPACING_UNITS, type ControlSpec, type Path } from "./types.ts";
+import { thumbnailUrl } from "../media.ts";
 
 export type ControlTarget = {
   read: (path: Path) => unknown;
@@ -27,6 +28,8 @@ export type ControlTarget = {
   isStaff: boolean;
   /** Extra actions a control may need (the media library, editing on the page). */
   actions?: { pickImage?: (onPick: (src: string, alt: string) => void) => void; editOnPage?: () => void };
+  /** The live site's address, so a picture path (/assets/...) can be previewed. */
+  siteUrl?: string | null;
 };
 
 const key = (path: Path) => path.join(".");
@@ -268,16 +271,17 @@ function ImageControl({ target, spec }: { target: ControlTarget; spec: Extract<C
   const src = (target.read([...spec.path, "src"]) as string | undefined) ?? "";
   const alt = (target.read([...spec.path, "alt"]) as string | undefined) ?? "";
   const error = src && !isAllowedMediaSrc(src) ? "A picture must live on this site (/assets/...) or on https://." : null;
+  const preview = !src || error ? null : src.startsWith("https://") ? src : thumbnailUrl(src, target.siteUrl ?? null);
   return (
     <div className="flex flex-col gap-3">
       <Row label={spec.label} htmlFor={id} hint={error ?? "A path under /assets/ or an https:// address."}>
         <div className="flex items-center gap-2">
-          <span className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-ground">{src && !error ? <img src={src} alt="" className="h-full w-full object-cover" /> : <icons.IconImage size={18} className="text-muted" />}</span>
+          <span className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-ground">{preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <icons.IconImage size={18} className="text-muted" />}</span>
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <input id={id} type="text" value={src} onChange={(event) => target.write([...spec.path, "src"], event.target.value, "Changed picture", key(spec.path))} className={clsx(controlInputClass, "font-mono text-[12px]", error && "border-red")} placeholder="/assets/photo.webp" />
             {target.actions?.pickImage && (
-              <button type="button" onClick={() => target.actions?.pickImage?.((nextSrc, nextAlt) => { target.write([...spec.path, "src"], nextSrc, "Chose a picture"); if (nextAlt && !alt) target.write([...spec.path, "alt"], nextAlt, "Chose a picture"); })} className="h-8 rounded-sm border border-line text-[12px] font-semibold text-text hover:bg-ground">
-                Choose from the media library
+              <button type="button" onClick={() => target.actions?.pickImage?.((nextSrc, nextAlt) => { target.write([...spec.path, "src"], nextSrc, "Chose a picture"); if (nextAlt && !alt) target.write([...spec.path, "alt"], nextAlt, "Chose a picture"); })} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-sm border border-line px-2 text-[12px] font-semibold text-text hover:bg-ground">
+                <icons.IconGallery size={14} /> Media library
               </button>
             )}
           </div>

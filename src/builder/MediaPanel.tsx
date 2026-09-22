@@ -35,7 +35,7 @@ function MediaGrid({ entries, usage, alts, siteUrl, onAlt, onChoose, chooseLabel
       <div className="flex items-center gap-2">
         <div className="relative min-w-0 flex-1">
           <IconSearch size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input type="search" aria-label="Search media" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by name or alt text" className="h-9 w-full rounded-control border border-line pl-8 pr-2 text-[13px]" />
+          <input type="search" aria-label="Search media" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search pictures" className="h-9 w-full rounded-control border border-line pl-8 pr-2 text-[13px]" />
         </div>
         <label htmlFor={uploadId} className={clsx("inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-control border border-line px-2.5 text-[13px] font-semibold text-text hover:border-accent hover:text-accent", busy && "pointer-events-none opacity-60")}>
           <IconUpload size={15} /> {busy ? "Preparing…" : "Upload"}

@@ -895,7 +895,7 @@ test.describe("the media library", () => {
     await expect(frame.locator('img[src^="data:image/webp"]')).toHaveCount(1);
 
     // The new image is selected: the inspector's picker swaps in a library picture and its alt text.
-    await page.getByRole("button", { name: "Choose from the media library" }).click();
+    await page.getByRole("button", { name: "Media library" }).click();
     await page.getByTestId("media-picker").locator('[data-src="/assets/hero.svg"]').getByRole("button", { name: "Use this picture" }).click();
     await expect(page.getByTestId("media-picker")).toBeHidden();
     await expect(frame.locator('img[src^="data:image/webp"]')).toHaveCount(0);
