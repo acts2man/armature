@@ -120,6 +120,15 @@ async function openGlobals(page: Page) {
   await page.getByTestId("tab-globals").click();
 }
 
+/** Type a hex into the first global colour (Primary): the swatch opens the picker with the hex field. */
+async function setPrimaryColor(page: Page, hex: string) {
+  const colours = page.getByTestId("group-global-colours");
+  await colours.getByTestId("color-swatch").first().click();
+  await colours.getByTestId("color-text").fill(hex);
+  await page.keyboard.press("Escape");
+  await expect(colours.getByTestId("color-popover")).toHaveCount(0);
+}
+
 /** Select a container/element by clicking its top-left corner (its padding, not a child). */
 async function selectByCorner(frame: FrameLocator, selector: string) {
   await frame.locator(selector).scrollIntoViewIfNeeded();
@@ -391,7 +400,7 @@ test.describe("editing levels", () => {
     await page.keyboard.press("Escape");
     // Restyling is allowed: a site colour, and the page's own layout.
     await openGlobals(page);
-    await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#aa0000");
+    await setPrimaryColor(page, "#aa0000");
     await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
   });
 });
@@ -418,30 +427,47 @@ test.describe("the inspector", () => {
     await heading.click();
     await page.getByTestId("inspector-tab-style").click();
     await page.getByRole("button", { name: /Desktop view/ }).click();
+    // Typography is one row: the pencil opens the popover with the font, size, weight… inside.
     const typography = page.getByTestId("group-typography");
-    const size = typography.getByLabel("Size", { exact: true });
+    await expect(typography.getByTestId("popover-typography")).toHaveCount(0);
+    await typography.getByTestId("edit-typography").click();
+    const popover = typography.getByTestId("popover-typography");
+    await expect(popover).toBeVisible();
+    const size = popover.getByLabel("Size", { exact: true });
     await size.fill("40");
     await size.press("Tab");
     await expect(heading).toHaveCSS("font-size", "40px");
-    // The device icon on the control switches the whole editor to the next device.
-    await typography.getByTestId("device-switch").first().click();
+    // The device icon after the label switches the whole editor to the next device; the popover stays.
+    const deviceSwitch = popover.getByTestId("device-switch").first();
+    await deviceSwitch.click();
     await expect(page.getByRole("button", { name: /Tablet view/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(popover).toBeVisible();
     await expect(size).toHaveValue("");
     await expect(size).toHaveAttribute("placeholder", "40");
     await size.fill("30");
     await size.press("Tab");
     await expect(heading).toHaveCSS("font-size", "30px");
-    await expect(typography.getByTestId("override-dot")).toHaveCount(1);
-    await page.getByRole("button", { name: /Phone view/ }).click();
+    await expect(popover.getByTestId("override-dot")).toHaveCount(1);
+    await deviceSwitch.click(); // phone
+    await expect(page.getByRole("button", { name: /Phone view/ })).toHaveAttribute("aria-pressed", "true");
     await expect(heading).toHaveCSS("font-size", "30px");
     await expect(size).toHaveAttribute("placeholder", "30");
-    await expect(typography.getByTestId("override-dot")).toHaveCount(0);
-    await page.getByRole("button", { name: /Desktop view/ }).click();
+    await expect(popover.getByTestId("override-dot")).toHaveCount(0);
+    await deviceSwitch.click(); // desktop
     await expect(heading).toHaveCSS("font-size", "40px");
-    await page.getByRole("button", { name: /Tablet view/ }).click();
-    await typography.getByTestId("override-dot").click();
+    await deviceSwitch.click(); // tablet
+    await popover.getByTestId("override-dot").click();
     await expect(heading).toHaveCSS("font-size", "40px");
     await expect(page.getByTestId("draft-status")).toContainText("unpublished change");
+    // Escape closes the popover and nothing else: the heading stays selected.
+    await page.keyboard.press("Escape");
+    await expect(typography.getByTestId("popover-typography")).toHaveCount(0);
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Heading");
+    // A click outside closes it too.
+    await typography.getByTestId("edit-typography").click();
+    await expect(popover).toBeVisible();
+    await page.getByTestId("edit-title").click();
+    await expect(typography.getByTestId("popover-typography")).toHaveCount(0);
   });
 
   test("hover styles, spacing on the Advanced tab, and the agency-only groups", async ({ page }) => {
@@ -454,10 +480,15 @@ test.describe("the inspector", () => {
     await page.getByTestId("style-state-hover").click();
     const background = page.getByTestId("group-background");
     await background.getByTestId("background-kind").selectOption("color");
-    // A new colour background starts linked to the site's primary colour; unlink to type one.
+    // A new colour background starts linked to the site's primary colour (the swatch carries the
+    // globe); the swatch opens the picker, where Unlink lets a hex be typed.
+    await expect(background.getByTestId("color-swatch")).toHaveAttribute("data-value", "kit:color.primary");
+    await background.getByTestId("color-swatch").click();
     await expect(background.getByTestId("color-text")).toHaveValue("primary (site)");
     await background.getByTestId("unlink-color").click();
     await background.getByTestId("color-text").fill("#cc0000");
+    await page.keyboard.press("Escape");
+    await expect(background.getByTestId("color-popover")).toHaveCount(0);
     await page.getByLabel("Transition (ms)").fill("0");
     await page.getByLabel("Transition (ms)").press("Tab");
     await expect.poll(() => frame.locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain(".ae-btnbuild.ae-btnbuild:hover .ae-btn { background-color: #cc0000");
@@ -493,8 +524,7 @@ test.describe("the inspector", () => {
     const button = frame.locator(".ae-btnbuild .ae-btn");
     await expect(button).toHaveCSS("background-color", "rgb(31, 58, 46)");
     await openGlobals(page);
-    const colours = page.getByTestId("group-global-colours");
-    await colours.getByTestId("color-text").first().fill("#aa0000");
+    await setPrimaryColor(page, "#aa0000");
     await expect(button).toHaveCSS("background-color", "rgb(170, 0, 0)");
     await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
     await page.getByTestId("add-colour").click();
@@ -522,13 +552,140 @@ test.describe("the inspector", () => {
     const frame = siteFrame(page);
     await frame.locator(".ae-hdbuilds").click();
     await page.getByTestId("inspector-tab-style").click();
-    await page.getByTestId("group-typography").getByTestId("font-picker").locator("button").first().click();
+    await page.getByTestId("edit-typography").click();
+    await page.getByTestId("popover-typography").getByTestId("font-picker").locator("button").first().click();
     await page.getByLabel("Search fonts").fill("Fraunces");
     await page.getByRole("option", { name: /Fraunces/ }).click();
     await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("font-family", /Fraunces/);
     await expect(frame.locator("link[data-armature-fonts]")).toHaveAttribute("href", /family=Fraunces/);
     await openGlobals(page);
     await expect(page.getByTestId("custom-fonts")).toContainText("Fraunces");
+  });
+});
+
+// --- the panel controls (Elementor's rows and popovers) ------------------------------------------
+
+test.describe("the panel controls", () => {
+  test("margin: four boxes with the link toggle; unlinked, each side is its own", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-hdbuilds").click();
+    await page.getByTestId("inspector-tab-advanced").click();
+    const layout = page.getByTestId("group-layout");
+    const link = layout.getByTestId("link-sides").first();
+    await expect(link).toHaveAttribute("aria-pressed", "true");
+    // Linked: typing one side sets all four.
+    const top = layout.getByLabel("Margin top", { exact: true });
+    await top.fill("12");
+    await top.press("Tab");
+    await expect(layout.getByLabel("Margin left", { exact: true })).toHaveValue("12");
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("margin-left", "12px");
+    // Unlinked: only the typed side changes.
+    await link.click();
+    await expect(link).toHaveAttribute("aria-pressed", "false");
+    await top.fill("30");
+    await top.press("Tab");
+    await expect(layout.getByLabel("Margin left", { exact: true })).toHaveValue("12");
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("margin-top", "30px");
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("margin-left", "12px");
+    // The unit menu on the label line switches every side.
+    await layout.getByLabel("Unit").first().selectOption("em");
+    await expect.poll(() => frame.locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain("margin-top: 30em; margin-right: 12em;");
+  });
+
+  test("the Text Editor in the panel and the text on the canvas stay in sync, Visual and Code", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const text = frame.locator(".ae-txtbuild");
+    await text.evaluate((node) => node.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(150);
+    await text.click();
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Text");
+    const visual = page.getByTestId("text-editor-visual");
+    await expect(visual.locator("strong")).toHaveText("Then we draw.");
+    // Typing in the panel changes the canvas live (the caret placed at the end of the first paragraph).
+    await visual.locator("p").first().click();
+    await visual.locator("p").first().evaluate((node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      range.collapse(false);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+    await page.keyboard.type(" Really.");
+    await expect(text.locator("p").first()).toContainText("Then we draw. Really.");
+    // A toolbar command applies to the selection and the canvas follows.
+    await visual.locator("p").first().evaluate((node) => {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+    });
+    await page.getByTestId("te-italic").click();
+    await expect(text.locator("p").first().locator("em").first()).toContainText("Every home");
+    await page.getByTestId("te-block").selectOption("h3");
+    await expect(text.locator("h3")).toHaveCount(1);
+    // Editing on the page flows back into the panel.
+    await text.dblclick();
+    await expect(page.getByTestId("richtext-toolbar")).toBeVisible();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" From the page.");
+    await page.getByTestId("rt-done").click();
+    await expect(visual).toContainText("From the page.");
+    // The Code tab shows the HTML; typing HTML converts back and drops what is not supported.
+    await page.getByTestId("text-editor-tab-code").click();
+    const code = page.getByTestId("text-editor-code");
+    await expect(code).toHaveValue(/<h3><em>Every home/);
+    await code.fill('<p>Plain <b>bold</b> <img src="x.png"> and <script>alert(1)</script></p><ul><li>one</li></ul>');
+    await expect(page.getByTestId("text-editor-notice")).toContainText("2 tags are not supported");
+    await expect(text.locator("strong")).toHaveText("bold");
+    await expect(text.locator("li")).toHaveText("one");
+    await expect(text.locator("img")).toHaveCount(0);
+    await page.keyboard.press("Tab");
+    await expect(code).toHaveValue("<p>Plain <strong>bold</strong>  and </p>\n<ul><li><p>one</p></li></ul>");
+    // Back on Visual, the editor shows the kept document; undo takes the canvas and the panel back.
+    await page.getByTestId("text-editor-tab-visual").click();
+    await expect(page.getByTestId("text-editor-visual").locator("li")).toHaveText("one");
+  });
+
+  test("text stroke, blend mode and the Structure group", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const heading = frame.locator(".ae-hdbuilds");
+    await heading.click();
+    await page.getByTestId("inspector-tab-style").click();
+    await page.getByRole("button", { name: /Desktop view/ }).click();
+    // Text stroke: one row, the pencil opens width and colour.
+    const colour = page.getByTestId("group-colour");
+    await colour.getByTestId("edit-text-stroke").click();
+    const stroke = colour.getByTestId("popover-text-stroke");
+    await stroke.getByLabel("Text stroke width").fill("2");
+    await stroke.getByLabel("Text stroke width").press("Tab");
+    await expect(heading).toHaveCSS("-webkit-text-stroke-width", "2px");
+    await stroke.getByTestId("remove-text-stroke").click();
+    await expect(heading).toHaveCSS("-webkit-text-stroke-width", "0px");
+    await page.keyboard.press("Escape");
+    // Blend mode is a dropdown under Effects.
+    await page.getByTestId("group-effects").getByRole("button", { name: "Effects" }).click();
+    await page.getByLabel("Blend mode").selectOption("multiply");
+    await expect(heading).toHaveCSS("mix-blend-mode", "multiply");
+    // The section's Layout tab changes its columns; the heading, text and button keep their places.
+    await selectByCorner(frame, ".ae-secbuild");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Container");
+    await page.getByTestId("inspector-tab-content").click();
+    const structure = page.getByTestId("group-structure");
+    await structure.getByRole("button", { name: "Structure" }).click();
+    await expect(structure.getByTestId("structure-50-50")).toHaveAttribute("aria-pressed", "true");
+    await structure.getByTestId("structure-3").click();
+    await expect(structure.getByTestId("structure-3")).toHaveAttribute("aria-pressed", "true");
+    await expect(frame.locator(".ae-secbuild .ae-rowbuild")).toHaveCount(0);
+    await expect(frame.locator(".ae-hdbuilds")).toHaveCount(1);
+    await expect(frame.locator(".ae-txtbuild")).toHaveCount(1);
+    expect(await frame.locator(".ae-secbuild > .ae-con-inner > [data-ae-id] > .ae-con-inner > [data-ae-id]").count()).toBe(3);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(frame.locator(".ae-secbuild .ae-rowbuild")).toHaveCount(1);
   });
 });
 
@@ -844,7 +1001,7 @@ test.describe("the builder publish", () => {
     await page.keyboard.type(" this year");
     await page.keyboard.press("Enter");
     await openGlobals(page);
-    await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#aa0000");
+    await setPrimaryColor(page, "#aa0000");
     await expect(page.getByTestId("draft-status")).toContainText("2 unpublished changes");
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     const builderList = page.getByTestId("publish-builder");
@@ -935,6 +1092,9 @@ test.describe("pages and templates", () => {
   test("a section saved as a template is listed, inserts with fresh ids, and can be deleted", async ({ page }) => {
     const state = await openBuilder(page);
     const frame = siteFrame(page);
+    // Select the section first, so the right-click opens the menu on a settled selection.
+    await selectByCorner(frame, ".ae-secbuild");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Container");
     await frame.locator(".ae-secbuild").click({ button: "right", position: { x: 6, y: 6 } });
     await page.getByRole("menuitem", { name: "Save as template" }).click();
     await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Recent builds");

@@ -177,6 +177,8 @@ function styleDecls(style: StyleBase | undefined): Record<Device, Decl[]> {
     if (color !== undefined) decls.push(["color", refToCss(color) ?? "inherit"]);
     const textShadow = own(style.textShadow, device);
     if (textShadow) decls.push(["text-shadow", shadowCss(textShadow)]);
+    const textStroke = own(style.textStroke, device);
+    if (textStroke) decls.push(["-webkit-text-stroke", `${textStroke.width}px ${refToCss(textStroke.color) ?? "currentColor"}`]);
     const boxShadow = own(style.boxShadow, device);
     if (boxShadow) decls.push(["box-shadow", shadowCss(boxShadow)]);
     if (style.border) {
@@ -198,6 +200,8 @@ function styleDecls(style: StyleBase | undefined): Record<Device, Decl[]> {
     decls.push(...backgroundDecls(own(style.background, device)));
     const opacity = own(style.opacity, device);
     if (opacity !== undefined) decls.push(["opacity", String(opacity)]);
+    const blend = own(style.mixBlendMode, device);
+    if (blend) decls.push(["mix-blend-mode", blend]);
   }
   if (style.transition !== undefined) out.desktop.push(["transition", `all ${style.transition}ms ease`]);
   return out;
@@ -242,6 +246,8 @@ function advancedRules(sheet: Sheet, selector: string, advanced: Advanced, kit: 
   sheet.responsive(selector, advanced.order, (value) => [["order", String(value)]]);
   sheet.responsive(selector, advanced.flexGrow, (value) => [["flex-grow", String(value)]]);
   sheet.responsive(selector, advanced.flexShrink, (value) => [["flex-shrink", String(value)]]);
+  sheet.responsive(selector, advanced.gridColumnSpan, (value) => [["grid-column", `span ${Math.max(1, Math.round(value))}`]]);
+  sheet.responsive(selector, advanced.gridRowSpan, (value) => [["grid-row", `span ${Math.max(1, Math.round(value))}`]]);
   if (advanced.position && advanced.position.type !== "default") {
     sheet.add("base", selector, "position", advanced.position.type);
     for (const side of ["top", "right", "bottom", "left"] as const) sheet.responsive(selector, advanced.position[side], (size) => [[side, sizeToCss(size) ?? "auto"]]);

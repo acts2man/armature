@@ -275,13 +275,28 @@ right edge of the window (Stage 1 / content-only sites keep the older split of
 - **Navigator:** full tree, drag to reorder/re-nest, rename, show/hide per device, lock
   (agency), expand/collapse, click to select and scroll into view, change dots.
 - **History panel:** the list of actions with click-to-jump, plus Revisions.
-- **Inspector controls** are a schema-driven library (`src/builder/controls/`): typography
-  group, colour (kit swatches, picker, opacity, global link), text shadow, box shadow,
-  border, background (none / colour / gradient / image / video / overlay), Normal/Hover
-  tabs with transition, margin and padding, width, align self, order, flex grow/shrink,
-  position, entrance animation, responsive visibility, CSS id/classes/attributes/custom CSS
-  (agency only). Number inputs support drag-to-scrub on the label, arrow keys (Shift = x10)
-  and typed values with units ("2rem").
+- **Panel controls** are a schema-driven library (`src/builder/controls/`), laid out as
+  Elementor lays them out: one row per control, the label on the left with the device icon
+  right after it on a responsive control (a dot when this device overrides), the control on
+  the right; wide controls (a textarea, the four spacing boxes, a picture) stack under their
+  label. Typography, Text shadow, Text stroke, Box shadow and Border are each ONE row: a
+  pencil opens a popover with the fields (live, closes on a click outside or Esc without
+  touching the selection), and a globe where a global applies (Typography: the site text
+  styles; Colour: the global colours). A colour is a swatch button that opens the picker
+  (site swatches, the browser's picker, a hex, opacity, Unlink) — the swatch carries a globe
+  when linked to the kit. Normal / Hover sit above the Style tab. Margin and Padding show
+  four boxes (Top / Right / Bottom / Left) with the unit menu (px, %, em, rem, vw) and a link
+  toggle on the label line. Width, Column span, Row span (inside a grid), HTML tag and Blend
+  mode are dropdowns; alignment is an icon group. Heading > Content: Title (textarea), Link,
+  HTML tag (H1–H6, p, div, span). Text Editor > Content: a full rich-text editor in the panel
+  with Visual and Code tabs — Paragraph / Heading dropdown, bold, italic, underline, strike,
+  lists, link, alignment, colour, clear; Code shows the document as sanitized HTML and
+  converts what is typed back to the whitelisted JSON, dropping unsupported tags with a
+  notice; the panel and the canvas stay in sync live in both directions. Container > Layout:
+  Content width (Boxed / Full), Width, Min height, Direction, Justify, Align, Gap, Wrap, a
+  Structure group (the column presets; what is inside moves into the new columns), then
+  Overflow and HTML tag under Additional options. Number inputs support drag-to-scrub on the
+  label, arrow keys (Shift = x10) and typed values with units ("2rem").
 
 ## 5. Pages, templates, media
 

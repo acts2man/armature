@@ -5,25 +5,118 @@
  * opacity and the global link, and the per-device switch with its override dot.
  */
 import { clsx } from "clsx";
-import { useId, useRef, useState, type ReactNode } from "react";
-import { IconDesktop, IconGlobe, IconPhone, IconTablet, IconX } from "@/components/icons.tsx";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { IconDesktop, IconGlobe, IconPencil, IconPhone, IconTablet, IconX } from "@/components/icons.tsx";
 import type { Device, Size, SiteKit, Unit } from "@shared/builder/index.ts";
 import { isColorLiteral, parseKitRef, parseSize, resolveKitColor, sizeToCss } from "@kit/values.ts";
 
 // --- labels and rows ---------------------------------------------------------------------------
 
-export function Row({ label, children, htmlFor, hint, right, className }: { label: ReactNode; children: ReactNode; htmlFor?: string; hint?: string; right?: ReactNode; className?: string }) {
-  return (
-    <div className={clsx("flex flex-col gap-1.5", className)}>
-      <div className="flex min-h-5 items-center justify-between gap-2">
-        <label htmlFor={htmlFor} className="text-[12px] font-medium text-muted">
+/**
+ * One control row, Elementor style: the label on the left (with the device icon right
+ * after it on a responsive control), the control on the right. `stacked` puts the control
+ * under the label for wide controls (a textarea, four spacing boxes); `end` sits at the
+ * far right of the label line (a unit menu, a link toggle).
+ */
+export function Row({ label, children, htmlFor, hint, right, end, stacked, className }: { label: ReactNode; children: ReactNode; htmlFor?: string; hint?: string; /** Right after the label: the device icon. */ right?: ReactNode; /** At the far right of the label line. */ end?: ReactNode; stacked?: boolean; className?: string }) {
+  const head = (
+    <div className={clsx("flex min-h-5 items-center gap-1", stacked ? "justify-between" : "w-[104px] shrink-0")}>
+      <span className="flex min-w-0 items-center gap-1">
+        <label htmlFor={htmlFor} className="truncate text-[12px] font-medium text-muted" title={typeof label === "string" ? label : undefined}>
           {label}
         </label>
-        {right && <span className="flex items-center gap-0.5">{right}</span>}
-      </div>
-      {children}
+        {right && <span className="flex shrink-0 items-center gap-0.5">{right}</span>}
+      </span>
+      {stacked && end && <span className="flex shrink-0 items-center gap-1">{end}</span>}
+    </div>
+  );
+  return (
+    <div className={clsx("flex flex-col gap-1.5", className)} data-control-row={stacked ? "stacked" : "inline"}>
+      {stacked ? (
+        <>
+          {head}
+          {children}
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          {head}
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-1">
+            {children}
+            {end}
+          </div>
+        </div>
+      )}
       {hint && <p className="text-[11px] leading-relaxed text-muted">{hint}</p>}
     </div>
+  );
+}
+
+/** A small icon button on a control row (the pencil, the globe). */
+export function RowButton({ label, active, onClick, children, testId, className }: { label: string; active?: boolean; onClick: () => void; children: ReactNode; testId?: string; className?: string }) {
+  return (
+    <button type="button" aria-label={label} title={label} aria-pressed={active} onClick={onClick} data-testid={testId} className={clsx("inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border", active ? "border-accent bg-blue-soft text-accent" : "border-line text-muted hover:border-muted/50 hover:text-text", className)}>
+      {children}
+    </button>
+  );
+}
+
+/**
+ * A floating panel under a control (Typography, a shadow, a colour): live edits, closes
+ * on a click outside or Escape (the Escape never reaches the editor's own handler).
+ */
+export function Popover({ open, onClose, children, label, testId, className }: { open: boolean; onClose: () => void; children: ReactNode; label: string; testId?: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onClose();
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      onClose();
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div ref={ref} role="dialog" aria-label={label} data-testid={testId} className={clsx("toast-in absolute right-0 top-full z-30 mt-1 flex w-[300px] flex-col gap-3 rounded-[10px] border border-line bg-panel p-3 shadow-pop", className)}>
+      <div className="flex items-center justify-between">
+        <span className="text-[12px] font-bold text-text">{label}</span>
+        <button type="button" aria-label={`Close ${label.toLowerCase()}`} onClick={onClose} className="inline-flex h-6 w-6 items-center justify-center rounded-sm text-muted hover:bg-ground hover:text-text">
+          <IconX size={13} />
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** The wrapper that a Popover positions against: a control row with its own popover(s). */
+export function PopoverHost({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={clsx("relative", className)}>{children}</div>;
+}
+
+/** A pencil that opens a control's popover; filled when the value is set. */
+export function PencilButton({ label, active, open, onClick, testId }: { label: string; active?: boolean; open?: boolean; onClick: () => void; testId?: string }) {
+  return (
+    <RowButton label={label} active={active || open} onClick={onClick} testId={testId}>
+      <IconPencil size={13} />
+    </RowButton>
+  );
+}
+
+/** A globe that opens the global (site kit) picker; filled when the value is linked to the kit. */
+export function GlobeButton({ label, linked, open, onClick, testId }: { label: string; linked?: boolean; open?: boolean; onClick: () => void; testId?: string }) {
+  return (
+    <RowButton label={label} active={linked || open} onClick={onClick} testId={testId}>
+      <IconGlobe size={13} />
+    </RowButton>
   );
 }
 
@@ -384,6 +477,52 @@ export function ColorInput({ id, value, inherited, kit, onChange, onCommit, allo
         </label>
       )}
     </div>
+  );
+}
+
+/** The swatch on a colour row: shows the colour (a globe when linked to the kit) and opens the picker. */
+export function ColorSwatch({ value, kit, open, onClick, label, testId = "color-swatch" }: { value: string | undefined; kit: SiteKit; open: boolean; onClick: () => void; label: string; testId?: string }) {
+  const ref = parseKitRef(value);
+  const literal = ref ? resolveKitColor(kit, value) : value;
+  const transparent = value === "transparent";
+  const name = ref ? `${ref.name === "custom" ? ref.sub : ref.name} (site colour)` : (value ?? "not set");
+  return (
+    <button
+      type="button"
+      aria-label={`${label}: ${name}`}
+      title={name}
+      aria-expanded={open}
+      onClick={onClick}
+      data-testid={testId}
+      data-value={value ?? ""}
+      className={clsx("relative inline-flex h-7 w-9 shrink-0 items-center justify-center rounded-sm border", open ? "border-accent" : "border-line hover:border-muted/50")}
+      style={{ background: transparent || !literal ? "repeating-conic-gradient(#e6eaee 0 25%, #fff 0 50%) 0 0/8px 8px" : literal }}
+    >
+      {!value && <IconX size={12} className="text-muted" />}
+      {ref && <IconGlobe size={11} className="absolute -bottom-1 -right-1 rounded-full bg-panel text-accent" />}
+    </button>
+  );
+}
+
+/** The kit's colours as a list, for the globe on a colour control. */
+export function GlobalColorList({ value, kit, onPick }: { value: string | undefined; kit: SiteKit; onPick: (ref: string) => void }) {
+  const swatches = [...KIT_COLORS, ...kit.colors.custom.map((color) => ({ key: color.id, label: color.label, ref: `kit:color.custom.${color.id}` }))];
+  return (
+    <ul role="listbox" aria-label="Global colours" className="flex flex-col gap-0.5" data-testid="global-colours">
+      {swatches.map((swatch) => {
+        const color = resolveKitColor(kit, swatch.ref) ?? "#000000";
+        const active = value === swatch.ref;
+        return (
+          <li key={swatch.key}>
+            <button type="button" role="option" aria-selected={active} onClick={() => onPick(swatch.ref)} data-testid={`global-colour-${swatch.key}`} className={clsx("flex h-8 w-full items-center gap-2 rounded-sm px-1.5 text-left text-[12px] hover:bg-ground", active && "bg-blue-soft text-accent")}>
+              <span className="h-5 w-5 shrink-0 rounded-full border border-line" style={{ background: color }} aria-hidden="true" />
+              <span className="flex-1 truncate">{swatch.label}</span>
+              <span className="font-mono text-[11px] text-muted">{color}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 

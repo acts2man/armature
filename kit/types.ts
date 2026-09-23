@@ -86,15 +86,24 @@ export type Background =
 
 export type BackgroundOverlay = { background: Background; opacity: number; blend?: string };
 
+export const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] as const;
+export type BlendMode = (typeof BLEND_MODES)[number];
+
+/** An outline drawn around the glyphs (-webkit-text-stroke). */
+export type TextStroke = { width: number; color: Color };
+
 export type StyleBase = {
   typography?: Typography;
   color?: MaybeResponsive<Color>;
   textShadow?: MaybeResponsive<Shadow>;
+  textStroke?: MaybeResponsive<TextStroke>;
   boxShadow?: MaybeResponsive<Shadow>;
   border?: Border;
   background?: MaybeResponsive<Background>;
   backgroundOverlay?: MaybeResponsive<BackgroundOverlay>;
   opacity?: MaybeResponsive<number>;
+  /** How the element blends with what is behind it (mix-blend-mode). */
+  mixBlendMode?: MaybeResponsive<BlendMode>;
   /** Transition duration in milliseconds for hover changes. */
   transition?: number;
 };
@@ -127,6 +136,9 @@ export type Advanced = {
   order?: MaybeResponsive<number>;
   flexGrow?: MaybeResponsive<number>;
   flexShrink?: MaybeResponsive<number>;
+  /** Inside a grid: how many columns and rows the element spans. */
+  gridColumnSpan?: MaybeResponsive<number>;
+  gridRowSpan?: MaybeResponsive<number>;
   position?: {
     type: PositionType;
     top?: MaybeResponsive<Size>;

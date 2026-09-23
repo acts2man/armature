@@ -56,7 +56,8 @@ import { SaveTemplateDialog, TemplateLibrary } from "@/builder/TemplatesUI.tsx";
 import { StructurePicker } from "@/builder/StructurePicker.tsx";
 import { withKitFont } from "@/builder/fonts.ts";
 import { useDrag, type DragSource } from "@/builder/useDrag.ts";
-import { createStructure, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
+import { applyStructure } from "@/builder/structure.ts";
+import { createStructure, STRUCTURES, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
 import { mediaEntries, mediaUsage } from "@/builder/media.ts";
 import { restoreRevision, useRevisions, type Revision, type RevisionSnapshot } from "@/builder/revisions.ts";
 import { deleteServerDraft, fetchServerDraft, newerDraft, saveServerDraft, SERVER_AUTOSAVE_MS, type DraftSource } from "@/builder/serverDrafts.ts";
@@ -559,6 +560,11 @@ export function EditorWorkspace({
       onBackToElements: () => {
         selectElement(null);
         setPanelView("elements");
+      },
+      onApplyStructure: (id: string, structureId: string) => {
+        const structure = STRUCTURES.find((item) => item.id === structureId);
+        if (!structure || isLockedForMe(id)) return;
+        builderCommand("Changed the structure", pageSlug, (current) => applyStructure(current, id, pageSlug, structure));
       },
     }),
     [builderCommand, isLockedForMe, pageSlug, selectElement, send],

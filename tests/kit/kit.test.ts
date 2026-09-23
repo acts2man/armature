@@ -160,6 +160,22 @@ describe("the CSS generator", () => {
     expect(elementsCss([spacer], kit)).toContain(".ae-root .ae-spacerab.ae-spacerab { height: 80px; }");
   });
 
+  it("writes the text stroke, the blend mode and grid spans per device", () => {
+    const styled = element({
+      id: "strokedh",
+      type: "heading",
+      props: { text: "x" },
+      style: { textStroke: { desktop: { width: 1.5, color: "kit:color.primary" }, mobile: { width: 0, color: "#000000" } }, mixBlendMode: "multiply" },
+      advanced: { gridColumnSpan: { desktop: 2, mobile: 1 }, gridRowSpan: 3 },
+    });
+    const css = elementsCss([styled], kit);
+    expect(css).toContain("-webkit-text-stroke: 1.5px var(--ae-color-primary)");
+    expect(css).toContain("mix-blend-mode: multiply");
+    expect(css).toContain("grid-column: span 2; grid-row: span 3;");
+    expect(css).toMatch(/@media \(max-width: 767px\) \{[^}]*-webkit-text-stroke: 0px #000000; grid-column: span 1;/);
+    expect(validateElement(styled, "heading").errors).toEqual([]);
+  });
+
   it("sanitizes custom CSS and rewrites 'selector'", () => {
     const styled = element({ id: "customcs", type: "spacer", advanced: { customCss: "selector { color: red } @import url(evil.css); selector:hover { background: url(javascript:alert(1)); behavior: url(x.htc) }" } });
     const css = elementsCss([styled], kit);
@@ -246,6 +262,12 @@ describe("the rich-text renderer", () => {
     font.textContent = "red";
     p.append(font);
     host.append(p);
+    // The editor's panel marks a site colour with data-ae-color so the reference survives.
+    const site = document.createElement("span");
+    site.setAttribute("style", "color: rgb(31, 58, 46)");
+    site.setAttribute("data-ae-color", "kit:color.primary");
+    site.textContent = "site";
+    p.append(site);
     const ul = document.createElement("ul");
     const li = document.createElement("li");
     li.textContent = "item";
@@ -258,7 +280,7 @@ describe("the rich-text renderer", () => {
     expect(doc).toEqual({
       type: "doc",
       content: [
-        { type: "paragraph", content: [{ type: "text", text: "Hello " }, { type: "text", text: "world", marks: [{ type: "bold" }] }, { type: "text", text: "bad" }, { type: "text", text: "red", marks: [{ type: "textStyle", attrs: { color: "#ff0000" } }] }] },
+        { type: "paragraph", content: [{ type: "text", text: "Hello " }, { type: "text", text: "world", marks: [{ type: "bold" }] }, { type: "text", text: "bad" }, { type: "text", text: "red", marks: [{ type: "textStyle", attrs: { color: "#ff0000" } }] }, { type: "text", text: "site", marks: [{ type: "textStyle", attrs: { color: "kit:color.primary" } }] }] },
         { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "item" }] }] }] },
       ],
     });

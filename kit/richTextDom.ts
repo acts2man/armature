@@ -50,6 +50,11 @@ function marksFor(element: Element, inherited: RichMark[]): RichMark[] {
     const color = style?.backgroundColor ? rgbToHex(style.backgroundColor) : null;
     add({ type: "highlight", attrs: color ? { color } : {} });
   }
+  // A site colour keeps its kit reference (the editor's panel writes it as data-ae-color).
+  const kitColor = element.getAttribute("data-ae-color");
+  if (kitColor && kitColor.startsWith("kit:") && isColorValue(kitColor)) {
+    add(tag === "MARK" ? { type: "highlight", attrs: { color: kitColor } } : { type: "textStyle", attrs: { color: kitColor } });
+  }
   const color = tag === "FONT" ? element.getAttribute("color") : style?.color || null;
   if (color) {
     const hex = rgbToHex(color);
@@ -110,7 +115,8 @@ function blocksOf(container: Node, out: RichBlock[]): void {
             blocksOf(item, content);
             return { type: "listItem" as const, content: content.length ? content : [{ type: "paragraph" as const, content: [] }] };
           });
-        if (items.length) out.push(tag === "UL" ? { type: "bulletList", content: items } : { type: "orderedList", content: items });
+        const start = Number.parseInt(element.getAttribute("start") ?? "", 10);
+        if (items.length) out.push(tag === "UL" ? { type: "bulletList", content: items } : Number.isFinite(start) && start >= 0 ? { type: "orderedList", attrs: { start }, content: items } : { type: "orderedList", content: items });
       } else if (tag === "BLOCKQUOTE") {
         const content: RichBlock[] = [];
         blocksOf(element, content);

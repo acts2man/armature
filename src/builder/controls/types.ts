@@ -5,7 +5,7 @@
  * behaviour and the same keyboard support.
  */
 import type { ReactNode } from "react";
-import type { Size, Unit } from "@shared/builder/index.ts";
+import type { Size, SiteKit, Unit } from "@shared/builder/index.ts";
 
 export type Path = readonly string[];
 
@@ -31,10 +31,12 @@ export type ControlSpec =
   | { kind: "icon"; label: string; path: Path }
   | { kind: "gap"; label: string; path: Path; responsive?: boolean }
   | { kind: "shadow"; label: string; path: Path; responsive?: boolean; text?: boolean }
+  /** An outline around the letters: width and colour. */
+  | { kind: "stroke"; label: string; path: Path; responsive?: boolean }
   | { kind: "background"; label: string; path: Path; responsive?: boolean }
-  | { kind: "typography"; path: Path }
+  | { kind: "typography"; path: Path; label?: string }
   | { kind: "overlay"; path: Path }
-  | { kind: "border"; path: Path }
+  | { kind: "border"; path: Path; label?: string }
   | { kind: "group"; label: string; controls: ControlSpec[]; open?: boolean; agencyOnly?: boolean }
   | { kind: "note"; text: string }
   /** Controls shown only while `when` holds (e.g. offsets once a position is chosen). */
@@ -57,4 +59,7 @@ export type CustomContext = {
   read: (path: Path) => unknown;
   write: (path: Path, value: unknown, label: string, group?: string) => void;
   editOnPage?: () => void;
+  kit: SiteKit;
+  /** Replace a section's columns with a structure preset (its content moves into the new columns). */
+  applyStructure?: (structureId: string) => void;
 };

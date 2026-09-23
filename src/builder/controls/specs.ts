@@ -4,9 +4,10 @@
  * Advanced tab. Widgets added later register their content specs and style kinds here.
  */
 import { createElement as h } from "react";
-import type { Element } from "@shared/builder/index.ts";
-import { plainDoc, richTextToPlain } from "@kit/richText.tsx";
-import { controlInputClass } from "./inputs.tsx";
+import type { Element, RichDoc } from "@shared/builder/index.ts";
+import { BLEND_MODES } from "@kit/types.ts";
+import { RichTextEditor } from "../RichTextEditor.tsx";
+import { StructureControl } from "./StructureControl.tsx";
 import { HEIGHT_UNITS, PX_UNITS, SPACING_UNITS, WIDTH_UNITS, type ControlSpec, type Option, type Path } from "./types.ts";
 
 const opts = (...pairs: [string, string][]): Option[] => pairs.map(([value, label]) => ({ value, label }));
@@ -19,15 +20,22 @@ const ALIGN_ICONS = [
 
 const CONTAINER_TAGS = opts(["div", "div"], ["section", "section"], ["header", "header"], ["footer", "footer"], ["article", "article"], ["aside", "aside"], ["nav", "nav"]);
 
+const TEXT_ALIGN_ICONS = [
+  { value: "left", label: "Left", icon: "AlignLeft" },
+  { value: "center", label: "Centre", icon: "AlignCenter" },
+  { value: "right", label: "Right", icon: "AlignRight" },
+  { value: "justify", label: "Justify", icon: "AlignJustify" },
+];
+
 const widthControls = (): ControlSpec[] => [
-  { kind: "choice", label: "Width", path: ["props", "layout"], allowNone: false, options: [{ value: "boxed", label: "Boxed" }, { value: "full", label: "Full width" }] },
+  { kind: "choice", label: "Content width", path: ["props", "layout"], allowNone: false, options: [{ value: "boxed", label: "Boxed" }, { value: "full", label: "Full width" }] },
   {
     kind: "if",
     id: "boxed-width",
     when: (read) => (read(["props", "layout"]) ?? "boxed") === "boxed",
-    controls: [{ kind: "size", label: "Content width", path: ["props", "contentWidth"], units: WIDTH_UNITS, responsive: true, min: 0, hint: "Empty uses the site's content width." }],
+    controls: [{ kind: "size", label: "Width", path: ["props", "contentWidth"], units: WIDTH_UNITS, responsive: true, min: 0, hint: "Empty uses the site's content width." }],
   },
-  { kind: "size", label: "Minimum height", path: ["props", "minHeight"], units: HEIGHT_UNITS, responsive: true, min: 0, allowScreen: true },
+  { kind: "size", label: "Min height", path: ["props", "minHeight"], units: HEIGHT_UNITS, responsive: true, min: 0, allowScreen: true },
 ];
 
 // --- content ---------------------------------------------------------------------------------------------
@@ -40,36 +48,51 @@ export function registerContentSpecs(type: string, specs: ControlSpec[]): void {
 }
 
 registerContentSpecs("container", [
-  { kind: "group", label: "Container", controls: [...widthControls(), { kind: "select", label: "HTML tag", path: ["props", "tag"], options: CONTAINER_TAGS, required: true }] },
+  { kind: "group", label: "Container", controls: widthControls() },
   {
     kind: "group",
     label: "Items",
     controls: [
-      { kind: "choice", label: "Direction", path: ["props", "direction"], responsive: true, allowNone: false, options: [{ value: "column", label: "Stack" }, { value: "row", label: "Row" }, { value: "column-reverse", label: "Stack ↑" }, { value: "row-reverse", label: "Row ←" }] },
-      { kind: "select", label: "Justify content", path: ["props", "justify"], responsive: true, options: opts(["flex-start", "Start"], ["center", "Centre"], ["flex-end", "End"], ["space-between", "Space between"], ["space-around", "Space around"], ["space-evenly", "Space evenly"]) },
-      { kind: "select", label: "Align items", path: ["props", "align"], responsive: true, options: opts(["flex-start", "Start"], ["center", "Centre"], ["flex-end", "End"], ["stretch", "Stretch"], ["baseline", "Baseline"]) },
-      { kind: "gap", label: "Gaps", path: ["props", "gap"], responsive: true },
+      { kind: "choice", label: "Direction", path: ["props", "direction"], responsive: true, allowNone: false, options: [{ value: "column", label: "Stack (top to bottom)", icon: "ArrowDown" }, { value: "row", label: "Row (left to right)", icon: "ArrowRight" }, { value: "column-reverse", label: "Stack, reversed", icon: "ArrowUp" }, { value: "row-reverse", label: "Row, reversed", icon: "ArrowLeft" }] },
+      { kind: "select", label: "Justify", path: ["props", "justify"], responsive: true, options: opts(["flex-start", "Start"], ["center", "Centre"], ["flex-end", "End"], ["space-between", "Space between"], ["space-around", "Space around"], ["space-evenly", "Space evenly"]) },
+      { kind: "select", label: "Align", path: ["props", "align"], responsive: true, options: opts(["flex-start", "Start"], ["center", "Centre"], ["flex-end", "End"], ["stretch", "Stretch"], ["baseline", "Baseline"]) },
+      { kind: "gap", label: "Gap", path: ["props", "gap"], responsive: true },
       { kind: "toggle", label: "Wrap", path: ["props", "wrap"], responsive: true, hint: "Let items flow onto the next line." },
     ],
   },
-  { kind: "group", label: "Additional options", open: false, controls: [{ kind: "select", label: "Overflow", path: ["props", "overflow"], options: opts(["visible", "Visible"], ["hidden", "Hidden"]) }, { kind: "link", label: "Link the whole box", path: ["props", "link"] }] },
+  {
+    kind: "group",
+    label: "Structure",
+    open: false,
+    controls: [{ kind: "custom", id: "structure", render: ({ read, applyStructure }) => h(StructureControl, { children: read(["children"]) as Element[] | undefined, onPick: applyStructure }) }],
+  },
+  {
+    kind: "group",
+    label: "Additional options",
+    open: false,
+    controls: [
+      { kind: "select", label: "Overflow", path: ["props", "overflow"], options: opts(["visible", "Visible"], ["hidden", "Hidden"]) },
+      { kind: "select", label: "HTML tag", path: ["props", "tag"], options: CONTAINER_TAGS, required: true },
+      { kind: "link", label: "Link the whole box", path: ["props", "link"] },
+    ],
+  },
 ]);
 
 registerContentSpecs("grid", [
-  { kind: "group", label: "Grid", controls: [...widthControls(), { kind: "select", label: "HTML tag", path: ["props", "tag"], options: CONTAINER_TAGS, required: true }] },
+  { kind: "group", label: "Grid", controls: widthControls() },
   {
     kind: "group",
     label: "Items",
     controls: [
       { kind: "number", label: "Columns", path: ["props", "columns"], responsive: true, min: 1, max: 12 },
       { kind: "number", label: "Rows", path: ["props", "rows"], responsive: true, min: 1, max: 24, hint: "Empty adds rows as items need them." },
-      { kind: "gap", label: "Gaps", path: ["props", "gap"], responsive: true },
+      { kind: "gap", label: "Gap", path: ["props", "gap"], responsive: true },
       { kind: "select", label: "Auto flow", path: ["props", "autoFlow"], options: opts(["row", "Row"], ["column", "Column"], ["row dense", "Row, dense"], ["column dense", "Column, dense"]) },
       { kind: "select", label: "Justify items", path: ["props", "justifyItems"], responsive: true, options: opts(["start", "Start"], ["center", "Centre"], ["end", "End"], ["stretch", "Stretch"]) },
       { kind: "select", label: "Align items", path: ["props", "alignItems"], responsive: true, options: opts(["start", "Start"], ["center", "Centre"], ["end", "End"], ["stretch", "Stretch"]) },
     ],
   },
-  { kind: "group", label: "Additional options", open: false, controls: [{ kind: "select", label: "Overflow", path: ["props", "overflow"], options: opts(["visible", "Visible"], ["hidden", "Hidden"]) }] },
+  { kind: "group", label: "Additional options", open: false, controls: [{ kind: "select", label: "Overflow", path: ["props", "overflow"], options: opts(["visible", "Visible"], ["hidden", "Hidden"]) }, { kind: "select", label: "HTML tag", path: ["props", "tag"], options: CONTAINER_TAGS, required: true }] },
 ]);
 
 registerContentSpecs("heading", [
@@ -89,23 +112,16 @@ registerContentSpecs("text", [
     kind: "group",
     label: "Text Editor",
     controls: [
-      { kind: "note", text: "Double-click the text on the page to edit it with the formatting toolbar (bold, italic, links, lists, alignment)." },
       {
         kind: "custom",
-        id: "text-plain",
-        render: ({ read, write, editOnPage }) =>
-          h(
-            "div",
-            { className: "flex flex-col gap-2" },
-            h("label", { htmlFor: "text-plain", className: "text-[12px] font-semibold text-muted" }, "Plain text (formatting is removed when you type here)"),
-            h("textarea", {
-              id: "text-plain",
-              value: richTextToPlain(read(["props", "doc"]) as never),
-              onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) => write(["props", "doc"], plainDoc(event.target.value), "Changed text", "text-plain"),
-              className: `${controlInputClass} min-h-32 py-1.5 leading-relaxed`,
-            }),
-            editOnPage && h("button", { type: "button", onClick: editOnPage, className: "h-8 rounded-sm border border-line text-[12px] font-semibold text-text hover:bg-ground" }, "Edit on the page"),
-          ),
+        id: "text-editor",
+        render: ({ read, write, editOnPage, kit }) =>
+          h(RichTextEditor, {
+            doc: read(["props", "doc"]) as RichDoc | undefined,
+            kit,
+            onChange: (doc: RichDoc) => write(["props", "doc"], doc, "Changed text", "text-editor"),
+            onEditOnPage: editOnPage,
+          }),
       },
     ],
   },
@@ -216,8 +232,23 @@ export function styleSpecs(type: string, state: "normal" | "hover"): ControlSpec
   const specs: ControlSpec[] = [];
   const hasText = kind === "text" || kind === "box";
   if (hasText) {
-    specs.push({ kind: "group", label: "Typography", controls: [{ kind: "typography", path: at("typography") }] });
-    specs.push({ kind: "group", label: "Colour", controls: [{ kind: "color", label: "Text colour", path: at("color"), responsive: true }, { kind: "shadow", label: "Text shadow", path: at("textShadow"), responsive: true, text: true }] });
+    specs.push({
+      kind: "group",
+      label: "Typography",
+      controls: [
+        { kind: "choice", label: "Alignment", path: at("typography", "textAlign"), responsive: true, options: TEXT_ALIGN_ICONS },
+        { kind: "typography", path: at("typography") },
+      ],
+    });
+    specs.push({
+      kind: "group",
+      label: "Colour",
+      controls: [
+        { kind: "color", label: "Text colour", path: at("color"), responsive: true },
+        { kind: "shadow", label: "Text shadow", path: at("textShadow"), responsive: true, text: true },
+        { kind: "stroke", label: "Text stroke", path: at("textStroke"), responsive: true },
+      ],
+    });
   }
   if (kind !== "minimal" || state === "normal") {
     const background: ControlSpec[] = [{ kind: "background", label: "Background", path: at("background"), responsive: true }];
@@ -228,7 +259,15 @@ export function styleSpecs(type: string, state: "normal" | "hover"): ControlSpec
     specs.push({ kind: "group", label: "Border", open: false, controls: [{ kind: "border", path: at("border") }] });
     specs.push({ kind: "group", label: "Shadow", open: false, controls: [{ kind: "shadow", label: "Box shadow", path: at("boxShadow"), responsive: true }] });
   }
-  specs.push({ kind: "group", label: "Effects", open: false, controls: [{ kind: "number", label: "Opacity", path: at("opacity"), responsive: true, min: 0, max: 1, step: 0.05 }] });
+  specs.push({
+    kind: "group",
+    label: "Effects",
+    open: false,
+    controls: [
+      { kind: "number", label: "Opacity", path: at("opacity"), responsive: true, min: 0, max: 1, step: 0.05 },
+      { kind: "select", label: "Blend mode", path: at("mixBlendMode"), responsive: true, options: BLEND_MODES.map((mode) => ({ value: mode, label: mode === "normal" ? "Normal" : mode.replace("-", " ") })) },
+    ],
+  });
   if (state === "hover") {
     specs.unshift({ kind: "number", label: "Transition (ms)", path: ["style", "transition"], min: 0, max: 5000, step: 50, hint: "How long the change to the hover look takes." });
   }
@@ -238,7 +277,9 @@ export function styleSpecs(type: string, state: "normal" | "hover"): ControlSpec
 
 // --- advanced ----------------------------------------------------------------------------------------------
 
-export function advancedSpecs(parentIsFlex: boolean): ControlSpec[] {
+/** The Advanced tab. `parentType` decides the "In its container" group: flex controls inside a container, spans inside a grid. */
+export function advancedSpecs(parentType: string | undefined): ControlSpec[] {
+  const parentIsFlex = parentType === "container";
   const specs: ControlSpec[] = [
     {
       kind: "group",
@@ -262,6 +303,18 @@ export function advancedSpecs(parentIsFlex: boolean): ControlSpec[] {
         { kind: "number", label: "Order", path: ["advanced", "order"], responsive: true, min: -20, max: 20 },
         { kind: "number", label: "Grow", path: ["advanced", "flexGrow"], responsive: true, min: 0, max: 20 },
         { kind: "number", label: "Shrink", path: ["advanced", "flexShrink"], responsive: true, min: 0, max: 20 },
+      ],
+    });
+  }
+  if (parentType === "grid") {
+    const span = (max: number) => Array.from({ length: max }, (_, index) => ({ value: String(index + 1), label: index === 0 ? "1 (default)" : String(index + 1) }));
+    specs.push({
+      kind: "group",
+      label: "In its grid",
+      controls: [
+        { kind: "select", label: "Column span", path: ["advanced", "gridColumnSpan"], responsive: true, numeric: true, options: span(12) },
+        { kind: "select", label: "Row span", path: ["advanced", "gridRowSpan"], responsive: true, numeric: true, options: span(12) },
+        { kind: "number", label: "Order", path: ["advanced", "order"], responsive: true, min: -20, max: 20 },
       ],
     });
   }
@@ -338,6 +391,3 @@ export function advancedSpecs(parentIsFlex: boolean): ControlSpec[] {
   );
   return specs;
 }
-
-/** True when an element sits in a flex container (so the "In its container" group applies). */
-export const isFlexParent = (parent: Pick<Element, "type"> | undefined): boolean => parent?.type === "container";

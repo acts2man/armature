@@ -68,6 +68,8 @@ function sample(spec: ControlSpec): [Path, unknown][] {
       return [[spec.path, { name: "star", nodes: [["path", { d: "M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z" }]] }]];
     case "shadow":
       return [[spec.path, { x: 0, y: 4, blur: 12, color: "#00000033" }]];
+    case "stroke":
+      return [[spec.path, { width: 1, color: "kit:color.text" }]];
     case "background":
       return [[spec.path, { kind: "gradient", type: "linear", angle: 90, stops: [{ color: "kit:color.primary", position: 0 }, { color: "#ffffff", position: 100 }] }]];
     case "overlay":
@@ -97,7 +99,7 @@ function sample(spec: ControlSpec): [Path, unknown][] {
   }
 }
 
-const RESPONSIVE_KINDS = new Set(["select", "choice", "toggle", "number", "size", "sides", "corners", "gap", "color", "shadow", "background"]);
+const RESPONSIVE_KINDS = new Set(["select", "choice", "toggle", "number", "size", "sides", "corners", "gap", "color", "shadow", "stroke", "background"]);
 const isResponsive = (spec: ControlSpec) => RESPONSIVE_KINDS.has(spec.kind) && "responsive" in spec && !!spec.responsive;
 
 function applyAll(element: Element, specs: ControlSpec[], device: "desktop" | "tablet" | "mobile"): Element {
@@ -126,7 +128,8 @@ describe("inspector specs write values the schema accepts", () => {
         element = applyAll(element, contentSpecsFor(type) ?? [], device);
         element = applyAll(element, styleSpecs(type, "normal"), device);
         element = applyAll(element, styleSpecs(type, "hover"), device);
-        element = applyAll(element, advancedSpecs(true), device);
+        element = applyAll(element, advancedSpecs("container"), device);
+        element = applyAll(element, advancedSpecs("grid"), device);
       }
       const report = validateElement(element, type);
       expect(report.errors).toEqual([]);
@@ -146,11 +149,24 @@ describe("inspector specs write values the schema accepts", () => {
     expect(leaves(styleSpecs("heading", "hover")).some((spec) => "path" in spec && spec.path.join(".") === "style.transition")).toBe(true);
   });
 
-  it("agency-only groups are marked, and the flex group appears only inside a container", () => {
-    const groups = advancedSpecs(false).filter((spec): spec is Extract<ControlSpec, { kind: "group" }> => spec.kind === "group");
+  it("agency-only groups are marked, and the flex and grid groups appear only inside their parent", () => {
+    const groups = advancedSpecs(undefined).filter((spec): spec is Extract<ControlSpec, { kind: "group" }> => spec.kind === "group");
     expect(groups.filter((group) => group.agencyOnly).map((group) => group.label)).toEqual(["Attributes", "Custom CSS"]);
     expect(groups.map((group) => group.label)).not.toContain("In its container");
-    expect(advancedSpecs(true).map((spec) => (spec.kind === "group" ? spec.label : ""))).toContain("In its container");
+    expect(groups.map((group) => group.label)).not.toContain("In its grid");
+    expect(advancedSpecs("container").map((spec) => (spec.kind === "group" ? spec.label : ""))).toContain("In its container");
+    const grid = advancedSpecs("grid").map((spec) => (spec.kind === "group" ? spec.label : ""));
+    expect(grid).toContain("In its grid");
+    expect(grid).not.toContain("In its container");
+    expect(leaves(advancedSpecs("grid")).some((spec) => "path" in spec && spec.path.join(".") === "advanced.gridColumnSpan")).toBe(true);
+  });
+
+  it("the text widgets get alignment, text stroke and blend mode; the container gets a Structure group", () => {
+    const heading = leaves(styleSpecs("heading", "normal"));
+    expect(heading.some((spec) => spec.kind === "stroke")).toBe(true);
+    expect(heading.some((spec) => spec.kind === "choice" && spec.path.join(".") === "style.typography.textAlign")).toBe(true);
+    expect(heading.some((spec) => "path" in spec && spec.path.join(".") === "style.mixBlendMode")).toBe(true);
+    expect((contentSpecsFor("container") ?? []).map((spec) => (spec.kind === "group" ? spec.label : ""))).toEqual(["Container", "Items", "Structure", "Additional options"]);
   });
 });
 

@@ -10,7 +10,7 @@ import { IconChevronRight, IconGauge, IconGrid, IconLayout, IconLock, IconPencil
 import { Button } from "@/components/ui.tsx";
 import type { Device, SiteKit } from "@shared/builder/index.ts";
 import { ControlRenderer, type ControlTarget } from "./controls/ControlRenderer.tsx";
-import { advancedSpecs, contentSpecsFor, isFlexParent, styleSpecs } from "./controls/specs.ts";
+import { advancedSpecs, contentSpecsFor, styleSpecs } from "./controls/specs.ts";
 import { readAt } from "./controls/path.ts";
 import { findElement, type BuilderState } from "./store.ts";
 import { widgetLabel } from "./widgets/registry.ts";
@@ -26,6 +26,8 @@ export type ElementInspectorActions = {
   onBackToElements: () => void;
   /** Opens the media library; the chosen picture comes back through onPick. */
   onPickImage?: (onPick: (src: string, alt: string) => void) => void;
+  /** Rebuild a section's columns from a structure preset (Layout > Structure). */
+  onApplyStructure?: (id: string, structureId: string) => void;
 };
 
 function Crumbs({ state, slug, id, onSelect }: { state: BuilderState; slug: string; id: string; onSelect: (id: string) => void }) {
@@ -89,7 +91,7 @@ export function ElementInspector({
   const element = entry?.element;
   const parentId = entry?.ancestors[entry.ancestors.length - 1];
   const parent = parentId ? findElement(state, parentId, slug)?.element : undefined;
-  const flexParent = isFlexParent(parent);
+  const parentType = parent?.type;
 
   const target = useMemo<ControlTarget | null>(() => {
     if (!element) return null;
@@ -100,10 +102,14 @@ export function ElementInspector({
       onDevice,
       kit,
       isStaff,
-      actions: { editOnPage: element.type === "text" || element.type === "heading" ? () => actions.onEditOnPage(element.id) : undefined, pickImage: actions.onPickImage },
+      actions: {
+        editOnPage: element.type === "text" || element.type === "heading" ? () => actions.onEditOnPage(element.id) : undefined,
+        pickImage: actions.onPickImage,
+        applyStructure: element.type === "container" && actions.onApplyStructure && !locked ? (structureId) => actions.onApplyStructure?.(element.id, structureId) : undefined,
+      },
       siteUrl,
     };
-  }, [element, actions, device, onDevice, kit, isStaff, siteUrl]);
+  }, [element, actions, device, onDevice, kit, isStaff, siteUrl, locked]);
 
   if (!element || !target) return null;
   const content = contentSpecsFor(element.type);
@@ -151,7 +157,7 @@ export function ElementInspector({
       </>
     );
   } else {
-    body = <ControlRenderer inset target={target} specs={advancedSpecs(flexParent)} />;
+    body = <ControlRenderer inset target={target} specs={advancedSpecs(parentType)} />;
   }
 
   const isContainer = element.type === "container" || element.type === "grid";

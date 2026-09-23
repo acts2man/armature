@@ -207,7 +207,9 @@ await shoot("builder-publish-dialog", async (page) => {
   await page.keyboard.press("Enter");
   await openElements(page);
   await page.getByTestId("tab-globals").click();
-  await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#1f5c4a");
+  await page.getByTestId("group-global-colours").getByTestId("color-swatch").first().click();
+  await page.getByTestId("group-global-colours").getByTestId("color-text").fill("#1f5c4a");
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await page.getByTestId("publish-builder").waitFor();
 });

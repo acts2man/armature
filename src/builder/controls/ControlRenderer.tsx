@@ -1,20 +1,23 @@
 /**
- * Renders a list of control specs against a target (an element or the site kit). Every
- * responsive control shows the device icon (click: switch the whole editor's device), a
- * dot when the current device overrides (click: reset it), and greys the value it
- * inherits from a larger device. Every change is one named command; continuous typing
- * and scrubbing on one control merge into one undo step.
+ * Renders a list of control specs against a target (an element or the site kit), one row
+ * per control: the label on the left with the device icon right after it on a responsive
+ * control (click: switch the whole editor's device; a dot means the current device
+ * overrides, click: reset it), the control on the right. Typography, shadows, the text
+ * stroke, the border and colours are one row each: a globe links to the site kit, a
+ * pencil (or the swatch) opens a popover that edits live and closes on a click outside.
+ * Every change is one named command; continuous typing and scrubbing on one control
+ * merge into one undo step.
  */
 import { clsx } from "clsx";
-import { useId, useState, type ReactNode } from "react";
+import { createContext, useContext, useId, useState, type ReactNode } from "react";
 import * as icons from "@/components/icons.tsx";
 import { Toggle } from "@/components/ui.tsx";
-import { hasOverride, own, resolve, setAt, type Background, type BackgroundOverlay, type Border, type Corners, type Device, type Gap, type IconValue, type Shadow, type Sides, type Size, type SiteKit, type Typography, type Unit } from "@shared/builder/index.ts";
+import { hasOverride, own, resolve, setAt, type Background, type BackgroundOverlay, type Border, type Corners, type Device, type Gap, type IconValue, type Shadow, type Sides, type Size, type SiteKit, type TextStroke, type Typography, type Unit } from "@shared/builder/index.ts";
 import { isAllowedHref, isAllowedMediaSrc } from "@shared/builder/schema.ts";
-import { resolveKitFont, sizeToCss } from "@kit/values.ts";
+import { parseKitRef, resolveKitFont, sizeToCss } from "@kit/values.ts";
 import { FontPicker } from "./FontPicker.tsx";
 import { IconPicker } from "./IconPicker.tsx";
-import { Choice, ColorInput, controlInputClass, DeviceButton, NumberInput, Row, SizeInput, UnitMenu } from "./inputs.tsx";
+import { Choice, ColorInput, ColorSwatch, controlInputClass, DeviceButton, GlobalColorList, GlobeButton, NumberInput, PencilButton, Popover, PopoverHost, Row, SizeInput, UnitMenu } from "./inputs.tsx";
 import { FONT_UNITS, LETTER_UNITS, LINE_HEIGHT_UNITS, PX_UNITS, SPACING_UNITS, type ControlSpec, type Path } from "./types.ts";
 import { thumbnailUrl } from "../media.ts";
 
@@ -26,13 +29,17 @@ export type ControlTarget = {
   onDevice: (device: Device) => void;
   kit: SiteKit;
   isStaff: boolean;
-  /** Extra actions a control may need (the media library, editing on the page). */
-  actions?: { pickImage?: (onPick: (src: string, alt: string) => void) => void; editOnPage?: () => void };
+  /** Extra actions a control may need (the media library, editing on the page, a structure preset). */
+  actions?: { pickImage?: (onPick: (src: string, alt: string) => void) => void; editOnPage?: () => void; applyStructure?: (structureId: string) => void };
   /** The live site's address, so a picture path (/assets/...) can be previewed. */
   siteUrl?: string | null;
 };
 
 const key = (path: Path) => path.join(".");
+const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+/** True inside a popover: colours render their full picker in place instead of another popover. */
+const InPopover = createContext(false);
 
 /** Reads and writes for one control, responsive or not. */
 function useValue<T>(target: ControlTarget, path: Path, responsive: boolean | undefined, fallback?: T) {
@@ -57,7 +64,7 @@ function useValue<T>(target: ControlTarget, path: Path, responsive: boolean | un
   };
 }
 
-function Responsive({ target, spec, children, hint, htmlFor }: { target: ControlTarget; spec: { label: string; path: Path; responsive?: boolean }; children: ReactNode; hint?: string; htmlFor?: string }) {
+function Responsive({ target, spec, children, hint, htmlFor, stacked, end }: { target: ControlTarget; spec: { label: string; path: Path; responsive?: boolean }; children: ReactNode; hint?: string; htmlFor?: string; stacked?: boolean; end?: ReactNode }) {
   const raw = target.read(spec.path);
   const overridden = spec.responsive ? hasOverride(raw as never, target.device) : false;
   return (
@@ -65,6 +72,8 @@ function Responsive({ target, spec, children, hint, htmlFor }: { target: Control
       label={spec.label}
       htmlFor={htmlFor}
       hint={hint}
+      stacked={stacked}
+      end={end}
       right={spec.responsive ? <DeviceButton device={target.device} overridden={overridden} onDevice={target.onDevice} onReset={() => target.write(spec.path, setAt(raw as never, target.device, undefined), "Reset the override")} /> : undefined}
     >
       {children}
@@ -79,7 +88,7 @@ function TextControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
   const value = (target.read(spec.path) as string | undefined) ?? "";
   const set = (next: string) => target.write(spec.path, next === "" ? undefined : next, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
   return (
-    <Row label={spec.label} htmlFor={id} hint={spec.hint}>
+    <Row label={spec.label} htmlFor={id} hint={spec.hint} stacked={spec.multiline}>
       {spec.multiline ? (
         <textarea id={id} value={value} maxLength={spec.max} placeholder={spec.placeholder} onChange={(event) => set(event.target.value)} className={clsx(controlInputClass, "min-h-20 py-1.5 leading-relaxed")} />
       ) : (
@@ -124,7 +133,9 @@ function ChoiceControl({ target, spec }: { target: ControlTarget; spec: Extract<
   };
   return (
     <Responsive target={target} spec={spec}>
-      <Choice label={spec.label} value={value === undefined && inherited === undefined ? undefined : String(value ?? inherited)} allowNone={spec.allowNone ?? true} options={spec.options.map((option) => ({ value: option.value, title: option.label, label: option.icon ? iconFor(option.icon) : option.label }))} onChange={(next) => set(spec.numeric && next !== undefined ? (Number(next) as never) : next, `Changed ${spec.label.toLowerCase()}`)} />
+      <div className="w-full">
+        <Choice label={spec.label} value={value === undefined && inherited === undefined ? undefined : String(value ?? inherited)} allowNone={spec.allowNone ?? true} options={spec.options.map((option) => ({ value: option.value, title: option.label, label: option.icon ? iconFor(option.icon) : option.label }))} onChange={(next) => set(spec.numeric && next !== undefined ? (Number(next) as never) : next, `Changed ${spec.label.toLowerCase()}`)} />
+      </div>
     </Responsive>
   );
 }
@@ -134,10 +145,7 @@ function ToggleControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const on = value ?? inherited ?? false;
   return (
     <Responsive target={target} spec={spec} hint={spec.hint}>
-      <div className="flex items-center justify-between">
-        <span className="text-[12px] text-muted">{on ? "On" : "Off"}</span>
-        <Toggle checked={on} onChange={(next) => set(next ? true : undefined, `${next ? "Turned on" : "Turned off"} ${spec.label.toLowerCase()}`)} label={spec.label} />
-      </div>
+      <Toggle checked={on} onChange={(next) => set(next ? true : undefined, `${next ? "Turned on" : "Turned off"} ${spec.label.toLowerCase()}`)} label={spec.label} />
     </Responsive>
   );
 }
@@ -147,7 +155,7 @@ function NumberControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const { value, inherited, set } = useValue<number>(target, spec.path, spec.responsive);
   return (
     <Responsive target={target} spec={spec} htmlFor={id} hint={spec.hint}>
-      <NumberInput id={id} value={value} inherited={inherited} min={spec.min} max={spec.max} step={spec.step ?? 1} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} />
+      <NumberInput id={id} value={value} inherited={inherited} min={spec.min} max={spec.max} step={spec.step ?? 1} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} className="w-full" />
     </Responsive>
   );
 }
@@ -158,19 +166,21 @@ function SizeControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
   const isScreen = value === "screen" || (value === undefined && inherited === "screen");
   return (
     <Responsive target={target} spec={spec} htmlFor={id} hint={spec.hint}>
-      <SizeInput
-        id={id}
-        value={value === "screen" ? undefined : value}
-        inherited={inherited === "screen" ? undefined : inherited}
-        units={spec.units ?? PX_UNITS}
-        min={spec.min}
-        max={spec.max}
-        allowAuto
-        allowScreen={spec.allowScreen}
-        screen={isScreen}
-        onScreen={(on) => set(on ? "screen" : undefined, `Changed ${spec.label.toLowerCase()}`)}
-        onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))}
-      />
+      <div className="w-full">
+        <SizeInput
+          id={id}
+          value={value === "screen" ? undefined : value}
+          inherited={inherited === "screen" ? undefined : inherited}
+          units={spec.units ?? PX_UNITS}
+          min={spec.min}
+          max={spec.max}
+          allowAuto
+          allowScreen={spec.allowScreen}
+          screen={isScreen}
+          onScreen={(on) => set(on ? "screen" : undefined, `Changed ${spec.label.toLowerCase()}`)}
+          onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))}
+        />
+      </div>
     </Responsive>
   );
 }
@@ -180,6 +190,7 @@ function SizeControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
 const SIDES = ["top", "right", "bottom", "left"] as const;
 const CORNERS = ["topLeft", "topRight", "bottomRight", "bottomLeft"] as const;
 
+/** Four boxes (margin, padding, radius) with the unit menu and the link toggle on the label line. */
 function LinkedSizes<K extends string>({ target, spec, keys, labels }: { target: ControlTarget; spec: { label: string; path: Path; responsive?: boolean; units?: Unit[] }; keys: readonly K[]; labels: Record<K, string> }) {
   const { value, inherited, set } = useValue<Partial<Record<K, Size>>>(target, spec.path, spec.responsive);
   const shown: Partial<Record<K, Size>> = value ?? inherited ?? {};
@@ -196,17 +207,23 @@ function LinkedSizes<K extends string>({ target, spec, keys, labels }: { target:
     set(base, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
   };
   return (
-    <Responsive target={target} spec={spec}>
+    <Responsive
+      target={target}
+      spec={spec}
+      stacked
+      end={
+        <>
+          <UnitMenu unit={unit} units={units} onChange={(next) => set(Object.fromEntries(keys.map((k) => [k, { value: shown[k]?.value ?? 0, unit: next }])) as Partial<Record<K, Size>>, `Changed ${spec.label.toLowerCase()} unit`)} />
+          <button type="button" aria-pressed={linked} aria-label={linked ? `${spec.label} values are linked` : `${spec.label} values are unlinked`} title={linked ? "Linked: edit one to set all four" : "Unlinked: each side on its own"} onClick={() => setLinked((current) => !current)} className={clsx("inline-flex h-7 w-7 items-center justify-center rounded-sm border", linked ? "border-accent bg-blue-soft text-accent" : "border-line text-muted hover:text-text")} data-testid="link-sides">
+            {linked ? <icons.IconLink size={12} /> : <icons.IconUnlock size={12} />}
+          </button>
+        </>
+      }
+    >
       <div className="grid grid-cols-4 gap-1">
         {keys.map((k) => (
-          <NumberInput key={k} label={labels[k]} ariaLabel={`${spec.label} ${labels[k].toLowerCase()}`} value={shown[k]?.value} inherited={value === undefined ? inherited?.[k]?.value : undefined} step={unit === "em" || unit === "rem" ? 0.1 : 1} onChange={(next) => update(k, { value: next, unit })} className="flex-col items-stretch gap-0.5" />
+          <NumberInput key={k} label={labels[k]} ariaLabel={`${spec.label} ${labels[k].toLowerCase()}`} value={shown[k]?.value} inherited={value === undefined ? inherited?.[k]?.value : undefined} step={unit === "em" || unit === "rem" ? 0.1 : 1} onChange={(next) => update(k, { value: next, unit })} className="flex-col-reverse items-stretch gap-0.5 text-center" />
         ))}
-      </div>
-      <div className="flex items-center justify-between">
-        <UnitMenu unit={unit} units={units} onChange={(next) => set(Object.fromEntries(keys.map((k) => [k, { value: shown[k]?.value ?? 0, unit: next }])) as Partial<Record<K, Size>>, `Changed ${spec.label.toLowerCase()} unit`)} />
-        <button type="button" aria-pressed={linked} title={linked ? "Values are linked: edit one to set all" : "Values are unlinked"} onClick={() => setLinked((current) => !current)} className={clsx("inline-flex h-7 items-center gap-1 rounded-sm px-1.5 text-[11px] font-semibold", linked ? "bg-blue-soft text-accent" : "text-muted hover:bg-ground")} data-testid="link-sides">
-          <icons.IconLink size={12} /> {linked ? "Linked" : "Unlinked"}
-        </button>
       </div>
     </Responsive>
   );
@@ -220,7 +237,7 @@ function GapControl({ target, spec }: { target: ControlTarget; spec: Extract<Con
   const shown = value ?? inherited ?? {};
   const update = (which: "column" | "row", next: Size | undefined) => set({ ...(value ?? inherited ?? {}), [which]: next }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
   return (
-    <Responsive target={target} spec={spec}>
+    <Responsive target={target} spec={spec} stacked>
       <div className="grid grid-cols-2 gap-2">
         <SizeInput label="Col" value={value?.column} inherited={value === undefined ? inherited?.column : shown.column} units={SPACING_UNITS} onChange={(next) => update("column", next)} />
         <SizeInput label="Row" value={value?.row} inherited={value === undefined ? inherited?.row : shown.row} units={SPACING_UNITS} onChange={(next) => update("row", next)} />
@@ -231,12 +248,63 @@ function GapControl({ target, spec }: { target: ControlTarget; spec: Extract<Con
 
 // --- colour, font, link, image, icon -----------------------------------------------------------------------
 
-function ColorControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "color" }> }) {
-  const { value, inherited, set } = useValue<string>(target, spec.path, spec.responsive);
+/**
+ * A colour row: the swatch opens the picker (site swatches, the browser's picker, a hex,
+ * opacity); the globe lists the site's global colours. Inside a popover the picker shows
+ * in place.
+ */
+function ColorField({ label, value, inherited, kit, onChange, onCommit, allowClear = true, siteColors = true, right, hint, testId = "color-swatch" }: { label: string; value: string | undefined; inherited?: string; kit: SiteKit; onChange: (value: string | undefined) => void; onCommit?: () => void; allowClear?: boolean; siteColors?: boolean; right?: ReactNode; hint?: string; testId?: string }) {
+  const [open, setOpen] = useState<"picker" | "global" | null>(null);
+  const inPopover = useContext(InPopover);
+  const shown = value ?? inherited;
+  const linked = !!parseKitRef(shown);
+  const input = <ColorInput value={value} inherited={inherited} kit={kit} siteColors={siteColors} allowClear={allowClear} onChange={onChange} onCommit={onCommit} />;
+  if (inPopover) {
+    return (
+      <Row label={label} right={right} hint={hint} stacked>
+        {input}
+      </Row>
+    );
+  }
   return (
-    <Responsive target={target} spec={spec} hint={spec.hint}>
-      <ColorInput value={value} inherited={inherited} kit={target.kit} siteColors={!spec.noKit} allowClear={!spec.required} onChange={(next) => (next === undefined && spec.required ? undefined : set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path)))} />
-    </Responsive>
+    <PopoverHost>
+      <Row label={label} right={right} hint={hint}>
+        {siteColors && <GlobeButton label={`${label}: global colours`} linked={linked} open={open === "global"} onClick={() => setOpen((current) => (current === "global" ? null : "global"))} testId="color-global" />}
+        <ColorSwatch label={label} value={shown} kit={kit} open={open === "picker"} onClick={() => setOpen((current) => (current === "picker" ? null : "picker"))} testId={testId} />
+      </Row>
+      <Popover open={open === "picker"} onClose={() => setOpen(null)} label={label} testId="color-popover">
+        {input}
+      </Popover>
+      <Popover open={open === "global"} onClose={() => setOpen(null)} label="Global colours" testId="color-global-popover">
+        <GlobalColorList
+          value={shown}
+          kit={kit}
+          onPick={(ref) => {
+            onChange(ref);
+            onCommit?.();
+            setOpen(null);
+          }}
+        />
+      </Popover>
+    </PopoverHost>
+  );
+}
+
+function ColorControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "color" }> }) {
+  const { value, inherited, set, overridden } = useValue<string>(target, spec.path, spec.responsive);
+  const raw = target.read(spec.path);
+  return (
+    <ColorField
+      label={spec.label}
+      value={value}
+      inherited={inherited}
+      kit={target.kit}
+      siteColors={!spec.noKit}
+      allowClear={!spec.required}
+      hint={spec.hint}
+      right={spec.responsive ? <DeviceButton device={target.device} overridden={overridden} onDevice={target.onDevice} onReset={() => target.write(spec.path, setAt(raw as never, target.device, undefined), "Reset the override")} /> : undefined}
+      onChange={(next) => (next === undefined && spec.required ? undefined : set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path)))}
+    />
   );
 }
 
@@ -244,7 +312,9 @@ function FontControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
   const value = target.read(spec.path) as string | undefined;
   return (
     <Row label={spec.label}>
-      <FontPicker value={value} kit={target.kit} siteFonts={!spec.noKit} allowInherit={!spec.required} onChange={(next) => (next === undefined && spec.required ? undefined : target.write(spec.path, next, `Changed ${spec.label.toLowerCase()}`))} />
+      <div className="w-full">
+        <FontPicker value={value} kit={target.kit} siteFonts={!spec.noKit} allowInherit={!spec.required} onChange={(next) => (next === undefined && spec.required ? undefined : target.write(spec.path, next, `Changed ${spec.label.toLowerCase()}`))} />
+      </div>
     </Row>
   );
 }
@@ -255,9 +325,9 @@ function LinkControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
   const href = value.href ?? "";
   const error = href && !isAllowedHref(href) ? "Must start with https://, http://, mailto:, tel:, / or #." : null;
   return (
-    <Row label={spec.label} htmlFor={id} hint={error ?? spec.hint ?? "https://, mailto:, tel:, a page on this site (/contact/) or #anchor."}>
+    <Row label={spec.label} htmlFor={id} hint={error ?? spec.hint ?? "https://, mailto:, tel:, a page on this site (/contact/) or #anchor."} stacked>
       <div className="flex flex-col gap-1.5">
-        <input id={id} type="text" inputMode="url" value={href} onChange={(event) => target.write(spec.path, event.target.value === "" && !value.newTab ? undefined : { ...value, href: event.target.value }, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} className={clsx(controlInputClass, error && "border-red")} aria-invalid={!!error} />
+        <input id={id} type="text" inputMode="url" value={href} placeholder="Paste URL or type" onChange={(event) => target.write(spec.path, event.target.value === "" && !value.newTab ? undefined : { ...value, href: event.target.value }, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} className={clsx(controlInputClass, error && "border-red")} aria-invalid={!!error} />
         <label className="flex items-center gap-2 text-[12px] text-text">
           <input type="checkbox" checked={!!value.newTab} onChange={(event) => target.write(spec.path, { ...value, href, newTab: event.target.checked || undefined }, "Changed link target")} /> Open in a new tab
         </label>
@@ -274,7 +344,7 @@ function ImageControl({ target, spec }: { target: ControlTarget; spec: Extract<C
   const preview = !src || error ? null : src.startsWith("https://") ? src : thumbnailUrl(src, target.siteUrl ?? null);
   return (
     <div className="flex flex-col gap-3">
-      <Row label={spec.label} htmlFor={id} hint={error ?? "A path under /assets/ or an https:// address."}>
+      <Row label={spec.label} htmlFor={id} hint={error ?? "A path under /assets/ or an https:// address."} stacked>
         <div className="flex items-center gap-2">
           <span className="flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-line bg-ground">{preview ? <img src={preview} alt="" className="h-full w-full object-cover" /> : <icons.IconImage size={18} className="text-muted" />}</span>
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -297,48 +367,80 @@ function ImageControl({ target, spec }: { target: ControlTarget; spec: Extract<C
 function IconControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "icon" }> }) {
   const value = target.read(spec.path) as IconValue | null | undefined;
   return (
-    <Row label={spec.label}>
+    <Row label={spec.label} stacked>
       <IconPicker value={value ?? null} onChange={(next) => target.write(spec.path, next ?? undefined, next ? "Chose an icon" : "Removed the icon")} />
     </Row>
   );
 }
 
-// --- shadows, backgrounds, typography, border ------------------------------------------------------------------
+// --- one-row controls with a popover: shadows, stroke, typography, border ----------------------------------
+
+/** A row whose pencil opens a popover with the fields; `active` fills the pencil when a value is set. */
+function PopoverRow({ target, spec, active, children, label, before }: { target: ControlTarget; spec: { label: string; path: Path; responsive?: boolean }; active: boolean; children: ReactNode; label?: string; /** Extra buttons before the pencil (the globe). */ before?: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const id = slug(spec.label);
+  return (
+    <PopoverHost>
+      <Responsive target={target} spec={spec}>
+        {before}
+        <PencilButton label={`Edit ${(label ?? spec.label).toLowerCase()}`} active={active} open={open} onClick={() => setOpen((current) => !current)} testId={`edit-${id}`} />
+      </Responsive>
+      <Popover open={open} onClose={() => setOpen(false)} label={label ?? spec.label} testId={`popover-${id}`}>
+        <InPopover.Provider value>{children}</InPopover.Provider>
+      </Popover>
+    </PopoverHost>
+  );
+}
 
 function ShadowControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "shadow" }> }) {
   const { value, inherited, set } = useValue<Shadow>(target, spec.path, spec.responsive);
   const shown = value ?? inherited;
-  const update = (patch: Partial<Shadow>) => set({ x: 0, y: 4, blur: 12, spread: spec.text ? undefined : 0, color: "#00000033", ...(value ?? inherited ?? {}), ...patch }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+  const defaults: Shadow = { x: 0, y: 4, blur: 12, spread: spec.text ? undefined : 0, color: "#00000033" };
+  const draft = shown ?? defaults;
+  const update = (patch: Partial<Shadow>) => set({ ...defaults, ...(value ?? inherited ?? {}), ...patch }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+  const number = (label: string, field: "x" | "y" | "blur" | "spread", min?: number) => (
+    <Row label={label}>
+      <NumberInput ariaLabel={`${spec.label} ${label.toLowerCase()}`} value={draft[field] ?? 0} min={min} step={1} onChange={(next) => update({ [field]: next })} className="w-full" />
+    </Row>
+  );
   return (
-    <Responsive target={target} spec={spec}>
-      {shown ? (
-        <div className="flex flex-col gap-2">
-          <div className={clsx("grid gap-1", spec.text ? "grid-cols-3" : "grid-cols-4")}>
-            <NumberInput label="X" value={shown.x} step={1} onChange={(next) => update({ x: next })} className="flex-col items-stretch gap-0.5" />
-            <NumberInput label="Y" value={shown.y} step={1} onChange={(next) => update({ y: next })} className="flex-col items-stretch gap-0.5" />
-            <NumberInput label="Blur" value={shown.blur} min={0} step={1} onChange={(next) => update({ blur: next })} className="flex-col items-stretch gap-0.5" />
-            {!spec.text && <NumberInput label="Spread" value={shown.spread ?? 0} step={1} onChange={(next) => update({ spread: next })} className="flex-col items-stretch gap-0.5" />}
-          </div>
-          <ColorInput value={shown.color} kit={target.kit} allowClear={false} onChange={(next) => update({ color: next ?? "#00000033" })} />
-          <div className="flex items-center justify-between">
-            {!spec.text ? (
-              <label className="flex items-center gap-2 text-[12px] text-text">
-                <input type="checkbox" checked={!!shown.inset} onChange={(event) => update({ inset: event.target.checked || undefined })} /> Inset
-              </label>
-            ) : (
-              <span />
-            )}
-            <button type="button" onClick={() => set(undefined, `Removed ${spec.label.toLowerCase()}`)} className="text-[12px] font-semibold text-muted hover:text-text">
-              Remove
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button type="button" onClick={() => update({})} className="h-8 rounded-sm border border-dashed border-line text-[12px] font-semibold text-muted hover:border-accent hover:text-accent">
-          Add a {spec.label.toLowerCase()}
+    <PopoverRow target={target} spec={spec} active={!!shown}>
+      <ColorField label="Colour" value={draft.color} kit={target.kit} allowClear={false} onChange={(next) => update({ color: next ?? "#00000033" })} />
+      {number("Horizontal", "x")}
+      {number("Vertical", "y")}
+      {number("Blur", "blur", 0)}
+      {!spec.text && number("Spread", "spread")}
+      {!spec.text && (
+        <Row label="Position">
+          <Choice label="Shadow position" value={draft.inset ? "inset" : "outline"} allowNone={false} options={[{ value: "outline", label: "Outline" }, { value: "inset", label: "Inset" }]} onChange={(next) => update({ inset: next === "inset" || undefined })} />
+        </Row>
+      )}
+      {shown && (
+        <button type="button" onClick={() => set(undefined, `Removed ${spec.label.toLowerCase()}`)} className="h-7 self-start rounded-sm border border-line px-2 text-[11px] font-semibold text-muted hover:text-text" data-testid={`remove-${slug(spec.label)}`}>
+          Remove {spec.label.toLowerCase()}
         </button>
       )}
-    </Responsive>
+    </PopoverRow>
+  );
+}
+
+function StrokeControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "stroke" }> }) {
+  const { value, inherited, set } = useValue<TextStroke>(target, spec.path, spec.responsive);
+  const shown = value ?? inherited;
+  const draft: TextStroke = shown ?? { width: 1, color: "kit:color.text" };
+  const update = (patch: Partial<TextStroke>) => set({ ...draft, ...patch }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+  return (
+    <PopoverRow target={target} spec={spec} active={!!shown}>
+      <Row label="Width (px)">
+        <NumberInput ariaLabel={`${spec.label} width`} value={draft.width} min={0} max={50} step={0.5} onChange={(next) => update({ width: next })} className="w-full" />
+      </Row>
+      <ColorField label="Colour" value={draft.color} kit={target.kit} allowClear={false} onChange={(next) => update({ color: next ?? "kit:color.text" })} />
+      {shown && (
+        <button type="button" onClick={() => set(undefined, `Removed ${spec.label.toLowerCase()}`)} className="h-7 self-start rounded-sm border border-line px-2 text-[11px] font-semibold text-muted hover:text-text" data-testid={`remove-${slug(spec.label)}`}>
+          Remove {spec.label.toLowerCase()}
+        </button>
+      )}
+    </PopoverRow>
   );
 }
 
@@ -355,24 +457,28 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
     case "none":
       return null;
     case "color":
-      return <ColorInput value={background.color} kit={kit} allowClear={false} onChange={(next) => onChange({ kind: "color", color: next ?? "transparent" })} />;
+      return <ColorField label="Colour" value={background.color} kit={kit} allowClear={false} onChange={(next) => onChange({ kind: "color", color: next ?? "transparent" })} />;
     case "gradient": {
       const stops = background.stops;
       const setStop = (index: number, patch: Partial<{ color: string; position: number }>) => onChange({ ...background, stops: stops.map((stop, i) => (i === index ? { ...stop, ...patch } : stop)) });
       return (
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
+          <Row label="Type">
             <Choice label="Gradient type" value={background.type} options={[{ value: "linear", label: "Linear" }, { value: "radial", label: "Radial" }]} onChange={(next) => onChange({ ...background, type: next ?? "linear" })} />
-            {background.type === "linear" && <NumberInput label="Angle" value={background.angle ?? 180} min={0} max={360} step={1} onChange={(next) => onChange({ ...background, angle: next })} className="w-28" />}
-          </div>
+          </Row>
+          {background.type === "linear" && (
+            <Row label="Angle">
+              <NumberInput ariaLabel="Gradient angle" value={background.angle ?? 180} min={0} max={360} step={1} onChange={(next) => onChange({ ...background, angle: next })} className="w-full" />
+            </Row>
+          )}
           <div className="h-6 rounded-sm border border-line" style={{ background: `linear-gradient(90deg, ${stops.map((stop) => `${stop.color.startsWith("kit:") ? "#888" : stop.color} ${stop.position}%`).join(", ")})` }} aria-hidden="true" />
           {stops.map((stop, index) => (
-            <div key={index} className="flex items-start gap-2">
-              <div className="flex-1">
-                <ColorInput value={stop.color} kit={kit} allowClear={false} onChange={(next) => setStop(index, { color: next ?? "#000000" })} />
+            <div key={index} className="flex items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <ColorField label={`Stop ${index + 1}`} value={stop.color} kit={kit} allowClear={false} onChange={(next) => setStop(index, { color: next ?? "#000000" })} />
               </div>
-              <NumberInput label="%" value={stop.position} min={0} max={100} step={1} onChange={(next) => setStop(index, { position: next })} className="w-24" />
-              <button type="button" aria-label="Remove stop" disabled={stops.length <= 2} onClick={() => onChange({ ...background, stops: stops.filter((_, i) => i !== index) })} className="inline-flex h-8 w-8 items-center justify-center rounded-sm text-muted hover:bg-ground hover:text-text disabled:opacity-40">
+              <NumberInput ariaLabel={`Stop ${index + 1} position`} value={stop.position} min={0} max={100} step={1} onChange={(next) => setStop(index, { position: next })} className="w-16" suffix={<span className="text-[11px] text-muted">%</span>} />
+              <button type="button" aria-label="Remove stop" disabled={stops.length <= 2} onClick={() => onChange({ ...background, stops: stops.filter((_, i) => i !== index) })} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-muted hover:bg-ground hover:text-text disabled:opacity-40">
                 <icons.IconX size={14} />
               </button>
             </div>
@@ -386,23 +492,31 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
     case "image":
       return (
         <div className="flex flex-col gap-2">
-          <input type="text" aria-label="Background image" value={background.src} placeholder="/assets/photo.webp" onChange={(event) => onChange({ ...background, src: event.target.value })} className={clsx(controlInputClass, "font-mono text-[12px]")} />
-          <div className="grid grid-cols-2 gap-1.5">
+          <Row label="Image" stacked>
+            <input type="text" aria-label="Background image" value={background.src} placeholder="/assets/photo.webp" onChange={(event) => onChange({ ...background, src: event.target.value })} className={clsx(controlInputClass, "font-mono text-[12px]")} />
+          </Row>
+          <Row label="Size">
             <select aria-label="Size" value={background.size ?? "cover"} onChange={(event) => onChange({ ...background, size: event.target.value as "auto" | "cover" | "contain" })} className={controlInputClass}>
               <option value="cover">Cover</option>
               <option value="contain">Contain</option>
               <option value="auto">Auto</option>
             </select>
+          </Row>
+          <Row label="Repeat">
             <select aria-label="Repeat" value={background.repeat ?? "no-repeat"} onChange={(event) => onChange({ ...background, repeat: event.target.value as "no-repeat" | "repeat" | "repeat-x" | "repeat-y" })} className={controlInputClass}>
               <option value="no-repeat">No repeat</option>
               <option value="repeat">Repeat</option>
               <option value="repeat-x">Repeat across</option>
               <option value="repeat-y">Repeat down</option>
             </select>
+          </Row>
+          <Row label="Attachment">
             <select aria-label="Attachment" value={background.attachment ?? "scroll"} onChange={(event) => onChange({ ...background, attachment: event.target.value as "scroll" | "fixed" })} className={controlInputClass}>
               <option value="scroll">Scrolls with the page</option>
               <option value="fixed">Fixed (parallax)</option>
             </select>
+          </Row>
+          <Row label="Position">
             <select aria-label="Position" value={background.focal ? "focal" : (background.position ?? "center center")} onChange={(event) => (event.target.value === "focal" ? onChange({ ...background, focal: { x: 50, y: 50 }, position: undefined }) : onChange({ ...background, position: event.target.value, focal: undefined }))} className={controlInputClass}>
               {["center center", "top left", "top center", "top right", "center left", "center right", "bottom left", "bottom center", "bottom right"].map((position) => (
                 <option key={position} value={position}>
@@ -411,7 +525,7 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
               ))}
               <option value="focal">Focal point…</option>
             </select>
-          </div>
+          </Row>
           {background.focal && (
             <div className="grid grid-cols-2 gap-1.5">
               <NumberInput label="X %" value={background.focal.x} min={0} max={100} step={1} onChange={(next) => onChange({ ...background, focal: { x: next, y: background.focal?.y ?? 50 } })} />
@@ -423,14 +537,18 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
     case "video":
       return (
         <div className="flex flex-col gap-2">
-          <input type="text" aria-label="Video file" value={background.src} placeholder="/assets/loop.mp4 or https://…" onChange={(event) => onChange({ ...background, src: event.target.value })} className={clsx(controlInputClass, "font-mono text-[12px]")} />
-          <input type="text" aria-label="Fallback picture" value={background.poster ?? ""} placeholder="Fallback picture, e.g. /assets/still.webp" onChange={(event) => onChange({ ...background, poster: event.target.value || undefined })} className={clsx(controlInputClass, "font-mono text-[12px]")} />
-          <label className="flex items-center gap-2 text-[12px] text-text">
-            <input type="checkbox" checked={background.loop !== false} onChange={(event) => onChange({ ...background, loop: event.target.checked })} /> Loop
-          </label>
-          <label className="flex items-center gap-2 text-[12px] text-text">
-            <input type="checkbox" checked={!!background.playOnMobile} onChange={(event) => onChange({ ...background, playOnMobile: event.target.checked || undefined })} /> Play on phones (uses data; the fallback picture shows otherwise)
-          </label>
+          <Row label="Video" stacked>
+            <input type="text" aria-label="Video file" value={background.src} placeholder="/assets/loop.mp4 or https://…" onChange={(event) => onChange({ ...background, src: event.target.value })} className={clsx(controlInputClass, "font-mono text-[12px]")} />
+          </Row>
+          <Row label="Fallback picture" stacked>
+            <input type="text" aria-label="Fallback picture" value={background.poster ?? ""} placeholder="/assets/still.webp" onChange={(event) => onChange({ ...background, poster: event.target.value || undefined })} className={clsx(controlInputClass, "font-mono text-[12px]")} />
+          </Row>
+          <Row label="Loop">
+            <Toggle checked={background.loop !== false} onChange={(next) => onChange({ ...background, loop: next })} label="Loop" />
+          </Row>
+          <Row label="Play on phones" hint="Uses data; the fallback picture shows otherwise.">
+            <Toggle checked={!!background.playOnMobile} onChange={(next) => onChange({ ...background, playOnMobile: next || undefined })} label="Play on phones" />
+          </Row>
         </div>
       );
   }
@@ -456,8 +574,8 @@ function BackgroundControl({ target, spec }: { target: ControlTarget; spec: Extr
   const shown = value ?? inherited;
   const kind = shown?.kind ?? "";
   return (
-    <Responsive target={target} spec={spec}>
-      <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <Responsive target={target} spec={{ ...spec, label: `${spec.label} type` }}>
         <select aria-label={`${spec.label} type`} value={kind} onChange={(event) => set(event.target.value === "" ? undefined : defaultBackground(event.target.value as Background["kind"]), `Changed ${spec.label.toLowerCase()}`)} className={controlInputClass} data-testid="background-kind">
           <option value="">Default</option>
           {BACKGROUND_KINDS.map((option) => (
@@ -466,9 +584,9 @@ function BackgroundControl({ target, spec }: { target: ControlTarget; spec: Extr
             </option>
           ))}
         </select>
-        {shown && <BackgroundFields background={shown} kit={target.kit} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} />}
-      </div>
-    </Responsive>
+      </Responsive>
+      {shown && <BackgroundFields background={shown} kit={target.kit} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} />}
+    </div>
   );
 }
 
@@ -476,48 +594,53 @@ function OverlayControl({ target, path }: { target: ControlTarget; path: Path })
   const { value, inherited, set } = useValue<BackgroundOverlay>(target, path, true);
   const shown = value ?? inherited;
   return (
-    <Responsive target={target} spec={{ label: "Background overlay", path, responsive: true }}>
-      {shown ? (
-        <div className="flex flex-col gap-2">
-          <select aria-label="Overlay type" value={shown.background.kind} onChange={(event) => set({ ...shown, background: defaultBackground(event.target.value as Background["kind"]) }, "Changed overlay")} className={controlInputClass}>
-            {BACKGROUND_KINDS.filter((option) => option.value !== "none" && option.value !== "video").map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+    <div className="flex flex-col gap-3">
+      <Responsive target={target} spec={{ label: "Overlay", path, responsive: true }}>
+        <select aria-label="Overlay type" value={shown ? shown.background.kind : ""} onChange={(event) => (event.target.value === "" ? set(undefined, "Removed the overlay") : set({ background: event.target.value === "color" && !shown ? { kind: "color", color: "#00000080" } : defaultBackground(event.target.value as Background["kind"]), opacity: shown?.opacity ?? 0.5, blend: shown?.blend }, shown ? "Changed overlay" : "Added an overlay"))} className={controlInputClass} data-testid="overlay-kind">
+          <option value="">None</option>
+          {BACKGROUND_KINDS.filter((option) => option.value !== "none" && option.value !== "video").map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </Responsive>
+      {shown && (
+        <>
           <BackgroundFields background={shown.background} kit={target.kit} onChange={(next) => set({ ...shown, background: next }, "Changed overlay", key(path))} />
-          <label className="flex items-center gap-2 text-[11px] text-muted">
-            Opacity
-            <input type="range" min={0} max={100} value={Math.round(shown.opacity * 100)} onChange={(event) => set({ ...shown, opacity: Number(event.target.value) / 100 }, "Changed overlay opacity", key(path))} className="h-1 flex-1" aria-label="Overlay opacity" />
-            <span className="w-8 text-right tabular-nums">{Math.round(shown.opacity * 100)}%</span>
-          </label>
-          <div className="flex items-center justify-between gap-2">
-            <select aria-label="Blend mode" value={shown.blend ?? "normal"} onChange={(event) => set({ ...shown, blend: event.target.value === "normal" ? undefined : (event.target.value as BackgroundOverlay["blend"]) }, "Changed blend mode")} className={clsx(controlInputClass, "w-auto flex-1")}>
-              {["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"].map((mode) => (
+          <Row label="Opacity">
+            <div className="flex w-full items-center gap-2 text-[11px] text-muted">
+              <input type="range" min={0} max={100} value={Math.round(shown.opacity * 100)} onChange={(event) => set({ ...shown, opacity: Number(event.target.value) / 100 }, "Changed overlay opacity", key(path))} className="h-1 min-w-0 flex-1" aria-label="Overlay opacity" />
+              <span className="w-8 text-right tabular-nums">{Math.round(shown.opacity * 100)}%</span>
+            </div>
+          </Row>
+          <Row label="Blend mode">
+            <select aria-label="Overlay blend mode" value={shown.blend ?? "normal"} onChange={(event) => set({ ...shown, blend: event.target.value === "normal" ? undefined : (event.target.value as BackgroundOverlay["blend"]) }, "Changed blend mode")} className={controlInputClass}>
+              {BLEND_MODES.map((mode) => (
                 <option key={mode} value={mode}>
                   {mode}
                 </option>
               ))}
             </select>
-            <button type="button" onClick={() => set(undefined, "Removed the overlay")} className="text-[12px] font-semibold text-muted hover:text-text">
-              Remove
-            </button>
-          </div>
-        </div>
-      ) : (
-        <button type="button" onClick={() => set({ background: { kind: "color", color: "#00000080" }, opacity: 0.5 }, "Added an overlay")} className="h-8 rounded-sm border border-dashed border-line text-[12px] font-semibold text-muted hover:border-accent hover:text-accent">
-          Add an overlay
-        </button>
+          </Row>
+        </>
       )}
-    </Responsive>
+    </div>
   );
 }
 
+const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
 const WEIGHTS = ["100", "200", "300", "400", "500", "600", "700", "800", "900"];
 
+const presetLabel = (name: string) => (name.toUpperCase().startsWith("H") && /^h[1-6]$/i.test(name) ? `Heading ${name.slice(1)}` : name.charAt(0).toUpperCase() + name.slice(1));
+
+/**
+ * Typography as one row: the globe picks a site text style (H1…H6, body, small, button),
+ * the pencil opens the font, size, weight, transform, style, decoration and spacing.
+ */
 function TypographyControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "typography" }> }) {
   const base = spec.path;
+  const label = spec.label ?? "Typography";
   const typography = (target.read(base) as Typography | undefined) ?? {};
   const presets = Object.keys(target.kit.typography);
   const presetRef = typography.preset ?? "";
@@ -530,57 +653,83 @@ function TypographyControl({ target, spec }: { target: ControlTarget; spec: Extr
     letterSpacing: preset?.letterSpacing,
     textTransform: preset?.textTransform,
   };
+  const set = Object.keys(typography).some((field) => field !== "textAlign" && typography[field as keyof Typography] !== undefined);
+  const [globalOpen, setGlobalOpen] = useState(false);
   return (
-    <div className="flex flex-col gap-3">
-      <Row label="Preset" hint="A site-wide text style. Values below override it for this element only.">
-        <div className="flex items-center gap-1.5">
-          <select aria-label="Typography preset" value={presetRef} onChange={(event) => target.write([...base, "preset"], event.target.value || undefined, "Changed the text preset")} className={clsx(controlInputClass, presetRef && "text-accent")} data-testid="typography-preset">
-            <option value="">None (inherit from the site)</option>
-            {presets.map((name) => (
-              <option key={name} value={`kit:type.${name}`}>
-                {name.toUpperCase().startsWith("H") ? `Heading ${name.slice(1)}` : name.charAt(0).toUpperCase() + name.slice(1)}
-              </option>
-            ))}
-          </select>
-          {presetRef && <icons.IconGlobe size={14} className="shrink-0 text-accent" aria-label="Linked to the site kit" />}
+    <PopoverRow
+      target={target}
+      spec={{ label, path: base }}
+      active={set}
+      before={
+        <PopoverHost className="flex">
+          <GlobeButton label={`${label}: site text styles`} linked={!!presetRef} open={globalOpen} onClick={() => setGlobalOpen((current) => !current)} testId="typography-global" />
+          <Popover open={globalOpen} onClose={() => setGlobalOpen(false)} label="Site text styles" testId="popover-typography-global" className="right-auto left-0 w-[260px]">
+            <ul role="listbox" aria-label="Site text styles" className="flex flex-col gap-0.5" data-testid="global-typography">
+              <li>
+                <button type="button" role="option" aria-selected={!presetRef} onClick={() => { target.write([...base, "preset"], undefined, "Changed the text preset"); setGlobalOpen(false); }} className={clsx("flex h-8 w-full items-center rounded-sm px-1.5 text-left text-[12px] text-muted hover:bg-ground", !presetRef && "bg-blue-soft text-accent")}>
+                  None (inherit from the site)
+                </button>
+              </li>
+              {presets.map((name) => {
+                const ref = `kit:type.${name}`;
+                const style = target.kit.typography[name as keyof SiteKit["typography"]];
+                return (
+                  <li key={name}>
+                    <button type="button" role="option" aria-selected={presetRef === ref} data-testid={`global-type-${name}`} onClick={() => { target.write([...base, "preset"], ref, "Changed the text preset"); setGlobalOpen(false); }} className={clsx("flex h-8 w-full items-center justify-between rounded-sm px-1.5 text-left text-[12px] hover:bg-ground", presetRef === ref && "bg-blue-soft text-accent")}>
+                      <span>{presetLabel(name)}</span>
+                      <span className="font-mono text-[11px] text-muted">{sizeToCss(resolve<Size>(style?.fontSize, "desktop")) ?? ""}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </Popover>
+        </PopoverHost>
+      }
+    >
+      {presetRef && (
+        <p className="text-[11px] leading-relaxed text-muted" data-testid="typography-preset">
+          Linked to the site style <span className="font-semibold text-accent">{presetLabel(presetRef.replace("kit:type.", ""))}</span>. Values here override it for this element only.
+        </p>
+      )}
+      <Row label="Family">
+        <div className="w-full">
+          <FontPicker value={family} kit={target.kit} placeholder={presetRef ? `From the preset (${resolveKitFont(target.kit, target.kit.typography[presetRef.replace("kit:type.", "") as keyof SiteKit["typography"]]?.fontFamily) ?? "site font"})` : "Inherit"} onChange={(next) => target.write([...base, "fontFamily"], next, "Changed the font")} />
         </div>
       </Row>
-      <Row label="Font family">
-        <FontPicker value={family} kit={target.kit} placeholder={presetRef ? `From the preset (${resolveKitFont(target.kit, target.kit.typography[presetRef.replace("kit:type.", "") as keyof SiteKit["typography"]]?.fontFamily) ?? "site font"})` : "Inherit"} onChange={(next) => target.write([...base, "fontFamily"], next, "Changed the font")} />
-      </Row>
-      <ControlRenderer target={target} specs={[{ kind: "size", label: "Size", path: [...base, "fontSize"], units: FONT_UNITS, responsive: true, min: 0, fallback: fromPreset.fontSize }]} />
-      <div className="grid grid-cols-2 gap-2">
-        <ControlRenderer target={target} specs={[{ kind: "select", label: "Weight", path: [...base, "fontWeight"], responsive: true, numeric: true, fallback: fromPreset.fontWeight, options: WEIGHTS.map((weight) => ({ value: weight, label: weight === "400" ? "400 Regular" : weight === "700" ? "700 Bold" : weight })) }]} />
-        <ControlRenderer target={target} specs={[{ kind: "select", label: "Transform", path: [...base, "textTransform"], responsive: true, fallback: fromPreset.textTransform, options: [{ value: "none", label: "None" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }, { value: "capitalize", label: "Capitalize" }] }]} />
-        <ControlRenderer target={target} specs={[{ kind: "select", label: "Style", path: [...base, "fontStyle"], responsive: true, options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Italic" }] }]} />
-        <ControlRenderer target={target} specs={[{ kind: "select", label: "Decoration", path: [...base, "textDecoration"], responsive: true, options: [{ value: "none", label: "None" }, { value: "underline", label: "Underline" }, { value: "line-through", label: "Strike" }, { value: "overline", label: "Overline" }] }]} />
-      </div>
       <ControlRenderer
         target={target}
         specs={[
+          { kind: "size", label: "Size", path: [...base, "fontSize"], units: FONT_UNITS, responsive: true, min: 0, fallback: fromPreset.fontSize },
+          { kind: "select", label: "Weight", path: [...base, "fontWeight"], responsive: true, numeric: true, fallback: fromPreset.fontWeight, options: WEIGHTS.map((weight) => ({ value: weight, label: weight === "400" ? "400 Regular" : weight === "700" ? "700 Bold" : weight })) },
+          { kind: "select", label: "Transform", path: [...base, "textTransform"], responsive: true, fallback: fromPreset.textTransform, options: [{ value: "none", label: "None" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }, { value: "capitalize", label: "Capitalize" }] },
+          { kind: "select", label: "Style", path: [...base, "fontStyle"], responsive: true, options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Italic" }] },
+          { kind: "select", label: "Decoration", path: [...base, "textDecoration"], responsive: true, options: [{ value: "none", label: "None" }, { value: "underline", label: "Underline" }, { value: "line-through", label: "Strike" }, { value: "overline", label: "Overline" }] },
           { kind: "size", label: "Line height", path: [...base, "lineHeight"], units: LINE_HEIGHT_UNITS, responsive: true, min: 0, fallback: fromPreset.lineHeight },
           { kind: "size", label: "Letter spacing", path: [...base, "letterSpacing"], units: LETTER_UNITS, responsive: true, fallback: fromPreset.letterSpacing },
           { kind: "size", label: "Word spacing", path: [...base, "wordSpacing"], units: LETTER_UNITS, responsive: true },
-          { kind: "choice", label: "Align", path: [...base, "textAlign"], responsive: true, options: [{ value: "left", label: "Left", icon: "AlignLeft" }, { value: "center", label: "Centre", icon: "AlignCenter" }, { value: "right", label: "Right", icon: "AlignRight" }, { value: "justify", label: "Justify", icon: "AlignJustify" }] },
         ]}
       />
-    </div>
+    </PopoverRow>
   );
 }
 
 function BorderControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "border" }> }) {
   const base = spec.path;
-  void (target.read(base) as Border | undefined);
+  const border = target.read(base) as Border | undefined;
+  const set = !!border && Object.values(border).some((value) => value !== undefined);
   return (
-    <ControlRenderer
-      target={target}
-      specs={[
-        { kind: "select", label: "Border style", path: [...base, "style"], responsive: true, options: [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }, { value: "double", label: "Double" }] },
-        { kind: "sides", label: "Border width", path: [...base, "width"], responsive: true, units: ["px", "em", "rem"] },
-        { kind: "color", label: "Border colour", path: [...base, "color"], responsive: true },
-        { kind: "corners", label: "Radius", path: [...base, "radius"], responsive: true, units: ["px", "%", "em", "rem"] },
-      ]}
-    />
+    <PopoverRow target={target} spec={{ label: spec.label ?? "Border", path: base }} active={set}>
+      <ControlRenderer
+        target={target}
+        specs={[
+          { kind: "select", label: "Type", path: [...base, "style"], responsive: true, options: [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }, { value: "double", label: "Double" }] },
+          { kind: "sides", label: "Width", path: [...base, "width"], responsive: true, units: ["px", "em", "rem"] },
+          { kind: "color", label: "Colour", path: [...base, "color"], responsive: true },
+          { kind: "corners", label: "Radius", path: [...base, "radius"], responsive: true, units: ["px", "%", "em", "rem"] },
+        ]}
+      />
+    </PopoverRow>
   );
 }
 
@@ -590,7 +739,7 @@ function AttributesControl({ target, spec }: { target: ControlTarget; spec: Extr
   const rows = (target.read(spec.path) as { name: string; value: string }[] | undefined) ?? [];
   const update = (next: { name: string; value: string }[]) => target.write(spec.path, next.length ? next : undefined, "Changed attributes", key(spec.path));
   return (
-    <Row label={spec.label} hint="Names use letters, digits and dashes; event handlers, href, src, style, class and id are never allowed.">
+    <Row label={spec.label} hint="Names use letters, digits and dashes; event handlers, href, src, style, class and id are never allowed." stacked>
       <div className="flex flex-col gap-1.5">
         {rows.map((row, index) => (
           <div key={index} className="flex items-center gap-1">
@@ -613,7 +762,7 @@ function CssControl({ target, spec }: { target: ControlTarget; spec: Extract<Con
   const id = useId();
   const value = (target.read(spec.path) as string | undefined) ?? "";
   return (
-    <Row label={spec.label} htmlFor={id} hint='Write "selector" for this element: selector { color: red } selector:hover { … }. @import, javascript: and off-site url() are removed.'>
+    <Row label={spec.label} htmlFor={id} hint='Write "selector" for this element: selector { color: red } selector:hover { … }. @import, javascript: and off-site url() are removed.' stacked>
       <textarea id={id} value={value} spellCheck={false} onChange={(event) => target.write(spec.path, event.target.value || undefined, "Changed custom CSS", key(spec.path))} className={clsx(controlInputClass, "min-h-28 py-1.5 font-mono text-[12px] leading-relaxed")} />
     </Row>
   );
@@ -719,7 +868,7 @@ function LinesControl({ target, spec }: { target: ControlTarget; spec: Extract<C
   const id = useId();
   const lines = (target.read(spec.path) as string[] | undefined) ?? [];
   return (
-    <Row label={spec.label} htmlFor={id} hint={spec.hint ?? "One per line."}>
+    <Row label={spec.label} htmlFor={id} hint={spec.hint ?? "One per line."} stacked>
       <textarea
         id={id}
         value={lines.join("\n")}
@@ -738,7 +887,7 @@ function LinesControl({ target, spec }: { target: ControlTarget; spec: Extract<C
 function Group({ label, open = true, children }: { label: string; open?: boolean; children: ReactNode }) {
   const [isOpen, setOpen] = useState(open);
   return (
-    <section className="border-b border-line" data-testid={`group-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
+    <section className="border-b border-line" data-testid={`group-${slug(label)}`}>
       <button type="button" aria-expanded={isOpen} onClick={() => setOpen((current) => !current)} className="flex h-10 w-full items-center justify-between px-5 text-[13px] font-bold text-text hover:bg-ground/60">
         {label}
         {isOpen ? <icons.IconChevronDown size={14} className="text-muted" /> : <icons.IconChevronRight size={14} className="text-muted" />}
@@ -782,7 +931,7 @@ export function ControlRenderer({ target, specs, inset }: { target: ControlTarge
           case "if":
             return spec.when(target.read) ? <ControlRenderer key={spec.id} target={target} specs={spec.controls} /> : null;
           case "custom":
-            return <div key={spec.id}>{spec.render({ read: target.read, write: target.write, editOnPage: target.actions?.editOnPage })}</div>;
+            return <div key={spec.id}>{spec.render({ read: target.read, write: target.write, editOnPage: target.actions?.editOnPage, kit: target.kit, applyStructure: target.actions?.applyStructure })}</div>;
           case "note":
             return (
               <p key={index} className="text-[12px] leading-relaxed text-muted">
@@ -819,6 +968,8 @@ export function ControlRenderer({ target, specs, inset }: { target: ControlTarge
             return <IconControl key={key(spec.path)} target={target} spec={spec} />;
           case "shadow":
             return <ShadowControl key={key(spec.path)} target={target} spec={spec} />;
+          case "stroke":
+            return <StrokeControl key={key(spec.path)} target={target} spec={spec} />;
           case "background":
             return <BackgroundControl key={key(spec.path)} target={target} spec={spec} />;
           case "typography":

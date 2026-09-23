@@ -21,8 +21,10 @@ import type {
   Size,
   Style,
   StyleBase,
+  TextStroke,
   Typography,
 } from "../../kit/types.ts";
+import { BLEND_MODES } from "../../kit/types.ts";
 import { UNITS, isColorValue, parseKitRef } from "../../kit/values.ts";
 
 export const LAYOUT_LIMITS = {
@@ -132,18 +134,22 @@ export const backgroundSchema: z.ZodType<Background> = z.discriminatedUnion("kin
 export const backgroundOverlaySchema: z.ZodType<BackgroundOverlay> = z.object({
   background: backgroundSchema,
   opacity: z.number().min(0).max(1),
-  blend: z.enum(["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"]).optional(),
+  blend: z.enum(BLEND_MODES).optional(),
 });
+
+export const textStrokeSchema: z.ZodType<TextStroke> = z.object({ width: z.number().min(0).max(50), color: colorSchema });
 
 export const styleBaseShape = {
   typography: typographySchema.optional(),
   color: responsiveSchema(colorSchema).optional(),
   textShadow: responsiveSchema(shadowSchema).optional(),
+  textStroke: responsiveSchema(textStrokeSchema).optional(),
   boxShadow: responsiveSchema(shadowSchema).optional(),
   border: borderSchema.optional(),
   background: responsiveSchema(backgroundSchema).optional(),
   backgroundOverlay: responsiveSchema(backgroundOverlaySchema).optional(),
   opacity: responsiveSchema(z.number().min(0).max(1)).optional(),
+  mixBlendMode: responsiveSchema(z.enum(BLEND_MODES)).optional(),
   transition: z.number().min(0).max(5000).optional(),
 };
 export const styleBaseSchema: z.ZodType<StyleBase> = z.object(styleBaseShape);
@@ -164,6 +170,8 @@ export const advancedSchema: z.ZodType<Advanced> = z.object({
   order: responsiveSchema(z.number().int().min(-99).max(99)).optional(),
   flexGrow: responsiveSchema(z.number().min(0).max(99)).optional(),
   flexShrink: responsiveSchema(z.number().min(0).max(99)).optional(),
+  gridColumnSpan: responsiveSchema(z.number().int().min(1).max(12)).optional(),
+  gridRowSpan: responsiveSchema(z.number().int().min(1).max(24)).optional(),
   position: z
     .object({
       type: z.enum(["default", "absolute", "fixed"]),

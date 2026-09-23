@@ -34,7 +34,7 @@ import type { LayoutDoc, SiteKit } from "./types.ts";
 import "./widgets.tsx";
 import "./library/index.ts";
 
-export const KIT_VERSION = "2.1.0";
+export const KIT_VERSION = "2.2.0";
 export { PROTOCOL_VERSION };
 
 export type ArmatureKitConfig = {
