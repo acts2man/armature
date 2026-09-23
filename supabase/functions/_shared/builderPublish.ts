@@ -11,12 +11,12 @@
  * file is written back exactly as it was (unless that very setting was changed); one
  * that is new is refused with a plain-English message.
  */
-import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta } from "../../../shared/publishTypes.ts";
+import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta, PageCopy, TrashAction } from "../../../shared/publishTypes.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
 import { mergeLayouts, mergeValues, stableJson, type MergeConflict, type Resolution } from "../../../shared/builder/merge.ts";
 import { kitPermissionErrors, layoutPermissionErrors, type Permissions } from "../../../shared/builder/permissions.ts";
-import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, type Problem } from "../../../shared/builder/schema.ts";
+import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, trashPath, type Problem } from "../../../shared/builder/schema.ts";
 import { restoreKitProblems, restoreLayoutProblems, unpreservedProblems } from "../../../shared/builder/preserve.ts";
 import { base64ByteLength, isValidBase64 } from "../../../shared/base64.ts";
 import { MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES } from "../../../shared/publishTypes.ts";
@@ -31,6 +31,8 @@ export type BuilderPublishInput = {
   kit: unknown;
   media: unknown;
   resolutions: Record<string, Resolution>;
+  trash?: Record<string, TrashAction>;
+  copies?: Record<string, PageCopy>;
 };
 
 const UPLOADS = { dir: "public/assets/uploads", url: "/assets/uploads" };
@@ -87,6 +89,15 @@ async function readJson(repo: ContentRepo, path: string, ref: string): Promise<u
 
 /** A committed layout as the validator cleans it, with its raw form and problems (for preserving unread values). */
 type CommittedLayout = { raw: unknown; layout: LayoutDoc | null; problems: Problem[] };
+
+/** A file's exact text at a ref, or null when it is not there. */
+async function readText(repo: ContentRepo, path: string, ref: string): Promise<string | null> {
+  try {
+    return (await repo.readTextFile(path, ref)).text;
+  } catch {
+    return null;
+  }
+}
 const readLayout = async (repo: ContentRepo, slug: string, ref: string): Promise<CommittedLayout> => {
   const raw = await readJson(repo, layoutPath(slug), ref);
   if (raw === null) return { raw: null, layout: null, problems: [] };
@@ -198,6 +209,101 @@ export async function runBuilderPublish(opts: {
     finalLayouts.set(slug, restoreLayoutProblems(result, theirs ?? undefined, committed.problems));
   }
 
+  // --- the bin: trash, restore, delete (the file moves as it is, byte for byte) ---------------
+  const trashed: string[] = [];
+  const restored = new Map<string, LayoutDoc>();
+  for (const [slug, action] of Object.entries(input.trash ?? {})) {
+    if (!PAGE_SLUG_PATTERN.test(slug) || slug.length > 100) {
+      errors.push(`"${slug.slice(0, 60)}" is not a valid page name`);
+      continue;
+    }
+    if (action === "trash") {
+      if (codedSlugs.has(slug)) {
+        errors.push(`"${slug}" is a page coded into the site; it cannot be moved to the bin.`);
+        continue;
+      }
+      if (finalLayouts.has(slug)) {
+        errors.push(`"${slug}" cannot be changed and moved to the bin in the same publish.`);
+        continue;
+      }
+      const text = await readText(repo, layoutPath(slug), head);
+      const committed = await readLayout(repo, slug, head);
+      if (text === null || !committed.layout) {
+        errors.push(`There is no page called "${slug}" to move to the bin; it may already be gone.`);
+        continue;
+      }
+      errors.push(...layoutPermissionErrors(committed.layout, null, permissions));
+      files.push({ path: layoutPath(slug), content: "", encoding: "utf-8", delete: true });
+      files.push({ path: trashPath(slug), content: text, encoding: "utf-8" });
+      finalLayouts.set(slug, null);
+      trashed.push(slug);
+      labels.push(`${committed.layout.label ?? slug} (to the bin)`);
+    } else if (action === "restore") {
+      const text = await readText(repo, trashPath(slug), head);
+      const report = text === null ? null : checkLayout(JSON.parse(text));
+      if (text === null || !report?.value) {
+        errors.push(`There is no page called "${slug}" in the bin.`);
+        continue;
+      }
+      if (codedSlugs.has(slug) || (await readText(repo, layoutPath(slug), head)) !== null) {
+        errors.push(`A page called "${slug}" already exists, so the one in the bin cannot be restored under that name.`);
+        continue;
+      }
+      const layout = { ...report.value, pageSlug: slug };
+      errors.push(...layoutPermissionErrors(null, layout, permissions));
+      files.push({ path: trashPath(slug), content: "", encoding: "utf-8", delete: true });
+      files.push({ path: layoutPath(slug), content: text, encoding: "utf-8" });
+      restored.set(slug, layout);
+      trashed.push(slug);
+      labels.push(`${layout.label ?? slug} (restored)`);
+    } else if (action === "delete") {
+      const text = await readText(repo, trashPath(slug), head);
+      if (text === null) {
+        errors.push(`There is no page called "${slug}" in the bin.`);
+        continue;
+      }
+      const report = checkLayout(JSON.parse(text));
+      errors.push(...layoutPermissionErrors(report.value ? { ...report.value, pageSlug: slug } : null, null, permissions));
+      files.push({ path: trashPath(slug), content: "", encoding: "utf-8", delete: true });
+      trashed.push(slug);
+      labels.push(`${report.value?.label ?? slug} (deleted from the bin)`);
+    } else {
+      errors.push(`"${String(action).slice(0, 20)}" is not something the bin can do.`);
+    }
+  }
+
+  // --- copies: a new page from an existing builder page's file, nothing lost ------------------
+  for (const [slug, copy] of Object.entries(input.copies ?? {})) {
+    if (!PAGE_SLUG_PATTERN.test(slug) || slug.length > 100) {
+      errors.push(`"${slug.slice(0, 60)}" is not a valid page name`);
+      continue;
+    }
+    if (codedSlugs.has(slug) || finalLayouts.has(slug) || restored.has(slug) || (await readText(repo, layoutPath(slug), head)) !== null) {
+      errors.push(`A page called "${slug}" already exists.`);
+      continue;
+    }
+    const text = typeof copy?.from === "string" && PAGE_SLUG_PATTERN.test(copy.from) ? await readText(repo, layoutPath(copy.from), head) : null;
+    const source = text === null ? undefined : (JSON.parse(text) as Record<string, unknown>);
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      errors.push(`There is no page called "${String(copy?.from ?? "").slice(0, 60)}" to copy.`);
+      continue;
+    }
+    const label = typeof copy.label === "string" ? copy.label.trim().slice(0, 120) : "";
+    const path = typeof copy.path === "string" ? copy.path.trim() : "";
+    const raw = { ...source, pageSlug: slug, label: label || `${String(source["label"] ?? copy.from)} (copy)`, path: path || `/${slug}/` };
+    const report = checkLayout(raw);
+    if (!report.value) {
+      errors.push(...report.problems.map((problem) => describeProblem(problem, `${slug}.json`)));
+      continue;
+    }
+    const layout = { ...report.value, pageSlug: slug };
+    errors.push(...layoutPermissionErrors(null, layout, permissions));
+    files.push({ path: layoutPath(slug), content: serializeBuilderFile(raw), encoding: "utf-8" });
+    restored.set(slug, layout);
+    writtenLayouts.push(slug);
+    labels.push(`${layout.label ?? slug} (copied from ${String(source["label"] ?? copy.from)})`);
+  }
+
   // Paths: a builder page may not take a coded page's path or another page's.
   const pathOwners = new Map<string, string>();
   for (const page of site.pages) pathOwners.set(normalizePath(page.path), page.slug);
@@ -210,6 +316,7 @@ export async function runBuilderPublish(opts: {
     }
   }
   for (const [slug, layout] of finalLayouts) if (layout) allLayouts.set(slug, layout);
+  for (const [slug, layout] of restored) allLayouts.set(slug, layout);
   for (const [slug, layout] of allLayouts) {
     if (codedSlugs.has(slug)) continue;
     const path = normalizePath(layout.path);
@@ -219,6 +326,7 @@ export async function runBuilderPublish(opts: {
   }
 
   for (const [slug, layout] of finalLayouts) {
+    if (trashed.includes(slug)) continue;
     if (layout === null) {
       files.push({ path: layoutPath(slug), content: "", encoding: "utf-8", delete: true });
     } else {
@@ -309,6 +417,7 @@ export async function runBuilderPublish(opts: {
     images: [...content.images, ...[...uploads.keys()].map((name) => `${UPLOADS.url}/${name}`)],
     slugs: Array.from(new Set([...content.slugs, ...writtenLayouts])),
     layouts: writtenLayouts,
+    trash: trashed,
     kit: kitWritten,
     media: mediaWritten,
     merged: moved,
@@ -322,6 +431,16 @@ export function parseBuilderPublishRequest(raw: Record<string, unknown>): Builde
   const resolutionsRaw = raw["resolutions"] && typeof raw["resolutions"] === "object" ? (raw["resolutions"] as Record<string, unknown>) : {};
   const resolutions: Record<string, Resolution> = {};
   for (const [key, value] of Object.entries(resolutionsRaw)) if ((value === "mine" || value === "theirs") && key.length < 200) resolutions[key] = value;
+  const trashRaw = raw["trash"] && typeof raw["trash"] === "object" && !Array.isArray(raw["trash"]) ? (raw["trash"] as Record<string, unknown>) : {};
+  const trash: Record<string, TrashAction> = {};
+  for (const [slug, action] of Object.entries(trashRaw)) if ((action === "trash" || action === "restore" || action === "delete") && slug.length <= 100) trash[slug] = action;
+  const copiesRaw = raw["copies"] && typeof raw["copies"] === "object" && !Array.isArray(raw["copies"]) ? (raw["copies"] as Record<string, unknown>) : {};
+  const copies: Record<string, PageCopy> = {};
+  for (const [slug, copy] of Object.entries(copiesRaw)) {
+    if (slug.length > 100 || !copy || typeof copy !== "object") continue;
+    const entry = copy as Record<string, unknown>;
+    copies[slug] = { from: String(entry["from"] ?? ""), label: String(entry["label"] ?? ""), path: String(entry["path"] ?? "") };
+  }
   return {
     site_id: typeof raw["site_id"] === "string" ? raw["site_id"] : "",
     baseCommitSha: typeof raw["baseCommitSha"] === "string" ? raw["baseCommitSha"] : "",
@@ -329,6 +448,8 @@ export function parseBuilderPublishRequest(raw: Record<string, unknown>): Builde
     layouts,
     kit: raw["kit"] ?? null,
     media: raw["media"] ?? null,
+    trash,
+    copies,
     resolutions,
   };
 }

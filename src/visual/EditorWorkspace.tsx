@@ -51,6 +51,7 @@ import {
 } from "@/builder/store.ts";
 import { SiteSettingsPanel } from "@/builder/SiteSettingsPanel.tsx";
 import { NewPageDialog, type PagesPanelActions } from "@/builder/PagesPanel.tsx";
+import { clearNewPageHandoff } from "./pages.ts";
 import { describeTree, useTemplateActions, useTemplates, type TemplateKind, type TemplateRow } from "@/builder/templates.ts";
 import { SaveTemplateDialog, TemplateLibrary } from "@/builder/TemplatesUI.tsx";
 import { StructurePicker } from "@/builder/StructurePicker.tsx";
@@ -174,6 +175,8 @@ export function EditorWorkspace({
   refetchContent,
   initialSlug,
   initialElementId = null,
+  initialPanel = null,
+  initialNewPage = null,
 }: {
   site: Site;
   isStaff: boolean;
@@ -183,6 +186,10 @@ export function EditorWorkspace({
   content: ContentGetResponse;
   refetchContent: () => Promise<unknown>;
   initialSlug: string | undefined;
+  /** Open this panel once the site is up ("Page settings" from the Pages screen). */
+  initialPanel?: "page-settings" | null;
+  /** A page made on the Pages screen, to create in the draft once the site is up. */
+  initialNewPage?: LayoutDoc | null;
   /** An element to select once the page is up (the "Show me" link on the Pages screen). */
   initialElementId?: string | null;
 }) {
@@ -425,6 +432,9 @@ export function EditorWorkspace({
   const editStartValue = useRef<string | null>(null);
   const editStartElement = useRef<unknown>(null);
   const pendingElement = useRef<string | null>(initialElementId);
+  const pendingPanel = useRef<"page-settings" | null>(initialPanel);
+  const pendingNewPage = useRef<LayoutDoc | null>(initialNewPage);
+  const pageActionsRef = useRef<PagesPanelActions | null>(null);
   const sheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -946,6 +956,22 @@ export function EditorWorkspace({
             send({ type: "armature:element:select", id, scroll: true });
           }, 250);
         }
+        if (pendingNewPage.current || pendingPanel.current) {
+          // From the Pages screen: create the handed-off page, or open the page settings, once the site is up.
+          const layout = pendingNewPage.current;
+          const panel = pendingPanel.current;
+          pendingNewPage.current = null;
+          pendingPanel.current = null;
+          if (layout) clearNewPageHandoff(site.id);
+          window.setTimeout(() => {
+            if (layout) {
+              if (message.protocolVersion !== 2) setHint("This site does not support new pages yet.");
+              else if (!canBuild) setHint("Your account cannot add pages; ask the agency.");
+              else pageActionsRef.current?.onCreate(layout);
+            }
+            if (panel && message.protocolVersion === 2) setPanelView(panel);
+          }, 250);
+        }
         {
           const builderTour = message.protocolVersion === 2 && (canBuild || styleOnly);
           if (!tourSeen(builderTour ? "builder" : "content") && !pendingRestore) setTourOpen(true);
@@ -1269,6 +1295,11 @@ export function EditorWorkspace({
       setSaveTemplate({ kind: "page", name: layout.label ?? slug, content: { root: layout.root, label: layout.label, seo: layout.seo, pageSettings: layout.pageSettings } });
     },
   };
+  // The bridge's ready handler needs the page actions, which are built below on every render.
+  useEffect(() => {
+    pageActionsRef.current = pageActions;
+  });
+
   const sectionTemplates = useMemo(
     () =>
       templates

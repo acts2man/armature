@@ -561,6 +561,7 @@ is skipped on the site (the editor shows "Unsupported element").
 
 ```
 content/layouts/<pageSlug>.json    one layout per page (coded pages: optional; builder pages: always)
+content/trash/<pageSlug>.json      builder pages in the bin: moved here as they are by "Trash" on the Pages screen, moved back by "Restore"; the site never renders them
 content/site-kit.json              global colours, fonts, typography and button presets, container defaults, breakpoints
 content/media.json                 default alt text per picture, from the media library
 public/assets/uploads/             pictures, as in v1

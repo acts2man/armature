@@ -82,3 +82,37 @@ export function markTourSeen(kind: "content" | "builder" = "content"): void {
     // storage unavailable: the tour just shows again next time
   }
 }
+
+// --- "Add New Page" from the Pages screen ----------------------------------------------------
+// The screen builds the page and hands it to the editor through sessionStorage (never the
+// URL: a layout is too big for it), and the editor creates it in the draft once the site is up.
+import { checkLayout, type LayoutDoc } from "@shared/builder/index.ts";
+
+export const newPageHandoffKey = (siteId: string): string => `armature:new-page:${siteId}`;
+
+export function writeNewPageHandoff(siteId: string, layout: LayoutDoc): boolean {
+  try {
+    window.sessionStorage.setItem(newPageHandoffKey(siteId), JSON.stringify(layout));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readNewPageHandoff(siteId: string): LayoutDoc | null {
+  try {
+    const raw = window.sessionStorage.getItem(newPageHandoffKey(siteId));
+    if (!raw) return null;
+    return checkLayout(JSON.parse(raw)).value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearNewPageHandoff(siteId: string): void {
+  try {
+    window.sessionStorage.removeItem(newPageHandoffKey(siteId));
+  } catch {
+    // Nothing to clear.
+  }
+}

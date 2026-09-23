@@ -130,6 +130,8 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
       ];
   let commitSha = COMMIT_SHA;
   let siteKit: unknown = options.siteKit ?? (real ? realKit : demoKit);
+  /** Builder pages in the bin (content/trash/), by slug. */
+  const trashBin: Record<string, unknown> = {};
   /** What content-get answers: the files as the validator cleans them, plus every problem it found (exactly as the real function does). */
   const builderFiles = () => {
     const cleaned: Record<string, unknown> = {};
@@ -141,7 +143,12 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     }
     const kit = checkSiteKit(siteKit);
     problems.push(...kit.problems.map((problem) => ({ ...problem, file: "content/site-kit.json" })));
-    return { layouts: cleaned, siteKit: kit.value, problems };
+    const trash: Record<string, unknown> = {};
+    for (const [slug, raw] of Object.entries(trashBin)) {
+      const report = checkLayout(raw);
+      if (report.value) trash[slug] = report.value;
+    }
+    return { layouts: cleaned, siteKit: kit.value, problems, trash };
   };
 
   // Nothing in these tests may leave the machine (fonts and the like).
@@ -180,6 +187,8 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, role === "client" ? [{ role: "client_owner", site }] : []);
         case "agencies":
           return json(route, [agency]);
+        case "profiles":
+          return json(route, [{ id: STAFF_ID, email: "dana@agency.example", full_name: "Dana Whitfield" }, { id: CLIENT_ID, email: "sam@alderstone.example", full_name: "Sam Alder" }]);
         case "sites":
           if (wantsCount) return countOf(1);
           if (request.method() === "PATCH") {
@@ -299,8 +308,29 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             else layouts[slug] = layout;
           }
           if (body["kit"]) siteKit = body["kit"];
+          // The bin and copies, as the function does them (the file moves or is copied as it is).
+          const trashed: string[] = [];
+          for (const [slug, action] of Object.entries((body["trash"] ?? {}) as Record<string, string>)) {
+            if (action === "trash" && layouts[slug]) {
+              trashBin[slug] = layouts[slug];
+              delete layouts[slug];
+            } else if (action === "restore" && trashBin[slug] && !layouts[slug]) {
+              layouts[slug] = trashBin[slug];
+              delete trashBin[slug];
+            } else if (action === "delete" && trashBin[slug]) delete trashBin[slug];
+            else return json(route, { ok: false, code: "invalid", message: `There is no page called "${slug}" for "${action}".` }, 400);
+            trashed.push(slug);
+          }
+          for (const [slug, copy] of Object.entries((body["copies"] ?? {}) as Record<string, { from: string; label: string; path: string }>)) {
+            const source = layouts[copy.from] as Record<string, unknown> | undefined;
+            if (!source || layouts[slug]) return json(route, { ok: false, code: "invalid", message: `A page called "${slug}" already exists, or "${copy.from}" does not.` }, 400);
+            layouts[slug] = { ...source, pageSlug: slug, label: copy.label || `${String(source["label"] ?? copy.from)} (copy)`, path: copy.path || `/${slug}/` };
+            written.push(slug);
+          }
           commitSha = "b0b0b0b0b1b1b1b1b2b2b2b2b3b3b3b3b4b4b4b4";
-          return json(route, { ok: true, commitSha, commitUrl: `https://github.com/acme/alder-stone/commit/${commitSha}`, fields: [], images: [], slugs: written, layouts: written, kit: !!body["kit"], media: !!body["media"], merged: options.builderPublish === "conflict-once" });
+          const stamp = new Date().toISOString();
+          if (written.length > 0 || trashed.length > 0) (state.rows["publishes"] ??= []).unshift({ id: `pub-${stamp}`, site_id: SITE_ID, user_id: userId, page_slug: [...new Set([...written, ...trashed])].join(", "), fields_changed: [], commit_sha: commitSha, commit_url: `https://github.com/acme/alder-stone/commit/${commitSha}`, status: "committed", error: null, created_at: stamp });
+          return json(route, { ok: true, commitSha, commitUrl: `https://github.com/acme/alder-stone/commit/${commitSha}`, fields: [], images: [], slugs: written, layouts: written, trash: trashed, kit: !!body["kit"], media: !!body["media"], merged: options.builderPublish === "conflict-once" });
         }
         case "content-publish-batch":
           state.publishRequests.push(body);

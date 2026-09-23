@@ -16,6 +16,7 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type HTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
@@ -611,7 +612,8 @@ export function DataRow({
   selected,
   className,
   onClick,
-}: {
+  ...rest
+}: Omit<HTMLAttributes<HTMLDivElement>, "onClick" | "children"> & {
   columns: string;
   children: ReactNode;
   selected?: boolean;
@@ -620,6 +622,7 @@ export function DataRow({
 }) {
   return (
     <div
+      {...rest}
       role="row"
       aria-selected={selected}
       onClick={onClick}

@@ -15,6 +15,7 @@ import { useSiteContent } from "@/hooks/useSiteContent.ts";
 import { isHostingOnly } from "@/lib/services.ts";
 import { applyAccent } from "@/lib/theme.ts";
 import { EditorSkeleton } from "./EditorSkeleton.tsx";
+import { readNewPageHandoff } from "./pages.ts";
 import { EditorWorkspace } from "./EditorWorkspace.tsx";
 import { TooSmall } from "./Sheets.tsx";
 
@@ -47,6 +48,9 @@ export function VisualEditor() {
   // (including pages that exist only in their draft), and that must never re-run this check.
   const [wantedSlug] = useState(() => search.get("page") || pageSlug || undefined);
   const [elementId] = useState(() => search.get("element"));
+  const [panel] = useState<"page-settings" | null>(() => (search.get("panel") === "settings" ? "page-settings" : null));
+  // "Add New Page" on the Pages screen hands the new page over; it exists only in the draft until published.
+  const [newPage] = useState(() => (search.get("new") ? readNewPageHandoff(siteId) : null));
   const { user, agency } = useAuth();
   const siteQuery = useSiteQuery(siteId);
   const isStaff = useIsStaffFor(siteQuery.data);
@@ -119,7 +123,7 @@ export function VisualEditor() {
   }
 
   // The page must exist: a coded page from the schema, or a builder page with a layout.
-  if (wantedSlug && !content.schema.pages.some((page) => page.slug === wantedSlug) && !content.layouts?.[wantedSlug]) {
+  if (wantedSlug && newPage?.pageSlug !== wantedSlug && !content.schema.pages.some((page) => page.slug === wantedSlug) && !content.layouts?.[wantedSlug]) {
     return (
       <Frame>
         <Notice
@@ -154,6 +158,8 @@ export function VisualEditor() {
       refetchContent={contentQuery.refetch}
       initialSlug={wantedSlug}
       initialElementId={elementId && /^[a-z0-9]{8}$/.test(elementId) ? elementId : null}
+      initialPanel={panel}
+      initialNewPage={newPage?.pageSlug === wantedSlug ? newPage : null}
     />
   );
 }

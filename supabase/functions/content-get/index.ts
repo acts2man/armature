@@ -54,6 +54,7 @@ Deno.serve(
       siteKit: builder.siteKit,
       problems: builder.problems,
       media: builder.media,
+      trash: builder.trash,
       editingLevel: site.editing_level === "style" || site.editing_level === "builder" ? site.editing_level : "content",
     };
   }),

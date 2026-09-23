@@ -78,3 +78,6 @@ export const LAYOUTS_DIR = "content/layouts";
 export const SITE_KIT_PATH = "content/site-kit.json";
 export const MEDIA_META_PATH = "content/media.json";
 export const layoutPath = (slug: string): string => `${LAYOUTS_DIR}/${slug}.json`;
+/** Pages in the bin: a trashed builder page's file moves here, byte for byte, and moves back on restore. */
+export const TRASH_DIR = "content/trash";
+export const trashPath = (slug: string): string => `${TRASH_DIR}/${slug}.json`;

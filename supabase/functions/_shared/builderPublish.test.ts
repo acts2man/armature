@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
 import { CONTENT_PATH, serializeContent } from "../../../shared/contentFile.ts";
 import { SCHEMA_PATH } from "../../../shared/schema.ts";
-import { layoutPath, serializeBuilderFile, SITE_KIT_PATH } from "../../../shared/builder/schema.ts";
+import { layoutPath, serializeBuilderFile, SITE_KIT_PATH, trashPath } from "../../../shared/builder/schema.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { Element, LayoutDoc } from "../../../kit/types.ts";
 import { ArmatureError } from "./errors.ts";
@@ -171,4 +171,58 @@ Deno.test("values the validator cannot read are kept exactly as committed, and o
   const fresh = { ...cleaned, root: [{ ...cleaned.root[0]!, style: { color: "greenish" } }] };
   await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": fresh } }), userEmail: "x", permissions: staff }), ArmatureError, 'Style › Color is "greenish"');
   assertEquals(commits.length, 1);
+});
+
+Deno.test("the bin: a trashed page's file moves byte for byte, restores, and cannot collide with a live page", async () => {
+  // The committed file carries a value the validator cannot read (font weight as a word);
+  // moving it to the bin and back must keep it exactly.
+  const text = serializeBuilderFile({ ...about, root: [{ ...about.root[0]!, style: { fontWeight: "heavyish" } }, about.root[1]!] });
+  const { repo, commits } = fakeRepo({ [BASE]: { [layoutPath("about-us")]: text } }, BASE);
+  const client = permissionsFor(false, "content");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ trash: { "about-us": "trash" } }), userEmail: "x", permissions: client }), ArmatureError, "words and pictures only");
+  const outcome = await runBuilderPublish({ repo, input: input({ trash: { "about-us": "trash" } }), userEmail: "owner@example.com", permissions: staff });
+  assertEquals(outcome.trash, ["about-us"]);
+  assertEquals(outcome.layouts, []);
+  const commit = commits[0]!;
+  assertEquals(commit.files.find((file) => file.path === layoutPath("about-us"))?.delete, true);
+  assertEquals(commit.files.find((file) => file.path === trashPath("about-us"))?.content, text);
+  assertStringIncludes(commit.message, "About us (to the bin)");
+
+  // Restore from a repository where the file now sits in the bin.
+  const binned = fakeRepo({ [HEAD]: { [trashPath("about-us")]: text } }, HEAD);
+  const back = await runBuilderPublish({ repo: binned.repo, input: input({ baseCommitSha: HEAD, trash: { "about-us": "restore" } }), userEmail: "x", permissions: staff });
+  assertEquals(back.trash, ["about-us"]);
+  const restore = binned.commits[0]!;
+  assertEquals(restore.files.find((file) => file.path === layoutPath("about-us"))?.content, text);
+  assertEquals(restore.files.find((file) => file.path === trashPath("about-us"))?.delete, true);
+
+  // A live page with the same name, or the same address, blocks a restore; a coded page's name too.
+  const clash = fakeRepo({ [HEAD]: { [trashPath("about-us")]: text, [layoutPath("about-us")]: serializeBuilderFile(about) } }, HEAD);
+  await assertRejects(() => runBuilderPublish({ repo: clash.repo, input: input({ baseCommitSha: HEAD, trash: { "about-us": "restore" } }), userEmail: "x", permissions: staff }), ArmatureError, "already exists");
+  const sameAddress = fakeRepo({ [HEAD]: { [trashPath("about-us")]: text, [layoutPath("team")]: serializeBuilderFile({ ...about, pageSlug: "team", label: "Team" }) } }, HEAD);
+  await assertRejects(() => runBuilderPublish({ repo: sameAddress.repo, input: input({ baseCommitSha: HEAD, trash: { "about-us": "restore" } }), userEmail: "x", permissions: staff }), ArmatureError, "already uses");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ trash: { home: "trash" } }), userEmail: "x", permissions: staff }), ArmatureError, "coded into the site");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ trash: { nowhere: "trash" } }), userEmail: "x", permissions: staff }), ArmatureError, "no page called");
+
+  // Delete for good, from the bin only.
+  const gone = await runBuilderPublish({ repo: binned.repo, input: input({ baseCommitSha: HEAD, trash: { "about-us": "delete" } }), userEmail: "x", permissions: staff });
+  assertEquals(gone.trash, ["about-us"]);
+  assertEquals(binned.commits[1]!.files, [{ path: trashPath("about-us"), content: "", encoding: "utf-8", delete: true }]);
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ trash: { "about-us": "delete" } }), userEmail: "x", permissions: staff }), ArmatureError, "in the bin");
+});
+
+Deno.test("a copy is made on the server from the committed file, so unread values survive and the name and address are new", async () => {
+  const text = serializeBuilderFile({ ...about, root: [{ ...about.root[0]!, style: { fontWeight: "heavyish" } }, about.root[1]!] });
+  const { repo, commits } = fakeRepo({ [BASE]: { [layoutPath("about-us")]: text } }, BASE);
+  const outcome = await runBuilderPublish({ repo, input: input({ copies: { "about-us-copy": { from: "about-us", label: "About us (copy)", path: "/about-us-copy/" } } }), userEmail: "x", permissions: staff });
+  assertEquals(outcome.layouts, ["about-us-copy"]);
+  const written = committed(commits[0], layoutPath("about-us-copy"));
+  assertEquals(written.pageSlug, "about-us-copy");
+  assertEquals(written.path, "/about-us-copy/");
+  assertEquals(written.label, "About us (copy)");
+  assertEquals(written.root[0].style.fontWeight, "heavyish");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "about-us": { from: "about-us", label: "", path: "" } } }), userEmail: "x", permissions: staff }), ArmatureError, "already exists");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "second": { from: "about-us", label: "Second", path: "/about-us/" } } }), userEmail: "x", permissions: staff }), ArmatureError, "already uses");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "second": { from: "nowhere", label: "", path: "" } } }), userEmail: "x", permissions: staff }), ArmatureError, "no page called");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "second": { from: "about-us", label: "", path: "" } } }), userEmail: "x", permissions: permissionsFor(false, "style") }), ArmatureError, "add");
 });

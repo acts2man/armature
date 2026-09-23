@@ -85,7 +85,12 @@ export type ContentGetResponse = {
   media: MediaFile[];
   /** The site's editing level for clients (agency staff always get the full builder). */
   editingLevel: EditingLevel;
+  /** Builder pages in the bin (content/trash/), by slug, ready to restore. */
+  trash?: Record<string, LayoutDoc>;
 };
+
+/** What the Pages screen asks of a builder page's file: into the bin, back out of it, or gone for good. */
+export type TrashAction = "trash" | "restore" | "delete";
 
 export type EditingLevel = "content" | "style" | "builder";
 
@@ -315,7 +320,13 @@ export type BuilderPublishRequest = {
   media: unknown;
   /** Choices for earlier conflicts: key -> "mine" | "theirs". */
   resolutions: Record<string, "mine" | "theirs">;
+  /** Builder pages to move into or out of the bin, by slug (the file moves as it is). */
+  trash?: Record<string, TrashAction>;
+  /** New pages copied from existing builder pages on the server, by the new slug (so nothing in the file is lost in the copy). */
+  copies?: Record<string, PageCopy>;
 };
+
+export type PageCopy = { from: string; label: string; path: string };
 
 export type BuilderPublishResponse = {
   ok: true;
@@ -326,6 +337,8 @@ export type BuilderPublishResponse = {
   slugs: string[];
   /** Page slugs whose layout was written or removed. */
   layouts: string[];
+  /** Page slugs moved into or out of the bin, or deleted from it. */
+  trash?: string[];
   kit: boolean;
   media: boolean;
   /** True when someone else had published in between and the draft was merged onto it. */

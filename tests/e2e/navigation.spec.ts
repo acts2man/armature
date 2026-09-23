@@ -71,7 +71,7 @@ test.describe("opening the editor", () => {
     await expect(page.getByTestId("edit-visually-about")).toHaveAttribute("href", `/sites/${SITE_ID}/visual?page=about`);
     // A page built in the visual editor (the demo's Contact page has a layout but no form fields) is listed too.
     await expect(page.getByTestId("edit-visually-contact")).toHaveAttribute("href", `/sites/${SITE_ID}/visual?page=contact`);
-    await expect(page.getByText("Built in the visual editor")).toBeVisible();
+    await expect(page.getByTestId("page-row-contact")).toContainText("Builder");
     // The shared header & footer is not a page to open on the canvas.
     expect(await page.getByTestId("edit-visually-shared").count()).toBe(0);
     await expect(page.getByText("Its words and pictures also edit by clicking them on any page")).toBeVisible();

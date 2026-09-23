@@ -9,7 +9,7 @@
  *
  * SERVER ONLY.
  */
-import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, LAYOUTS_DIR, MEDIA_META_PATH, SITE_KIT_PATH } from "../../../shared/builder/schema.ts";
+import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, LAYOUTS_DIR, MEDIA_META_PATH, SITE_KIT_PATH, TRASH_DIR } from "../../../shared/builder/schema.ts";
 import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
 import type { FileProblem, MediaFile, MediaMeta } from "../../../shared/publishTypes.ts";
 import type { ContentRepo } from "./githubRepo.ts";
@@ -19,6 +19,8 @@ export type BuilderFiles = {
   /** Blob shas per layout slug, for cheap "did it change" checks. */
   layoutShas: Record<string, string>;
   siteKit: SiteKit | null;
+  /** Builder pages in the bin (content/trash/), by slug. */
+  trash: Record<string, LayoutDoc>;
   media: MediaFile[];
   mediaMeta: MediaMeta;
   /** File-level notes (a file skipped, a kit that could not be parsed). */
@@ -70,6 +72,20 @@ export async function loadBuilderFiles(repo: ContentRepo, ref: string): Promise<
     layoutShas[slug] = file.sha;
   }
 
+  // The bin: readable pages only; anything else is noted and skipped, never a problem on the live site.
+  const trash: Record<string, LayoutDoc> = {};
+  for (const entry of (await repo.listTree(TRASH_DIR, ref)).filter((item) => item.path.endsWith(".json"))) {
+    const slug = entry.path.slice(TRASH_DIR.length + 1, -".json".length);
+    if (entry.size > LAYOUT_LIMITS.fileBytes) continue;
+    const raw = parseJson((await repo.readTextFile(entry.path, ref)).text);
+    const report = raw === undefined ? null : checkLayout(raw);
+    if (!report?.value) {
+      warnings.push(`${entry.path}: not a readable page, so it stays in the bin`);
+      continue;
+    }
+    trash[slug] = { ...report.value, pageSlug: slug };
+  }
+
   let siteKit: SiteKit | null = null;
   const kitEntry = (await repo.listTree("content", ref)).find((entry) => entry.path === SITE_KIT_PATH);
   if (kitEntry) {
@@ -110,5 +126,5 @@ export async function loadBuilderFiles(repo: ContentRepo, ref: string): Promise<
       alt: mediaMeta[`/${entry.path.replace(/^public\//, "")}`]?.alt ?? "",
     }));
 
-  return { layouts, layoutShas, siteKit, media, mediaMeta, warnings, problems };
+  return { layouts, layoutShas, siteKit, trash, media, mediaMeta, warnings, problems };
 }

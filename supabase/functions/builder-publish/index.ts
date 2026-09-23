@@ -41,6 +41,8 @@ Deno.serve(
     const requested = [
       ...input.pages.flatMap((page) => [...page.fields.map((field) => `${page.slug}.${field.section}.${field.field}`), ...page.images.map((image) => `${page.slug}.${image.section}.${image.field}`)]),
       ...Object.keys(input.layouts).map((slug) => `layout:${slug}`),
+      ...Object.keys(input.trash ?? {}).map((slug) => `trash:${slug}`),
+      ...Object.keys(input.copies ?? {}).map((slug) => `layout:${slug}`),
       ...(input.kit ? ["kit"] : []),
     ];
 
@@ -51,8 +53,8 @@ Deno.serve(
       await recordAttempt(env, {
         site_id: site.id,
         user_id: caller.userId,
-        page_slug: outcome.slugs.join(", ") || (outcome.kit ? "site settings" : ""),
-        fields_changed: [...outcome.fields, ...outcome.layouts.map((slug) => `layout:${slug}`), ...(outcome.kit ? ["kit"] : []), ...(outcome.media ? ["media"] : [])],
+        page_slug: Array.from(new Set([...outcome.slugs, ...(outcome.trash ?? [])])).join(", ") || (outcome.kit ? "site settings" : outcome.media ? "media" : ""),
+        fields_changed: [...outcome.fields, ...outcome.layouts.map((slug) => `layout:${slug}`), ...(outcome.trash ?? []).map((slug) => `trash:${slug}`), ...(outcome.kit ? ["kit"] : []), ...(outcome.media ? ["media"] : [])],
         commit_sha: outcome.commitSha,
         commit_url: outcome.commitUrl,
         status: "committed",
