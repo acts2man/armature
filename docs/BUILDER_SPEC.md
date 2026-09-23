@@ -244,16 +244,22 @@ right edge of the window (Stage 1 / content-only sites keep the older split of
   edge with add / grip / delete (nested containers' tabs shift right so they never stack).
   Clicking anything at any depth selects exactly it; up-arrow / Alt-click selects the
   parent. Inline text editing, the resize handles and the spacing handles stay.
-- **Drag and drop.** **Decision:** pointer events, not HTML5 drag and drop, because the
-  iframe never hands the parent its drag events. During a drag the parent lays a
-  transparent capture layer over the iframe, hit-tests the pointer against the rect map
-  (which carries the tree structure the editor already knows), and draws a blue insertion
-  line (before/after) or a filled container highlight (inside). Auto-scroll near the top
-  and bottom edges scrolls the frame through the bridge. Esc cancels; an invalid drop (a
-  container into itself, a locked target, a widget into a non-container) shows a red
-  "not allowed" cursor and does nothing. Empty containers show "Drag a widget here" and a
-  "+" that opens the Elements panel for insertion. Between top-level sections a hover "+"
-  opens the structure picker.
+- **Drag and drop, anywhere.** **Decision:** pointer events, not HTML5 drag and drop,
+  because the iframe never hands the parent its drag events. During a drag the parent lays
+  a transparent capture layer over the iframe and hit-tests the pointer against the rect
+  map plus the layout tree: the deepest element under the pointer decides, a drop can land
+  between any two siblings at any depth, before the first or after the last, and inside an
+  empty or nested container. The insertion edge follows the parent's flow — above/below in
+  a column, left/right in a row (reversed rows included), the nearest cell edge in a grid —
+  and the outer few pixels of a container mean "beside it" among its parent's children. One
+  accent insertion line (or a filled container for "inside"), a dashed outline on the
+  container that would receive the drop, and the drag ghost naming the target ("after
+  Heading", "into Container"). The same for new widgets and for moves, which keep every
+  setting. Auto-scroll near the top and bottom edges scrolls the frame through the bridge.
+  Esc cancels; an invalid drop (a container into itself, a locked target, a widget into a
+  non-container) shows "Not here" on the ghost and does nothing. Empty containers show
+  "Drag a widget here" and a "+" that opens the Elements panel for insertion. Between
+  top-level sections a hover "+" opens the structure picker.
 - **Rich text on the page.** Double-click (or click a selected text widget) to type in
   place. **Decision:** the bridge makes the element `contenteditable`, the floating toolbar
   in the parent sends formatting commands (`armature:richtext:command`), the bridge applies

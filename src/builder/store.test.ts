@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { defaultSiteKit, type Element, type LayoutDoc } from "@shared/builder/index.ts";
 import type { ElementRect } from "@shared/visualProtocol.ts";
 import { emptyDraft } from "@/visual/draftStore.ts";
-import { flowAxis, hitTest, sectionGapAt } from "./dnd.ts";
+import { dropLabel, flowAxis, flowOf, hitTest, sectionGapAt } from "./dnd.ts";
 import { apply, canRedo, canUndo, createHistory, jumpTo, redo, undo, type EditorState } from "./history.ts";
 import {
   canPlace,
@@ -208,6 +208,59 @@ describe("drag-and-drop hit testing", () => {
     expect(flowAxis([rect("a", "x", 0, 0, 100, 50, null), rect("b", "x", 120, 0, 100, 50, null)])).toBe("x");
     expect(sectionGapAt(elements, "home", ["sec00001", "con00001", "spc00001"], 205)).toMatchObject({ index: 1, y: 200 });
     expect(sectionGapAt(elements, "home", ["sec00001", "con00001", "spc00001"], 400)).toBeNull();
+  });
+
+  it("follows the parent's flow from the layout: a row drops left or right, reversed rows flip, a grid uses the nearest cell edge", () => {
+    // A row with one column (the rectangles alone could not tell it is a row), a reversed row, and a 2x2 grid.
+    const row = el("container", "row00001", [el("heading", "hedrow01")]);
+    row.props = { direction: { desktop: "row", mobile: "column" } };
+    const reversed = el("container", "rev00001", [el("heading", "hedrev01"), el("heading", "hedrev02")]);
+    reversed.props = { direction: "row-reverse" };
+    const grid = el("grid", "grd00001", [el("heading", "hedgrd01"), el("heading", "hedgrd02"), el("heading", "hedgrd03"), el("heading", "hedgrd04")]);
+    const s: BuilderState = { layouts: { home: { version: 1, pageSlug: "home", path: "/", root: [row, reversed, grid] } }, deletedPages: [], kit: defaultSiteKit() };
+    const rects = [
+      rect("row00001", "container", 0, 0, 1000, 100, null, { inner: { x: 0, y: 0, width: 1000, height: 100 } }),
+      rect("hedrow01", "heading", 0, 0, 400, 100, "row00001"),
+      rect("rev00001", "container", 0, 100, 1000, 100, null, { inner: { x: 0, y: 100, width: 1000, height: 100 } }),
+      rect("hedrev02", "heading", 0, 100, 500, 100, "rev00001"),
+      rect("hedrev01", "heading", 500, 100, 500, 100, "rev00001"),
+      rect("grd00001", "grid", 0, 200, 1000, 400, null, { inner: { x: 0, y: 200, width: 1000, height: 400 } }),
+      rect("hedgrd01", "heading", 0, 200, 500, 200, "grd00001"),
+      rect("hedgrd02", "heading", 500, 200, 500, 200, "grd00001"),
+      rect("hedgrd03", "heading", 0, 400, 500, 200, "grd00001"),
+      rect("hedgrd04", "heading", 500, 400, 500, 200, "grd00001"),
+    ];
+    expect(flowOf(row, [], "desktop")).toEqual({ axis: "x", reversed: false });
+    expect(flowOf(row, [], "mobile")).toEqual({ axis: "y", reversed: false });
+    // Over the single column's right half: a vertical line after it (a horizontal line on phones).
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 300, y: 50, device: "desktop" })).toMatchObject({ parentId: "row00001", index: 1, indicator: { kind: "line", axis: "x", edge: "after" }, beside: { id: "hedrow01", edge: "after" } });
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 300, y: 80, device: "mobile" })).toMatchObject({ parentId: "row00001", index: 1, indicator: { kind: "line", axis: "y" } });
+    // In the row's empty right half the nearest child still decides.
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 900, y: 50, device: "desktop" })).toMatchObject({ parentId: "row00001", index: 1, indicator: { axis: "x", rect: { x: 400 } } });
+    // A reversed row: the pointer on the left (visually first) is after the last child by index.
+    const left = hitTest({ state: s, elements: rects, slug: "home", x: 100, y: 150, device: "desktop" });
+    expect(left).toMatchObject({ parentId: "rev00001", index: 2, indicator: { axis: "x", rect: { x: 0 } } });
+    // A grid: the nearest cell edge; the top of cell 3 is a horizontal line before it.
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 250, y: 410, device: "desktop" })).toMatchObject({ parentId: "grd00001", index: 2, indicator: { kind: "line", axis: "y", edge: "before" } });
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 490, y: 300, device: "desktop" })).toMatchObject({ parentId: "grd00001", index: 1, indicator: { kind: "line", axis: "x", edge: "after" } });
+    expect(dropLabel(s, hitTest({ state: s, elements: rects, slug: "home", x: 490, y: 300, device: "desktop" })!)).toBe("after Heading");
+  });
+
+  it("treats a container's outer few pixels as beside it, along its parent's flow", () => {
+    const s = state();
+    // con00002 sits in con00001 (both columns): over its first child, the child's own "before" wins.
+    const top = hitTest({ state: s, elements, slug: "home", x: 500, y: 323 });
+    expect(top).toMatchObject({ parentId: "con00002", index: 0, indicator: { kind: "line", axis: "y", edge: "before" }, beside: { id: "txt00001", edge: "before" } });
+    // Well inside it: against its child.
+    expect(hitTest({ state: s, elements, slug: "home", x: 500, y: 340 })).toMatchObject({ parentId: "con00002", index: 0 });
+    // Its bottom band (its own padding, no child there): after it, among con00001's children.
+    expect(hitTest({ state: s, elements, slug: "home", x: 500, y: 556 })).toMatchObject({ parentId: "con00001", index: 2, beside: { id: "con00002", edge: "after" } });
+    // The root container's own top band: before it at the root.
+    expect(hitTest({ state: s, elements, slug: "home", x: 500, y: 203 })).toMatchObject({ parentId: null, index: 1, indicator: { edge: "before" } });
+    expect(dropLabel(s, hitTest({ state: s, elements, slug: "home", x: 500, y: 203 })!)).toBe("before Container");
+    // An empty container reads "into".
+    const empty = elements.map((element) => (element.id === "con00002" ? { ...element, empty: true } : element)).filter((element) => element.id !== "txt00001");
+    expect(dropLabel(removeElement(s, "txt00001", "home")!, hitTest({ state: removeElement(s, "txt00001", "home")!, elements: empty, slug: "home", x: 500, y: 400 })!)).toBe("into Container");
   });
 
   it("builds structures with percentage columns that stack on phones", () => {

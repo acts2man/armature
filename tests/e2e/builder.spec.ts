@@ -565,6 +565,88 @@ test.describe("the inspector", () => {
   });
 });
 
+// --- drag anywhere ----------------------------------------------------------------------------------
+
+test.describe("drag anywhere", () => {
+  test("lands between middle siblings, left or right in a row, inside an empty container, with the target named", async ({ page }) => {
+    await openBuilder(page);
+    await page.getByRole("button", { name: /Tablet view/ }).click(); // the row is a row here (it stacks on phones)
+    const frame = siteFrame(page);
+    await openElements(page);
+    const item = page.getByTestId("element-heading");
+    await frame.locator(".ae-txtbuild").evaluate((node) => node.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(250);
+    // Between the text and the button inside the right column: a horizontal line, "after Text Editor".
+    const text = (await frame.locator(".ae-txtbuild").boundingBox())!;
+    await dragTo(page, center(await item.boundingBox()), { x: text.x + text.width / 2, y: text.y + text.height - 3 });
+    const line = page.getByTestId("drop-line");
+    await expect(line).toBeVisible();
+    expect((await line.boundingBox())!.height).toBeLessThan(6);
+    await expect(page.getByTestId("drop-label")).toHaveText("after Text Editor");
+    await expect(page.getByTestId("drop-parent")).toHaveAttribute("data-element-id", "colrigh1");
+    await page.mouse.up();
+    await expect(frame.locator(".ae-colrigh1 > .ae-con-inner > :nth-child(2)")).toHaveClass(/ae-heading/);
+    await expect(frame.locator(".ae-colrigh1 > .ae-con-inner > :nth-child(3)")).toHaveClass(/ae-btnbuild/);
+    await page.waitForTimeout(300); // the click that ends a drag is swallowed for a moment
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(frame.locator(".ae-colrigh1 .ae-heading")).toHaveCount(0);
+    // The outer few pixels of the right column, in a row: a vertical line, "before Container", into the row.
+    await openElements(page);
+    const column = (await frame.locator(".ae-colrigh1").boundingBox())!;
+    await dragTo(page, center(await item.boundingBox()), { x: column.x + 3, y: column.y + column.height / 2 });
+    await expect(line).toBeVisible();
+    expect((await line.boundingBox())!.width).toBeLessThan(6);
+    await expect(page.getByTestId("drop-label")).toHaveText("before Container");
+    await expect(page.getByTestId("drop-parent")).toHaveAttribute("data-element-id", "rowbuild");
+    await page.mouse.up();
+    await expect(frame.locator(".ae-rowbuild > .ae-con-inner > :nth-child(2)")).toHaveClass(/ae-heading/);
+    await expect(frame.locator(".ae-rowbuild > .ae-con-inner > *")).toHaveCount(3);
+    await page.waitForTimeout(300);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(frame.locator(".ae-rowbuild > .ae-con-inner > *")).toHaveCount(2);
+    // A new, empty container at the end of the page: dropping inside it fills it, "into Container".
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("element-selection")).toHaveCount(0);
+    await openElements(page);
+    await page.getByTestId("element-container").click();
+    const empty = frame.locator(".ae-container.ae-empty").last();
+    await expect(empty).toBeVisible();
+    await empty.evaluate((node) => node.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(400);
+    // The "Drag a widget here" hint is drawn from the same rect map the drop uses.
+    const hint = page.getByTestId("empty-container-add");
+    await expect(hint).toBeVisible();
+    const hintBox = (await hint.boundingBox())!;
+    await openElements(page);
+    await dragTo(page, center(await item.boundingBox()), center(hintBox));
+    await expect(page.getByTestId("drop-inside")).toBeVisible();
+    await expect(page.getByTestId("drop-label")).toHaveText("into Container");
+    await page.mouse.up();
+    await expect(frame.locator(".ae-container.ae-empty")).toHaveCount(0);
+    await expect(frame.locator(".ae-secbuild ~ [data-ae-type=container] .ae-heading, [data-ae-type=container]:last-child .ae-heading").first()).toHaveText("Add your heading");
+  });
+
+  test("moving an element keeps its settings, and a drop before the first sibling works", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-btnbuild").evaluate((node) => node.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(250);
+    await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "btnbuild");
+    const move = page.getByTestId("element-move");
+    const text = (await frame.locator(".ae-txtbuild").boundingBox())!;
+    // Before the first child of the column (the text), from the top edge of the text.
+    await dragTo(page, center(await move.boundingBox()), { x: text.x + text.width / 2, y: text.y + 3 });
+    await expect(page.getByTestId("drop-label")).toHaveText("before Text Editor");
+    await page.mouse.up();
+    await expect(frame.locator(".ae-colrigh1 > .ae-con-inner > :first-child")).toHaveClass(/ae-btnbuild/);
+    // Its link and label survived the move.
+    await expect(frame.locator(".ae-btnbuild a.ae-btn")).toHaveAttribute("href", "/contact/");
+    await expect(frame.locator(".ae-btnbuild a.ae-btn")).toHaveText("Start a conversation");
+    await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
+  });
+});
+
 // --- the canvas handles (Elementor's outlines and tabs) ------------------------------------------
 
 test.describe("the canvas handles", () => {

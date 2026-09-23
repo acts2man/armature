@@ -19,7 +19,7 @@ import { PageSettingsPanel } from "@/builder/PageSettingsPanel.tsx";
 import { takenAddresses } from "@/builder/pageAddress.ts";
 import { pastedElement, readClipboard, writeClipboard } from "@/builder/clipboard.ts";
 import { ContextMenu, type MenuItem } from "@/builder/ContextMenu.tsx";
-import type { DropTarget } from "@/builder/dnd.ts";
+import { dropLabel, type DropTarget } from "@/builder/dnd.ts";
 import { ElementInspector } from "@/builder/ElementInspector.tsx";
 import { ElementOverlays } from "@/builder/ElementOverlays.tsx";
 import { ElementsPanel } from "@/builder/ElementsPanel.tsx";
@@ -771,6 +771,7 @@ export function EditorWorkspace({
     getState: () => builderRef.current,
     slug: pageSlug,
     allowLocked: isStaff,
+    device: modelDevice(device),
     onScroll: (deltaY) => send({ type: "armature:scroll", deltaY }),
     onDrop: (source: DragSource, target: DropTarget) => {
       if (source.kind === "new") insertAt(source.create(), { parentId: target.parentId, index: target.index }, source.label);
@@ -1542,6 +1543,11 @@ export function EditorWorkspace({
           {drag && (
             <div className="pointer-events-none fixed z-50 -translate-x-1/2 -translate-y-full rounded-control bg-ink px-3 py-1.5 text-[12px] font-semibold text-white shadow-dark" style={{ left: drag.clientX, top: drag.clientY - 12 }} data-testid="drag-ghost">
               {drag.source.label}
+              {drag.target && (
+                <span className="ml-2 font-medium text-white/70" data-testid="drop-label">
+                  {dropLabel(builderView, drag.target)}
+                </span>
+              )}
               {drag.overCanvas && !drag.target && <span className="ml-2 text-red-soft">Not here</span>}
             </div>
           )}

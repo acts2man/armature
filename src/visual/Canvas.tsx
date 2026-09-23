@@ -334,6 +334,13 @@ export function Canvas({
         ref={sheetRef}
         className="relative overflow-hidden rounded-t-[10px] bg-panel shadow-sheet transition-[width] duration-200 ease-[var(--ease-standard)]"
         style={{ width: sheetWidth, height: sheetHeight }}
+        // The site scrolls inside its frame, never the sheet: a scrollIntoView from inside the
+        // frame can scroll this overflow-hidden box too, which would shift the frame and every
+        // overlay away from where drags and handles expect them.
+        onScroll={(event) => {
+          event.currentTarget.scrollTop = 0;
+          event.currentTarget.scrollLeft = 0;
+        }}
         data-testid="sheet"
       >
         {showFrame && (

@@ -281,7 +281,10 @@ export function ElementOverlays({
         </div>
       )}
 
-      {/* Drag indicator */}
+      {/* Drag indicator: the container that would receive the drop, and the line or the filled inside */}
+      {drag && drag.target && drag.target.indicator.kind === "line" && drag.target.parentId && rects.get(drag.target.parentId) && (
+        <div className="absolute rounded-[3px] outline-dashed outline-1 outline-accent/60" data-testid="drop-parent" data-element-id={drag.target.parentId} style={scaleRect(rects.get(drag.target.parentId)!.rect, scale, 1)} />
+      )}
       {drag && drag.target && drag.target.indicator.kind === "line" && (
         <div
           className="absolute rounded-full bg-accent shadow-[0_0_0_2px_rgba(255,255,255,0.9)]"

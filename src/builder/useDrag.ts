@@ -6,7 +6,7 @@
  * near its edges, and drops on pointer-up. Esc cancels.
  */
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import type { Element } from "@shared/builder/index.ts";
+import type { Device, Element } from "@shared/builder/index.ts";
 import type { Rect } from "@shared/visualProtocol.ts";
 import { hitTest, type DropTarget } from "./dnd.ts";
 import type { GeometryStore } from "@/visual/geometry.ts";
@@ -35,6 +35,8 @@ export function useDrag(opts: {
   getState: () => BuilderState;
   slug: string;
   allowLocked: boolean;
+  /** The device being edited: a container's direction may differ per device. */
+  device: Device;
   onDrop: (source: DragSource, target: DropTarget) => void;
   onScroll: (deltaY: number) => void;
 }) {
@@ -53,20 +55,21 @@ export function useDrag(opts: {
   }, []);
 
   const locate = useCallback((clientX: number, clientY: number): { target: DropTarget | null; overCanvas: boolean } => {
-    const { sheetRef, scale, geometry, getState, slug, allowLocked } = optsRef.current;
+    const { sheetRef, scale, geometry, getState, slug, allowLocked, device } = optsRef.current;
     const sheet = sheetRef.current;
     const current = dragRef.current;
     if (!sheet || !current) return { target: null, overCanvas: false };
     const box = sheet.getBoundingClientRect();
     const overCanvas = clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
     if (!overCanvas) return { target: null, overCanvas: false };
-    const x = (clientX - box.left) / scale;
-    const y = (clientY - box.top) / scale;
+    // (The sheet never stays scrolled, but if it is mid-reset the offset still applies.)
+    const x = (clientX - box.left + sheet.scrollLeft) / scale;
+    const y = (clientY - box.top + sheet.scrollTop) / scale;
     const state = getState();
     const elements = geometry.get().elements;
     const viewport = geometry.get().viewport;
     const pageRect: Rect = { x: 0, y: 0, width: viewport.width || box.width / scale, height: viewport.height || box.height / scale };
-    const target = hitTest({ state, elements, slug, x, y, movingId: current.source.kind === "move" ? current.source.id : undefined, pageRect, allowLocked });
+    const target = hitTest({ state, elements, slug, x, y, movingId: current.source.kind === "move" ? current.source.id : undefined, pageRect, allowLocked, device });
     return { target, overCanvas };
   }, []);
 
