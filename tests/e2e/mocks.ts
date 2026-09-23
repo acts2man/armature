@@ -198,6 +198,34 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, []);
         case "site_billing":
           return json(route, []);
+        case "form_submissions": {
+          const rows = (state.rows["form_submissions"] ??= []);
+          const method = request.method();
+          const matches = (row: Record<string, unknown>) =>
+            [...url.searchParams].every(([column, filter]) => {
+              if (column === "select" || column === "order" || column === "limit" || column === "offset") return true;
+              if (filter.startsWith("eq.")) return String(row[column]) === filter.slice(3);
+              if (filter === "is.null") return row[column] === null || row[column] === undefined;
+              if (filter === "not.is.null") return row[column] !== null && row[column] !== undefined;
+              return true;
+            });
+          const shown = rows.filter(matches).sort((a, b) => String(b["created_at"]).localeCompare(String(a["created_at"])));
+          if (method === "HEAD" || (method === "GET" && wantsCount && (request.headers()["prefer"] ?? "").includes("head=true"))) return countOf(shown.length);
+          if (method === "GET") {
+            const limit = Number(url.searchParams.get("limit") ?? "0");
+            return json(route, limit > 0 ? shown.slice(0, limit) : shown, 200, wantsCount ? { "content-range": `0-${Math.max(0, shown.length - 1)}/${shown.length}` } : {});
+          }
+          if (method === "PATCH") {
+            const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+            for (const row of rows) if (matches(row)) Object.assign(row, patch);
+            return json(route, rows.filter(matches));
+          }
+          if (method === "DELETE") {
+            state.rows["form_submissions"] = rows.filter((row) => !matches(row));
+            return json(route, []);
+          }
+          return json(route, []);
+        }
         case "builder_templates":
         case "builder_drafts": {
           const rows = (state.rows[table] ??= []);
@@ -303,6 +331,16 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
   });
 
   return state;
+}
+
+/** Form entries for the mocked site, newest first: two unread, one read. */
+export function sampleSubmissions(): Record<string, unknown>[] {
+  const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3600_000).toISOString();
+  return [
+    { id: "aaaa0001-0000-4000-8000-000000000001", site_id: SITE_ID, page_slug: "contact", element_id: "form0001", form_name: "Contact form", data: { name: "Priya Natarajan", email: "priya@example.com", phone: "0161 555 0199", message: "We are planning a two-storey extension in Didsbury and would love a quote." }, email_status: "sent", read_at: null, created_at: at(2) },
+    { id: "aaaa0001-0000-4000-8000-000000000002", site_id: SITE_ID, page_slug: "home", element_id: "form0002", form_name: null, data: { "Your name": "Tom Okafor", "E-mail": "tom.okafor@example.com", "How can we help": "Do you build in Placer County?" }, email_status: "skipped", read_at: null, created_at: at(30) },
+    { id: "aaaa0001-0000-4000-8000-000000000003", site_id: SITE_ID, page_slug: "contact", element_id: "form0001", form_name: "Contact form", data: { name: "Lena Fischer", email: "lena@example.com", message: "Thanks for the site visit last week. Sending the plans over now." }, email_status: "sent", read_at: at(50), created_at: at(72) },
+  ];
 }
 
 export const editorUrl = (slug?: string) => `/sites/${SITE_ID}/visual${slug ? `?page=${slug}` : ""}`;

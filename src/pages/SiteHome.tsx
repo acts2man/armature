@@ -1,21 +1,23 @@
 /**
- * Site overview, as in docs/2-client-dashboard.html: a greeting, what needs the
- * person's attention, recent publishes and change requests, site health, and
- * quick actions. Clients and agency staff share the layout; staff also get the
- * repository line, "Check connection" and Team. Only real data is shown: a
- * section with nothing to show says so briefly instead of inventing numbers.
+ * A site's Dashboard, WordPress-style: a welcome line, "Edit your site" shortcuts, the
+ * new messages from the site's forms, recent publishes and open change requests, plus
+ * what needs the person's attention. Clients and agency staff share the layout; the
+ * agency-only things (connection check, hosting, editing level) live under Site
+ * settings. Only real data is shown: a section with nothing to show says so briefly.
  */
 import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconGithub, IconHistory, IconPage, IconPencil, IconSend, IconSettings } from "@/components/icons.tsx";
+import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconGithub, IconHistory, IconImage, IconInbox, IconPage, IconPalette, IconPencil, IconPlus, IconSend, IconSettings } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
 import { SidebarTour } from "@/components/SidebarTour.tsx";
-import { siteNavItems } from "@/components/siteNav.ts";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
+import { useRecentMessages } from "@/hooks/useMessages.ts";
+import { BUILT, siteNavItems } from "@/components/siteNav.ts";
 import { EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
 import { formatDateTime, plural, relativeTime, shortSha } from "@/lib/format.ts";
+import { formLabel, isUnread, messagePreview, senderLabel } from "@/lib/messages.ts";
 import { displayName, firstName, greeting } from "@/lib/people.ts";
 import { SITE_STATUS_TONES, isHostingOnly, siteStatusLabel } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
@@ -45,27 +47,42 @@ function useRecentRequests(siteId: string) {
   return useQuery({
     queryKey: ["site-change-requests", siteId, "recent"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("change_requests").select("*").eq("site_id", siteId).order("updated_at", { ascending: false }).limit(6);
+      const { data, error } = await supabase.from("change_requests").select("*").eq("site_id", siteId).order("updated_at", { ascending: false }).limit(10);
       if (error) throw new Error(error.message);
       return (data ?? []) as ChangeRequest[];
     },
   });
 }
 
-function QuickAction({ to, icon, children, external }: { to: string; icon: ReactNode; children: ReactNode; external?: boolean }) {
-  const className = "inline-flex h-12 items-center gap-2.5 rounded-[10px] border border-line bg-panel px-4 text-[14px] font-semibold text-text hover:bg-ground";
+function Shortcut({ to, icon, title, detail, external, testId }: { to: string; icon: ReactNode; title: string; detail: string; external?: boolean; testId?: string }) {
+  const className = "flex min-h-[72px] items-center gap-3.5 rounded-card border border-line bg-panel px-4 py-3 text-left hover:border-ink-line hover:bg-ground";
+  const body = (
+    <>
+      <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-ground text-text">{icon}</span>
+      <span className="min-w-0">
+        <span className="block truncate text-[14px] font-semibold text-text">{title}</span>
+        <span className="block text-[12px] leading-snug text-muted">{detail}</span>
+      </span>
+    </>
+  );
   if (external) {
     return (
-      <a href={to} target="_blank" rel="noreferrer" className={className}>
-        {icon}
-        {children}
+      <a href={to} target="_blank" rel="noreferrer" className={className} data-testid={testId}>
+        {body}
         <SrOnly>(opens in a new tab)</SrOnly>
       </a>
     );
   }
   return (
-    <Link to={to} className={className}>
-      {icon}
+    <Link to={to} className={className} data-testid={testId}>
+      {body}
+    </Link>
+  );
+}
+
+function PanelLink({ to, children }: { to: string; children: ReactNode }) {
+  return (
+    <Link to={to} className="inline-flex h-9 items-center rounded-control px-3 text-[14px] font-semibold text-text hover:bg-ground">
       {children}
     </Link>
   );
@@ -73,11 +90,13 @@ function QuickAction({ to, icon, children, external }: { to: string; icon: React
 
 export function SiteHome() {
   const { site, isStaff } = useSite();
-  const { user } = useAuth();
+  const { user, agency } = useAuth();
   const root = `/sites/${site.id}`;
   const hostingOnly = isHostingOnly(site);
   const publishes = useRecentPublishes(site.id);
   const requests = useRecentRequests(site.id);
+  const messages = useRecentMessages(site.id);
+  const navItems = siteNavItems({ root, isStaff, hostingOnly });
 
   // --- what needs attention, from real data only ---
   const attention: { key: string; icon: ReactNode; title: string; detail: string; action: ReactNode }[] = [];
@@ -106,7 +125,7 @@ export function SiteHome() {
       title: latest.status === "conflict" ? "Your last publish hit a conflict" : "Your last publish did not go through",
       detail: `${latest.page_slug}, ${relativeTime(latest.created_at)}. Open the history for the reason.`,
       action: (
-        <LinkButton variant="secondary" size="sm" to={`${root}/history`}>
+        <LinkButton variant="secondary" size="sm" to={isStaff ? `${root}/settings/history` : `${root}/history`}>
           See history
         </LinkButton>
       ),
@@ -141,13 +160,16 @@ export function SiteHome() {
     }
   }
 
-  const openCount = (requests.data ?? []).filter((request) => OPEN_CHANGE_REQUEST_STATUSES.includes(request.status)).length;
+  const open = (requests.data ?? []).filter((request) => OPEN_CHANGE_REQUEST_STATUSES.includes(request.status));
   const name = firstName(displayName(user));
+  const unread = messages.data?.unread ?? 0;
+  const portal = agency?.portal_name?.trim() || "your agency";
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
         title={isStaff ? site.name : `${greeting()}, ${name}`}
+        description={isStaff ? undefined : hostingOnly ? `${site.name} is looked after by ${portal}. Anything you need changed, ask for it here.` : `Here is how ${site.name} is doing. Pick something below to start editing.`}
         meta={
           <>
             {site.live_url ? (
@@ -181,22 +203,37 @@ export function SiteHome() {
                 </LinkButton>
               )
             ) : (
-              <LinkButton to={`${root}/pages`}>
-                <IconPencil size={16} /> Edit pages
+              <LinkButton to={`${root}/visual`}>
+                <IconPencil size={16} /> Edit your site
               </LinkButton>
             )}
           </>
         }
       />
 
-      <SidebarTour siteName={site.name} isStaff={isStaff} items={siteNavItems({ root, isStaff, hostingOnly })} />
+      <SidebarTour siteName={site.name} isStaff={isStaff} items={navItems} />
 
       {hostingOnly && (
         <Notice kind="info" title={isStaff ? "Hosting-only site" : "This site is looked after by the agency"}>
           {isStaff
-            ? "No repository is connected, so there are no pages to edit or publish yet. Hosting, domain and email are recorded below; connect the repository whenever the site is ready to be edited here."
+            ? "No repository is connected, so there are no pages to edit or publish yet. Hosting, domain and email are recorded under Site settings; connect the repository whenever the site is ready to be edited here."
             : "Its pages are not edited here yet. Change requests still reach the agency."}
         </Notice>
+      )}
+
+      {!hostingOnly && (
+        <section aria-labelledby="edit-your-site" className="flex flex-col gap-3">
+          <h2 id="edit-your-site" className="font-sans text-[15px] font-bold tracking-normal text-text">
+            Edit your site
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="shortcuts">
+            <Shortcut to={`${root}/visual`} icon={<IconPencil size={18} />} title="Edit a page" detail="Click anything on the page and change it." testId="shortcut-edit" />
+            <Shortcut to={`${root}/pages`} icon={<IconPage size={18} />} title="All pages" detail="Every page, its address and when it last went live." testId="shortcut-pages" />
+            {BUILT.appearance && <Shortcut to={`${root}/appearance`} icon={<IconPalette size={18} />} title="Colours and fonts" detail="The site's look, changed everywhere at once." testId="shortcut-appearance" />}
+            {BUILT.media && <Shortcut to={`${root}/media`} icon={<IconImage size={18} />} title="Pictures" detail="Upload, replace and describe the site's images." testId="shortcut-media" />}
+            <Shortcut to={`${root}/requests/new`} icon={<IconSend size={18} />} title="Request a change" detail={`Anything bigger: ${portal} picks it up.`} testId="shortcut-request" />
+          </div>
+        </section>
       )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[1.65fr_1fr]">
@@ -208,7 +245,7 @@ export function SiteHome() {
               <PanelRow
                 icon={<IconCheck size={18} />}
                 title="Nothing needs your attention"
-                detail={openCount > 0 ? `${plural(openCount, "open request")} with the agency. You will see anything that needs you here.` : "Everything is connected and up to date."}
+                detail={open.length > 0 ? `${plural(open.length, "open request")} with the agency. You will see anything that needs you here.` : "Everything is connected and up to date."}
               />
             ) : (
               attention.map((item) => <PanelRow key={item.key} icon={item.icon} title={item.title} detail={item.detail} action={item.action} />)
@@ -216,13 +253,64 @@ export function SiteHome() {
           </Panel>
 
           <Panel
-            title="Recent publishes"
-            aside={
-              <Link to={`${root}/history`} className="inline-flex h-9 items-center rounded-control px-3 text-[14px] font-semibold text-text hover:bg-ground">
-                All history
-              </Link>
+            title={
+              <span className="inline-flex items-center gap-2">
+                New messages {unread > 0 && <Pill tone="blue">{unread} unread</Pill>}
+              </span>
             }
+            aside={BUILT.contact ? <PanelLink to={`${root}/contact`}>All messages</PanelLink> : undefined}
           >
+            <div data-testid="dashboard-messages">
+              {messages.isPending ? (
+                <SkeletonRows rows={3} label="Loading messages" />
+              ) : messages.isError ? (
+                <div className="p-4">
+                  <Notice kind="danger" title="Messages could not be loaded">
+                    {messages.error.message}
+                  </Notice>
+                </div>
+              ) : messages.data.latest.length === 0 ? (
+                <div className="p-5">
+                  <EmptyState title="No messages yet" icon={<IconInbox size={18} />}>
+                    {hostingOnly ? "Entries from the site's forms will be listed here once the site is connected." : "When someone fills in a form on the site, their message lands here and is emailed to the addresses the agency set."}
+                  </EmptyState>
+                </div>
+              ) : (
+                messages.data.latest.map((submission) => {
+                  const unreadRow = isUnread(submission);
+                  const inner = (
+                    <>
+                      <span className="mt-2 flex h-2.5 w-2.5 shrink-0 items-center justify-center" aria-hidden="true">
+                        {unreadRow && <span className="h-2 w-2 rounded-full bg-accent" />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span className={unreadRow ? "text-[14px] font-bold text-text" : "text-[14px] font-semibold text-text"}>
+                            {senderLabel(submission.data)}
+                            {unreadRow && <SrOnly> (unread)</SrOnly>}
+                          </span>
+                          <span className="text-[12px] text-muted">{relativeTime(submission.created_at)}</span>
+                        </span>
+                        <span className="block truncate text-[13px] text-muted">{messagePreview(submission.data) || formLabel(submission)}</span>
+                      </span>
+                    </>
+                  );
+                  const className = "flex items-start gap-3 border-b border-line px-5 py-3 last:border-b-0 hover:bg-ground";
+                  return BUILT.contact ? (
+                    <Link key={submission.id} to={`${root}/contact?entry=${submission.id}`} className={className} data-testid={`message-${submission.id}`}>
+                      {inner}
+                    </Link>
+                  ) : (
+                    <div key={submission.id} className={className} data-testid={`message-${submission.id}`}>
+                      {inner}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </Panel>
+
+          <Panel title="Recent publishes" aside={<PanelLink to={isStaff ? `${root}/settings/history` : `${root}/history`}>All history</PanelLink>}>
             {publishes.isPending ? (
               <SkeletonRows rows={3} label="Loading publishes" />
             ) : publishes.isError ? (
@@ -250,9 +338,7 @@ export function SiteHome() {
                     )
                   }
                 >
-                  {hostingOnly
-                    ? "This site's repository is not connected, so nothing is published from here. Publishes appear once it is."
-                    : "Changes you publish from the page editor will be listed here with a link to the commit."}
+                  {hostingOnly ? "This site's repository is not connected, so nothing is published from here. Publishes appear once it is." : "Changes you publish from the editor will be listed here with a link to the commit."}
                 </EmptyState>
               </div>
             ) : (
@@ -292,13 +378,49 @@ export function SiteHome() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
+          <Panel title="Open change requests" aside={<PanelLink to={`${root}/requests`}>All requests</PanelLink>}>
+            <div data-testid="dashboard-requests">
+              {requests.isPending ? (
+                <SkeletonRows rows={2} label="Loading change requests" />
+              ) : requests.isError ? (
+                <div className="p-4">
+                  <Notice kind="danger" title="Change requests could not be loaded">
+                    {requests.error.message}
+                  </Notice>
+                </div>
+              ) : open.length === 0 ? (
+                <div className="p-5">
+                  <EmptyState
+                    title="No open requests"
+                    icon={<IconSend size={18} />}
+                    action={
+                      <LinkButton variant="secondary" size="sm" to={`${root}/requests/new`}>
+                        Request a change
+                      </LinkButton>
+                    }
+                  >
+                    {isStaff ? "Requests the client files for this site will appear here." : "Ask for anything you cannot change yourself and the agency will pick it up."}
+                  </EmptyState>
+                </div>
+              ) : (
+                open.slice(0, 5).map((request) => (
+                  <Link key={request.id} to={`${root}/requests/${request.id}`} className="flex min-h-[52px] items-center justify-between gap-3 border-b border-line px-5 py-2 text-[13px] last:border-b-0 hover:bg-ground">
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold text-text">{request.title}</span>
+                      <span className="block text-muted">{relativeTime(request.updated_at)}</span>
+                    </span>
+                    <RequestStatusPill status={request.status} />
+                  </Link>
+                ))
+              )}
+            </div>
+          </Panel>
+
           <Panel title="Site health" aside={<StatusPill site={site} />}>
             <div className="flex flex-col gap-2.5 p-5 text-[13px] text-text">
               <div className="flex items-center gap-2.5">
-                <span className={site.status === "connected" ? "text-green" : hostingOnly ? "text-muted" : "text-amber"}>
-                  {site.status === "connected" ? <IconCheck size={16} /> : hostingOnly ? <IconGithub size={16} /> : <IconAlert size={16} />}
-                </span>
-                <span>{site.status === "connected" ? "Connected to the site's repository" : hostingOnly ? "No repository connected" : "The connection check found a problem"}</span>
+                <span className={site.status === "connected" ? "text-green" : hostingOnly ? "text-muted" : "text-amber"}>{site.status === "connected" ? <IconCheck size={16} /> : hostingOnly ? <IconGithub size={16} /> : <IconAlert size={16} />}</span>
+                <span>{site.status === "connected" ? "Connected and publishing" : hostingOnly ? "No repository connected" : "The connection check found a problem"}</span>
               </div>
               {!hostingOnly && (
                 <div className="flex items-center gap-2.5">
@@ -307,10 +429,16 @@ export function SiteHome() {
                 </div>
               )}
               <div className="flex items-center gap-2.5">
-                <span className={openCount === 0 ? "text-green" : "text-blue"}>
+                <span className={unread === 0 ? "text-green" : "text-blue"}>
+                  <IconInbox size={16} />
+                </span>
+                <span>{unread === 0 ? "No unread messages" : plural(unread, "unread message")}</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <span className={open.length === 0 ? "text-green" : "text-blue"}>
                   <IconBranch size={16} />
                 </span>
-                <span>{openCount === 0 ? "No open change requests" : `${plural(openCount, "open change request")}`}</span>
+                <span>{open.length === 0 ? "No open change requests" : plural(open.length, "open change request")}</span>
               </div>
               {isStaff && (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -322,70 +450,14 @@ export function SiteHome() {
             </div>
           </Panel>
 
-          <Panel
-            title="Change requests"
-            aside={
-              <Link to={`${root}/requests`} className="inline-flex h-9 items-center rounded-control px-3 text-[14px] font-semibold text-text hover:bg-ground">
-                All requests
-              </Link>
-            }
-          >
-            {requests.isPending ? (
-              <SkeletonRows rows={2} label="Loading change requests" />
-            ) : requests.isError ? (
-              <div className="p-4">
-                <Notice kind="danger" title="Change requests could not be loaded">
-                  {requests.error.message}
-                </Notice>
-              </div>
-            ) : requests.data.length === 0 ? (
-              <div className="p-5">
-                <EmptyState
-                  title="No change requests yet"
-                  icon={<IconSend size={18} />}
-                  action={
-                    <LinkButton variant="secondary" size="sm" to={`${root}/requests/new`}>
-                      Request a change
-                    </LinkButton>
-                  }
-                >
-                  {isStaff ? "Requests the client files for this site will appear here." : "Ask for anything you cannot change yourself and the agency will pick it up."}
-                </EmptyState>
-              </div>
-            ) : (
-              requests.data.slice(0, 5).map((request) => (
-                <Link key={request.id} to={`${root}/requests/${request.id}`} className="flex min-h-[52px] items-center justify-between gap-3 border-b border-line px-5 py-2 text-[13px] last:border-b-0 hover:bg-ground">
-                  <span className="min-w-0">
-                    <span className="block truncate text-[14px] font-semibold text-text">{request.title}</span>
-                    <span className="block text-muted">{relativeTime(request.updated_at)}</span>
-                  </span>
-                  <RequestStatusPill status={request.status} />
-                </Link>
-              ))
-            )}
-          </Panel>
+          {hostingOnly && (
+            <div className="flex flex-wrap gap-3">
+              <LinkButton variant="secondary" to={`${root}/requests/new`}>
+                <IconPlus size={16} /> Request a change
+              </LinkButton>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-3">
-        {!hostingOnly && (
-          <QuickAction to={`${root}/pages`} icon={<IconPencil size={18} />}>
-            Edit a page
-          </QuickAction>
-        )}
-        <QuickAction to={`${root}/requests/new`} icon={<IconSend size={18} />}>
-          Request a change
-        </QuickAction>
-        {site.live_url && (
-          <QuickAction to={site.live_url} icon={<IconEye size={18} />} external>
-            View the live site
-          </QuickAction>
-        )}
-        {!hostingOnly && (
-          <QuickAction to={`${root}/history`} icon={<IconHistory size={18} />}>
-            Publish history
-          </QuickAction>
-        )}
       </div>
     </div>
   );

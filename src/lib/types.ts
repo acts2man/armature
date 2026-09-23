@@ -126,6 +126,21 @@ export type ChangeRequest = {
   updated_at: string;
 };
 
+/** An entry a visitor sent through the site's Form widget (written only by the form-submit function). */
+export type FormSubmission = {
+  id: string;
+  site_id: string;
+  page_slug: string;
+  element_id: string;
+  form_name: string | null;
+  /** Field name -> value, as the form defined them. */
+  data: Record<string, unknown>;
+  email_status: "sent" | "failed" | "skipped";
+  user_agent?: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
 export type ChangeRequestAttachment = {
   id: string;
   request_id: string;
