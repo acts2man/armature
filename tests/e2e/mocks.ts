@@ -27,6 +27,19 @@ export const demoLayouts = Object.fromEntries(
     .map((name) => [name.slice(0, -".json".length), JSON.parse(readFileSync(`${demoDir}layouts/${name}`, "utf8")) as unknown]),
 ) as Record<string, unknown>;
 
+/** The first real converted site's content/ folder, as committed (tests/fixtures/treetestprep). */
+const realDir = fileURLToPath(new URL("../fixtures/treetestprep/", import.meta.url));
+export const realSchema = JSON.parse(readFileSync(`${realDir}schema.json`, "utf8")) as unknown;
+export const realContent = JSON.parse(readFileSync(`${realDir}pages.json`, "utf8")) as Record<string, Record<string, Record<string, unknown>>>;
+export const realKit = JSON.parse(readFileSync(`${realDir}site-kit.json`, "utf8")) as unknown;
+export const realLayouts = Object.fromEntries(
+  readdirSync(`${realDir}layouts`)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => [name.slice(0, -".json".length), JSON.parse(readFileSync(`${realDir}layouts/${name}`, "utf8")) as unknown]),
+) as Record<string, unknown>;
+/** Where the real site runs when tests/e2e/real-site.spec.ts is enabled (see playwright.config.ts). */
+export const REAL_SITE_URL = process.env["REAL_SITE_URL"] ?? "http://localhost:5175";
+
 export type Role = "staff" | "client";
 
 export type MockOptions = {
@@ -51,6 +64,8 @@ export type MockOptions = {
   rows?: Record<string, Record<string, unknown>[]>;
   /** Validator problems content-get reports (values the site's files hold that the editor cannot read). */
   problems?: unknown[];
+  /** Serve the real converted site's files (schema, pages, layouts, kit) instead of the demo's, with its live URL. */
+  fixture?: "demo" | "treetestprep";
   /** The site kit content-get returns; defaults to the demo site's. */
   siteKit?: unknown;
 };
@@ -76,6 +91,7 @@ const json = (route: Route, body: unknown, status = 200, headers: Record<string,
 
 export async function installMocks(page: Page, options: MockOptions = {}): Promise<MockState> {
   const role = options.role ?? "staff";
+  const real = options.fixture === "treetestprep";
   const userId = role === "staff" ? STAFF_ID : CLIENT_ID;
   const email = role === "staff" ? "dana@agency.example" : "sam@alderstone.example";
   const fullName = role === "staff" ? "Dana Whitfield" : "Sam Alder";
@@ -86,11 +102,11 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
   const site = {
     id: SITE_ID,
     agency_id: AGENCY_ID,
-    name: "Alder & Stone Custom Homes",
-    repo_owner: "acme",
-    repo_name: "alder-stone",
-    branch: "main",
-    live_url: options.liveUrl === undefined ? DEMO_SITE_URL : options.liveUrl,
+    name: real ? "Tree Test Prep" : "Alder & Stone Custom Homes",
+    repo_owner: real ? "acts2man" : "acme",
+    repo_name: real ? "treetestprep" : "alder-stone",
+    branch: real ? "armature/git-content" : "main",
+    live_url: options.liveUrl === undefined ? (real ? REAL_SITE_URL : DEMO_SITE_URL) : options.liveUrl,
     github_installation_id: 123,
     status: "connected",
     last_published_at: "2026-09-20T15:00:00Z",
@@ -99,14 +115,21 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
 
   const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: JSON.parse(JSON.stringify(options.rows ?? {})) as MockState["rows"] };
   // The content "in the repository": a batch publish updates it, as a real one would.
-  const content = JSON.parse(JSON.stringify(options.content ?? demoContent)) as Record<string, Record<string, Record<string, unknown>>>;
-  const layouts = JSON.parse(JSON.stringify(options.layouts ?? demoLayouts)) as Record<string, unknown>;
-  const media = [
-    { path: "/assets/hero.svg", bytes: 2400, kind: "image", alt: "A timber-framed house at dusk" },
-    { path: "/assets/team.svg", bytes: 1800, kind: "image", alt: "" },
-  ];
+  const schema = real ? realSchema : demoSchema;
+  const content = JSON.parse(JSON.stringify(options.content ?? (real ? realContent : demoContent))) as Record<string, Record<string, Record<string, unknown>>>;
+  const layouts = JSON.parse(JSON.stringify(options.layouts ?? (real ? realLayouts : demoLayouts))) as Record<string, unknown>;
+  const media = real
+    ? [
+        { path: "/assets/ken-menzer-hero.webp", bytes: 180_000, kind: "image", alt: "" },
+        { path: "/assets/course-classroom.webp", bytes: 120_000, kind: "image", alt: "Students attending an arborist preparation course" },
+        { path: "/assets/isa-certified-arborist-credential-badge.webp", bytes: 20_000, kind: "image", alt: "ISA Certified Arborist credential badge" },
+      ]
+    : [
+        { path: "/assets/hero.svg", bytes: 2400, kind: "image", alt: "A timber-framed house at dusk" },
+        { path: "/assets/team.svg", bytes: 1800, kind: "image", alt: "" },
+      ];
   let commitSha = COMMIT_SHA;
-  let siteKit: unknown = options.siteKit ?? demoKit;
+  let siteKit: unknown = options.siteKit ?? (real ? realKit : demoKit);
   /** What content-get answers: the files as the validator cleans them, plus every problem it found (exactly as the real function does). */
   const builderFiles = () => {
     const cleaned: Record<string, unknown> = {};
@@ -224,9 +247,9 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           if (typeof body["ref"] === "string") {
             // An older version: the home layout's "Recent builds" heading read differently then.
             const older = JSON.parse(JSON.stringify(layouts).replace('"Recent builds"', '"Builds from last spring"')) as Record<string, unknown>;
-            return json(route, { ok: true, schema: demoSchema, content, commitSha: body["ref"], branch: "main", repo: "acme/alder-stone", warnings: [], problems: [], layouts: older, siteKit: builderFiles().siteKit, media, editingLevel: options.editingLevel ?? "content" });
+            return json(route, { ok: true, schema, content, commitSha: body["ref"], branch: site.branch, repo: `${site.repo_owner}/${site.repo_name}`, warnings: [], problems: [], layouts: older, siteKit: builderFiles().siteKit, media, editingLevel: options.editingLevel ?? "content" });
           }
-          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], ...builderFiles(), media, editingLevel: options.editingLevel ?? "content" });
+          return json(route, { ok: true, schema, content, commitSha, branch: site.branch, repo: `${site.repo_owner}/${site.repo_name}`, warnings: [], ...builderFiles(), media, editingLevel: options.editingLevel ?? "content" });
         case "builder-publish": {
           state.builderPublishRequests.push(body);
           const resolutions = (body["resolutions"] ?? {}) as Record<string, string>;
@@ -282,7 +305,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
   return state;
 }
 
-export const editorUrl = (slug?: string) => `/sites/${SITE_ID}/visual${slug ? `/${slug}` : ""}`;
+export const editorUrl = (slug?: string) => `/sites/${SITE_ID}/visual${slug ? `?page=${slug}` : ""}`;
 
 /** A live site on another origin that has no bridge at all, served from the test itself. */
 export const PLAIN_SITE_URL = "http://plain.localhost:5199";

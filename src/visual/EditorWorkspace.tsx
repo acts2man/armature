@@ -79,6 +79,7 @@ import type { Resolution } from "@shared/builder/merge.ts";
 import type { PageDefinition, SiteSchema } from "@shared/schema.ts";
 import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type RichTextState, type ShortcutKey } from "@shared/visualProtocol.ts";
 import { Canvas } from "./Canvas.tsx";
+import { SkeletonPanel, SkeletonTopBar } from "./EditorSkeleton.tsx";
 import {
   addListItem,
   changedRoots,
@@ -427,7 +428,10 @@ export function EditorWorkspace({
   const sheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    navigate(`/sites/${site.id}/visual/${pageSlug}`, { replace: true });
+    // The page lives in the URL, so a reload or a shared link opens the same page. A
+    // "Show me" element stays in the URL until the page is up and it has been selected.
+    const element = pendingElement.current;
+    navigate(`/sites/${site.id}/visual?page=${encodeURIComponent(pageSlug)}${element ? `&element=${encodeURIComponent(element)}` : ""}`, { replace: true });
   }, [pageSlug, site.id, navigate]);
 
   useEffect(() => {
@@ -443,6 +447,12 @@ export function EditorWorkspace({
   const ready = connection.status === "ready";
   const protocol = connection.status === "ready" ? connection.protocol : null;
   const builder = protocol === 2 && (canBuild || styleOnly);
+  /**
+   * Until the handshake answers, nobody knows whether this is a builder site or a Stage 1
+   * site, so the chrome is a skeleton: the Stage 1 editor never flashes on a builder site.
+   * A failed handshake shows the connection message inside the Stage 1 frame as before.
+   */
+  const connecting = connection.status === "loading" || connection.status === "connecting";
   const sections = useMemo(() => (connection.status === "ready" ? connection.sections : []), [connection]);
 
   const loadedOnce = useRef(false);
@@ -1355,7 +1365,8 @@ export function EditorWorkspace({
   };
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-ground text-text" data-testid="visual-editor" data-protocol={protocol ?? undefined} data-builder={builder ? "on" : undefined}>
+    <div className="flex h-dvh flex-col overflow-hidden bg-ground text-text" data-testid="visual-editor" data-protocol={protocol ?? undefined} data-builder={builder ? "on" : undefined} data-connecting={connecting ? "yes" : undefined}>
+      {connecting ? <SkeletonTopBar /> : (
       <TopBar
         siteName={site.name}
         siteId={site.id}
@@ -1400,13 +1411,17 @@ export function EditorWorkspace({
                 onSaveTemplate: page && builderPages.some((item) => item.slug === pageSlug) ? () => pageActions.onSaveTemplate?.(pageSlug) : undefined,
                 onSaveDraft: () => toast.show(saveState === "saved" ? "Draft saved." : "Saving your draft…", "info"),
                 viewPageHref: page && site.live_url ? `${site.live_url.replace(/\/+$/, "")}${page.path}` : null,
+                allPagesHref: `/sites/${site.id}/pages`,
               }
             : undefined
         }
       />
+      )}
       <div className="flex min-h-0 flex-1">
-        {!builder && <IconRail siteId={site.id} isStaff={isStaff} />}
-        {builder ? (
+        {!builder && !connecting && <IconRail siteId={site.id} isStaff={isStaff} />}
+        {connecting ? (
+          <SkeletonPanel />
+        ) : builder ? (
           <BuilderPanel collapsed={panelCollapsed} onToggle={togglePanel}>
             {panelView === "history" ? (
               <HistoryPanel
@@ -1463,7 +1478,7 @@ export function EditorWorkspace({
               </div>
             ) : panelView === "auto" && selectedPath ? (
               <div className="min-h-0 flex-1 overflow-y-auto" data-testid="field-editor">
-                <FieldEditor schema={schema} baseline={published} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={site.live_url} actions={fieldActions} replaceRequest={replaceRequest} />
+                <FieldEditor schema={schema} baseline={published} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={site.live_url} actions={fieldActions} replaceRequest={replaceRequest} isStaff={isStaff} />
               </div>
             ) : (
               <ElementsPanel
@@ -1608,7 +1623,7 @@ export function EditorWorkspace({
           <RequestBar agencyName={agencyName} onSubmit={(text) => requestChange(selectedPath ?? "", text)} />
           <Tour active={tourOpen} kind={builder ? (styleOnly ? "style" : "builder") : "content"} onDone={() => setTourOpen(false)} />
         </div>
-        {!builder && (
+        {!builder && !connecting && (
           <Inspector
             schema={schema}
             baseline={published}
@@ -1619,6 +1634,7 @@ export function EditorWorkspace({
             replaceRequest={replaceRequest}
             agencyName={agencyName}
             builder={builder}
+            isStaff={isStaff}
             actions={fieldActions}
           />
         )}

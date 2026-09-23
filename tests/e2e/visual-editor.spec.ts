@@ -33,7 +33,7 @@ test.describe("visual editor", () => {
     const h1 = await siteFrame(page).locator("h1").textContent();
     expect(h1).toBe(demoContent.home!.hero!.title);
     expect(ZERO_WIDTH.test(h1 ?? "")).toBe(false);
-    expect(page.url()).toContain(`/sites/${SITE_ID}/visual/home`);
+    expect(page.url()).toContain(`/sites/${SITE_ID}/visual?page=home`);
   });
 
   test("hover and select draw outlines above the frame; the inspector follows", async ({ page }) => {
@@ -125,15 +125,15 @@ test.describe("visual editor", () => {
     await page.getByTestId("page-switcher").click();
     await page.getByRole("menuitemradio", { name: /About/ }).click();
     await expect(siteFrame(page).locator("h1")).toHaveText(demoContent.about!.intro!.title as string);
-    await expect(page).toHaveURL(new RegExp(`/visual/about$`));
+    await expect(page).toHaveURL(/\/visual\?page=about$/);
     await expect(page.getByTestId("layer-about.intro.title")).toBeVisible();
     // A plain click on a link selects it and shows the hint; Ctrl+click follows it.
     await siteFrame(page).locator("nav a", { hasText: "Homes" }).click();
     await expect(page.getByText(/and click to follow this link/)).toBeVisible();
-    await expect(page).toHaveURL(/\/visual\/about$/);
+    await expect(page).toHaveURL(/\/visual\?page=about$/);
     await siteFrame(page).locator("nav a", { hasText: "Homes" }).click({ modifiers: ["ControlOrMeta"] });
     await expect(siteFrame(page).locator("h1")).toHaveText(demoContent.home!.hero!.title as string);
-    await expect(page).toHaveURL(/\/visual\/home$/);
+    await expect(page).toHaveURL(/\/visual\?page=home$/);
     // The Pages tab too.
     await page.getByRole("tab", { name: "Pages" }).click();
     await page.getByTestId("page-about").click();
@@ -223,7 +223,7 @@ test.describe("visual editor", () => {
     await expect(page.getByTestId("selection-outline")).toBeHidden();
     await siteFrame(page).locator("nav a", { hasText: "About" }).click();
     await expect(siteFrame(page).locator("h1")).toHaveText(demoContent.about!.intro!.title as string);
-    await expect(page).toHaveURL(/\/visual\/about$/);
+    await expect(page).toHaveURL(/\/visual\?page=about$/);
     await page.getByRole("button", { name: "Exit preview" }).click();
     await siteFrame(page).locator("h1").click();
     await expect(page.getByTestId("selection-outline")).toBeVisible();
@@ -245,7 +245,7 @@ test.describe("connection states", () => {
     await servePlainSite(page);
     await page.addInitScript(() => { window.localStorage.setItem("armature:visual:tour:v1", "done"); window.localStorage.setItem("armature:builder:tour:v1", "done"); });
     await page.goto(editorUrl());
-    await expect(page.getByText("Connecting the editor…")).toBeVisible();
+    await expect(page.getByText("Connecting to your site…")).toBeVisible();
     await expect(page.getByRole("alert")).toContainText("isn't set up for visual editing yet", { timeout: 20_000 });
     await expect(page.getByRole("link", { name: "Use the page editor" })).toHaveAttribute("href", `/sites/${SITE_ID}/pages`);
   });

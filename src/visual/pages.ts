@@ -1,6 +1,7 @@
 /** Small pure helpers for the visual editor: pages, routes and devices. */
 import type { PageDefinition, SiteSchema } from "@shared/schema.ts";
 import { SHARED_SLUG } from "@shared/schema.ts";
+import { parseFieldPath } from "@shared/visualProtocol.ts";
 
 export type Device = "desktop" | "tablet" | "phone";
 
@@ -29,6 +30,16 @@ export function normalizePath(path: string): string {
   if (!out.startsWith("/")) out = `/${out}`;
   out = out.replace(/\/+$/, "").toLowerCase();
   return out === "" ? "/" : out;
+}
+
+/** A field of the hand-coded header or footer: the shared page, or a section named for the chrome. Its words still edit; its layout is the site's code. */
+export function isChromeField(schema: SiteSchema, path: string): boolean {
+  const parsed = parseFieldPath(path);
+  if (!parsed) return false;
+  if (parsed.slug === SHARED_SLUG) return true;
+  const page = schema.pages.find((item) => item.slug === parsed.slug);
+  const section = page?.sections.find((item) => item.key === parsed.section);
+  return !!section && /^(header|footer|nav|navigation|site-header|site-footer)$/.test(section.key);
 }
 
 /** Pages that can be opened on the canvas: everything but the shared header/footer page. */

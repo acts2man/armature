@@ -212,6 +212,8 @@ function ClientSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { user, sites, agency, signOut } = useAuth();
   const navigate = useNavigate();
   const match = useMatch("/sites/:siteId/*");
+  // On a page's form editor, "Edit site visually" opens that same page.
+  const pageMatch = useMatch("/sites/:siteId/pages/:slug");
   const name = displayName(user);
 
   const inUrl = match?.params.siteId;
@@ -269,7 +271,7 @@ function ClientSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex flex-col gap-3">
         {current && current.site.status !== "hosting_only" && (
           <NavLink
-            to={`/sites/${current.site.id}/visual`}
+            to={`/sites/${current.site.id}/visual${pageMatch?.params.slug ? `?page=${encodeURIComponent(pageMatch.params.slug)}` : ""}`}
             onClick={onNavigate}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-control bg-accent text-[14px] font-semibold text-accent-fg hover:opacity-90"
           >

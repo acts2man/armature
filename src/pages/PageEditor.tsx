@@ -729,7 +729,7 @@ function Editor({ slug }: { slug: string }) {
             kind="info"
             title="This page is edited visually"
             action={
-              <LinkButton to={`/sites/${site.id}/visual/${slug}`} size="sm" data-testid="open-in-builder">
+              <LinkButton to={`/sites/${site.id}/visual?page=${encodeURIComponent(slug)}`} size="sm" data-testid="open-in-builder">
                 Open in the builder
               </LinkButton>
             }

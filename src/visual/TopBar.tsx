@@ -27,6 +27,8 @@ export type BuilderTopBar = {
   onSaveTemplate?: () => void;
   onSaveDraft: () => void;
   viewPageHref: string | null;
+  /** Back to the site's Pages list. */
+  allPagesHref: string;
 };
 
 function Menu({ label, children, open, onToggle, align = "left", testId }: { label: ReactNode; children: ReactNode; open: boolean; onToggle: (next: boolean) => void; align?: "left" | "right"; testId?: string }) {
@@ -196,11 +198,24 @@ export function TopBar({
 
       <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
         {builder ? (
-          <button type="button" onClick={builder.onPageSettings} data-testid="page-name" className={clsx(barButton, "min-w-0 font-medium")} title="Page settings">
-            <IconPage size={16} className="text-muted" />
-            <span className="max-w-56 truncate">{page?.label ?? "Page"}</span>
-            <IconChevronDown size={16} className="text-muted" />
-          </button>
+          <Menu
+            label={
+              <>
+                <IconPage size={16} className="text-muted" />
+                <span className="max-w-56 truncate">{page?.label ?? "Page"}</span>
+              </>
+            }
+            open={pageMenu}
+            onToggle={setPageMenu}
+            testId="page-name"
+          >
+            <button type="button" role="menuitem" className={menuItemClass} data-testid="page-menu-settings" onClick={() => { setPageMenu(false); builder.onPageSettings(); }}>
+              <IconSettings size={15} /> Page settings
+            </button>
+            <Link to={builder.allPagesHref} role="menuitem" className={menuItemClass} data-testid="page-menu-all" onClick={() => setPageMenu(false)}>
+              <IconPage size={15} /> All pages
+            </Link>
+          </Menu>
         ) : (
           <Menu
             label={

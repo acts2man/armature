@@ -56,9 +56,13 @@ function PageCard({ siteId, liveUrl, page }: { siteId: string; liveUrl: string |
           </p>
         </div>
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
         <Link to={editTo} className="inline-flex h-9 items-center gap-2 rounded-control border border-line bg-panel px-4 text-[14px] font-semibold text-text hover:bg-ground">
-          <IconPencil size={16} /> Edit
+          Edit fields
+          <SrOnly> of {page.label}</SrOnly>
+        </Link>
+        <Link to={`/sites/${siteId}/visual?page=${encodeURIComponent(page.slug)}`} className="inline-flex h-9 items-center gap-2 rounded-control bg-accent px-4 text-[14px] font-semibold text-accent-fg hover:opacity-90" data-testid={`edit-visually-${page.slug}`}>
+          <IconPencil size={16} /> Edit visually
           <SrOnly> {page.label}</SrOnly>
         </Link>
       </div>
@@ -78,7 +82,7 @@ export function FileProblems({ siteId, problems, pages }: { siteId: string; prob
   const showMe = (problem: FileProblem): string | null => {
     if (problem.effect === "file") return null;
     if (!problem.slug) return `/sites/${siteId}/visual`;
-    return `/sites/${siteId}/visual/${problem.slug}${problem.elementId ? `?element=${problem.elementId}` : ""}`;
+    return `/sites/${siteId}/visual?page=${encodeURIComponent(problem.slug)}${problem.elementId ? `&element=${problem.elementId}` : ""}`;
   };
   return (
     <Notice kind="warning" title={problems.length === 1 ? "One value in this site's files could not be read" : `${problems.length} values in this site's files could not be read`} className="[&_ul]:mt-1">

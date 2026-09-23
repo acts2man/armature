@@ -14,7 +14,7 @@ import { LIMITS, isAllowedImagePath, isAllowedLinkTarget } from "@shared/content
 import type { ItemField, PageField, SiteSchema } from "@shared/schema.ts";
 import { fieldPath, fieldRoot, parseFieldPath, type FieldPath } from "@shared/visualProtocol.ts";
 import { blankItem, currentValue, fieldMeta, type Draft, type ImageDraft } from "./draftStore.ts";
-import { liveHref } from "./pages.ts";
+import { isChromeField, liveHref } from "./pages.ts";
 
 export type InspectorActions = {
   onText: (path: FieldPath, text: string) => void;
@@ -329,6 +329,7 @@ export function Inspector({
   agencyName,
   elementPanel,
   builder = false,
+  isStaff = false,
 }: {
   schema: SiteSchema;
   baseline: ContentTree;
@@ -340,6 +341,8 @@ export function Inspector({
   /** Bumped when the toolbar's Replace image is pressed, to open the file picker. */
   replaceRequest: number;
   agencyName: string;
+  /** Agency staff read the developer wording of the header/footer note. */
+  isStaff?: boolean;
   /** Site contract v2: the selected builder element's panel, shown instead of a field. */
   elementPanel?: ReactNode;
   /** The page builder is on: the left panel is the Navigator, not Layers. */
@@ -360,7 +363,7 @@ export function Inspector({
       </div>
     );
   } else {
-    body = <FieldEditor schema={schema} baseline={baseline} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={liveUrl} actions={actions} replaceRequest={replaceRequest} />;
+    body = <FieldEditor schema={schema} baseline={baseline} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={liveUrl} actions={actions} replaceRequest={replaceRequest} isStaff={isStaff} />;
   }
 
   return (
@@ -391,6 +394,7 @@ export function FieldEditor({
   liveUrl,
   actions,
   replaceRequest,
+  isStaff = false,
 }: {
   schema: SiteSchema;
   baseline: ContentTree;
@@ -400,8 +404,11 @@ export function FieldEditor({
   liveUrl: string | null;
   actions: InspectorActions;
   replaceRequest: number;
+  /** Agency staff read the developer wording of the header/footer note. */
+  isStaff?: boolean;
 }) {
   const meta = fieldMeta(schema, selectedPath);
+  const chrome = isChromeField(schema, selectedPath);
   const root = fieldRoot(selectedPath);
   const changed = root in draft.fields || Object.keys(draft.images).some((path) => fieldRoot(path) === root);
   const value = currentValue(draft, baseline, root);
@@ -459,6 +466,12 @@ export function FieldEditor({
 
     return (
       <>
+        {chrome && (
+          <div className="mx-5 mt-3 rounded-control border border-line bg-ground/60 p-3 text-[12px] leading-relaxed text-muted" data-testid="chrome-note" role="note">
+            {isStaff ? "The header and footer are still coded. They become fully editable once converted to builder parts." : "The header and footer are part of the site's code. Your agency can make them editable."}
+            <span className="mt-1.5 block text-text">The words, links and pictures below still edit as usual.</span>
+          </div>
+        )}
         <div className="flex flex-col gap-2.5 border-b border-line px-5 pb-3 pt-4">
           <div className="text-[12px] font-medium text-muted">
             {page.label} · {section.label}

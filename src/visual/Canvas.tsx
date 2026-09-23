@@ -360,7 +360,7 @@ export function Canvas({
           <div className="absolute inset-0 bg-panel" role="status" aria-live="polite">
             <Skeleton />
             <p className="absolute inset-x-0 bottom-8 text-center text-[13px] font-medium text-muted">
-              {connection.status === "loading" ? "Loading your site…" : "Connecting the editor…"}
+              Connecting to your site…
             </p>
           </div>
         )}

@@ -46,7 +46,7 @@ test.describe("values the editor cannot read", () => {
     await expect(box).toContainText('could not be read: its element id "BROKEN"');
     await expect(box).toContainText("Unsupported element");
     await items.filter({ hasText: "navy-ish" }).getByTestId("show-me").click();
-    await expect(page).toHaveURL(new RegExp(`${editorUrl("home")}\\?element=hdbuilds`));
+    await expect(page).toHaveURL(/\/visual\?page=home&element=hdbuilds$/);
     await expect(siteFrame(page).locator("h1")).toBeVisible({ timeout: 20_000 });
     await expect(page.getByTestId("edit-title")).toHaveText("Edit Heading", { timeout: 15_000 });
     const note = page.getByTestId("element-problems");
