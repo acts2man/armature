@@ -1,0 +1,842 @@
+{
+  "pageSlug": "registration",
+  "path": "/class-registration-page/",
+  "root": [
+    {
+      "advanced": {
+        "attributes": [
+          {
+            "name": "data-armature-page-title",
+            "value": ""
+          }
+        ],
+        "cssClasses": "registration-title",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 9
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 7
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 14
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 14
+            }
+          }
+        }
+      },
+      "id": "regtitle",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "tag": "h1",
+        "text": "Registration For In Person & Online Classes"
+      },
+      "style": {
+        "background": {
+          "desktop": {
+            "color": "kit:color.primary",
+            "kind": "color"
+          }
+        },
+        "color": {
+          "desktop": "#ffffff"
+        },
+        "typography": {
+          "fontSize": {
+            "desktop": {
+              "unit": "px",
+              "value": 40
+            },
+            "mobile": {
+              "unit": "px",
+              "value": 28
+            },
+            "tablet": {
+              "unit": "px",
+              "value": 28
+            }
+          },
+          "fontWeight": 700,
+          "lineHeight": {
+            "unit": "",
+            "value": 1.1
+          },
+          "textAlign": {
+            "desktop": "center"
+          }
+        }
+      },
+      "type": "heading"
+    },
+    {
+      "advanced": {
+        "cssClasses": "wrap registration-grid",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 0
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 39
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 0
+            },
+            "left": {
+              "unit": "px",
+              "value": 14
+            },
+            "right": {
+              "unit": "px",
+              "value": 14
+            },
+            "top": {
+              "unit": "px",
+              "value": 39
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "registration-option",
+            "customCss": "selector > .ae-con-inner { display: block; }"
+          },
+          "children": [
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 18
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "regh2ip0",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h2",
+                "text": "In Person Registration"
+              },
+              "style": {
+                "color": {
+                  "desktop": "kit:color.primary"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 31
+                    }
+                  },
+                  "fontWeight": 700,
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {},
+              "id": "regimgip",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alt": "Students attending an in-person arborist course",
+                "fit": "cover",
+                "height": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 368
+                  },
+                  "mobile": {
+                    "unit": "auto",
+                    "value": 0
+                  },
+                  "tablet": {
+                    "unit": "px",
+                    "value": 300
+                  }
+                },
+                "src": "/assets/registration-in-person.webp",
+                "width": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 100
+                  }
+                }
+              },
+              "style": {
+                "border": {
+                  "radius": {
+                    "desktop": {
+                      "bottomLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "bottomRight": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topRight": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "image"
+            },
+            {
+              "advanced": {
+                "customCss": "selector .ae-btn{width:60%;min-width:295px;padding:9px 18px;border-radius:3px;font-size:18px;margin:0 auto;display:flex} @media (max-width:980px){selector .ae-btn{width:80%}}",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 18
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 18
+                    }
+                  }
+                }
+              },
+              "id": "regbtnip",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "align": {
+                  "desktop": "justify"
+                },
+                "link": {
+                  "href": "https://buy.stripe.com/8wM8wMbsjfuL5YkfYY"
+                },
+                "preset": "kit:button.secondary",
+                "size": "md",
+                "text": "In-Person Registration Link ➜"
+              },
+              "style": {
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 18
+                    }
+                  },
+                  "fontWeight": 400,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.55
+                  }
+                }
+              },
+              "type": "button"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 16
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 16
+                    }
+                  }
+                }
+              },
+              "id": "regpip10",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "marks": [
+                            {
+                              "type": "bold"
+                            }
+                          ],
+                          "text": "Class size is limited to 30 participants.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 16
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 16
+                    }
+                  }
+                }
+              },
+              "id": "regpip20",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "Once the 30 in-person spots are filled, registration for the in-person option will close. You will still be able to register for the online option.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            }
+          ],
+          "id": "regopt10",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "full",
+            "tag": "article"
+          },
+          "style": {},
+          "type": "container"
+        },
+        {
+          "advanced": {
+            "cssClasses": "registration-option",
+            "customCss": "selector > .ae-con-inner { display: block; }"
+          },
+          "children": [
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 18
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "regh2on0",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h2",
+                "text": "Online Class Registration"
+              },
+              "style": {
+                "color": {
+                  "desktop": "kit:color.primary"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 31
+                    }
+                  },
+                  "fontWeight": 700,
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {},
+              "id": "regimgon",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alt": "Students participating in an online class",
+                "fit": "cover",
+                "height": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 368
+                  },
+                  "mobile": {
+                    "unit": "auto",
+                    "value": 0
+                  },
+                  "tablet": {
+                    "unit": "px",
+                    "value": 300
+                  }
+                },
+                "src": "/assets/registration-online.webp",
+                "width": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 100
+                  }
+                }
+              },
+              "style": {
+                "border": {
+                  "radius": {
+                    "desktop": {
+                      "bottomLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "bottomRight": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topRight": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "image"
+            },
+            {
+              "advanced": {
+                "customCss": "selector .ae-btn{width:60%;min-width:295px;padding:9px 18px;border-radius:3px;font-size:18px;margin:0 auto;display:flex} @media (max-width:980px){selector .ae-btn{width:80%}}",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 18
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 18
+                    }
+                  }
+                }
+              },
+              "id": "regbtnon",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "align": {
+                  "desktop": "justify"
+                },
+                "link": {
+                  "href": "https://buy.stripe.com/cN2aEU53V6Yf2M85kl"
+                },
+                "preset": "kit:button.secondary",
+                "size": "md",
+                "text": "Online Class Registration Link ➜"
+              },
+              "style": {
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 18
+                    }
+                  },
+                  "fontWeight": 400,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.55
+                  }
+                }
+              },
+              "type": "button"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 16
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 16
+                    }
+                  }
+                }
+              },
+              "id": "regpon10",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "Limited to 100 students",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {
+                "typography": {
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "text"
+            }
+          ],
+          "id": "regopt20",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "full",
+            "tag": "article"
+          },
+          "style": {},
+          "type": "container"
+        }
+      ],
+      "id": "reggrid0",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "columns": {
+          "desktop": "1fr 1fr",
+          "mobile": "1fr",
+          "tablet": "1fr 1fr"
+        },
+        "gap": {
+          "desktop": {
+            "column": {
+              "unit": "px",
+              "value": 20
+            },
+            "row": {
+              "unit": "px",
+              "value": 20
+            }
+          },
+          "mobile": {
+            "column": {
+              "unit": "px",
+              "value": 44
+            },
+            "row": {
+              "unit": "px",
+              "value": 44
+            }
+          },
+          "tablet": {
+            "column": {
+              "unit": "px",
+              "value": 20
+            },
+            "row": {
+              "unit": "px",
+              "value": 20
+            }
+          }
+        },
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "grid"
+    },
+    {
+      "advanced": {
+        "cssClasses": "wrap book-note",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 65
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 0
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 65
+            },
+            "left": {
+              "unit": "px",
+              "value": 14
+            },
+            "right": {
+              "unit": "px",
+              "value": 14
+            },
+            "top": {
+              "unit": "px",
+              "value": 26
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "alignSelf": {
+              "desktop": "center"
+            },
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 22
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "maxWidth": {
+              "desktop": {
+                "unit": "px",
+                "value": 1030
+              }
+            }
+          },
+          "id": "regbkh20",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "tag": "h2",
+            "text": "This course uses the Arborist Certification Study Guide, Fourth Edition By Sharon J. Lilly, Corinne G. Bassett, James Komen, and Lindsey Purcell."
+          },
+          "style": {
+            "color": {
+              "desktop": "#080808"
+            },
+            "typography": {
+              "fontSize": {
+                "desktop": {
+                  "unit": "px",
+                  "value": 29
+                }
+              },
+              "fontWeight": 700,
+              "lineHeight": {
+                "unit": "",
+                "value": 1.17
+              },
+              "textAlign": {
+                "desktop": "center"
+              }
+            }
+          },
+          "type": "heading"
+        },
+        {
+          "advanced": {
+            "alignSelf": {
+              "desktop": "center"
+            },
+            "customCss": "selector .ae-btn{min-height:42px;padding:0 24px}",
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 14
+                }
+              }
+            }
+          },
+          "id": "regbkbtn",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "link": {
+              "href": "https://wwv.isa-arbor.com/store/product/7/"
+            },
+            "preset": "kit:button.secondary",
+            "size": "md",
+            "text": "Purchase Book Here"
+          },
+          "style": {
+            "typography": {
+              "fontSize": {
+                "desktop": {
+                  "unit": "px",
+                  "value": 15
+                }
+              },
+              "fontWeight": 500
+            }
+          },
+          "type": "button"
+        }
+      ],
+      "id": "regbook0",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "container"
+    }
+  ],
+  "seo": {},
+  "version": 1
+}

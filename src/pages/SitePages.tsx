@@ -11,6 +11,8 @@ import { Button, Card, EmptyState, LinkButton, Notice, PageHeader, Pill, Skeleto
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
 import { plural, shortSha } from "@/lib/format.ts";
 import { isHostingOnly } from "@/lib/services.ts";
+import { describeProblem } from "@shared/builder/index.ts";
+import type { FileProblem } from "@shared/publishTypes.ts";
 import type { PageDefinition } from "@shared/schema.ts";
 
 /** The page's address on the live site, or null when the site has no live URL yet. */
@@ -61,6 +63,47 @@ function PageCard({ siteId, liveUrl, page }: { siteId: string; liveUrl: string |
         </Link>
       </div>
     </Card>
+  );
+}
+
+/**
+ * Values in the site's files the editor could not read: one line each in plain English
+ * (page, element, setting, the value found, what is allowed) and a "Show me" link that
+ * opens the editor on that element. Nothing here blocks editing: the value is ignored on
+ * the page and kept in the file until it is changed.
+ */
+export function FileProblems({ siteId, problems, pages }: { siteId: string; problems: FileProblem[]; pages: PageDefinition[] }) {
+  if (problems.length === 0) return null;
+  const pageLabel = (problem: FileProblem) => (problem.slug ? (pages.find((page) => page.slug === problem.slug)?.label ?? problem.slug) : "Site settings");
+  const showMe = (problem: FileProblem): string | null => {
+    if (problem.effect === "file") return null;
+    if (!problem.slug) return `/sites/${siteId}/visual`;
+    return `/sites/${siteId}/visual/${problem.slug}${problem.elementId ? `?element=${problem.elementId}` : ""}`;
+  };
+  return (
+    <Notice kind="warning" title={problems.length === 1 ? "One value in this site's files could not be read" : `${problems.length} values in this site's files could not be read`} className="[&_ul]:mt-1">
+      <p className="mb-2">Each one is ignored on the page and kept exactly as it is in the file until someone changes that setting. Everything else on the page works as usual.</p>
+      <ul className="list-disc space-y-1.5 pl-5" data-testid="file-problems">
+        {problems.map((problem, index) => {
+          const href = showMe(problem);
+          return (
+            <li key={`${index}-${problem.file}-${problem.setting}`}>
+              <span className="font-semibold">{pageLabel(problem)}</span>
+              {": "}
+              {describeProblem(problem)}
+              {href && (
+                <>
+                  {" "}
+                  <Link to={href} className="font-semibold text-accent underline-offset-2 hover:underline" data-testid="show-me">
+                    Show me
+                  </Link>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </Notice>
   );
 }
 
@@ -139,6 +182,7 @@ function ConnectedPages() {
     );
     body = (
       <div className="flex flex-col gap-4">
+        <FileProblems siteId={site.id} problems={loaded.problems ?? []} pages={loaded.schema.pages} />
         {loaded.warnings.length > 0 && (
           <Notice kind="warning" title="Notes about this site's content">
             <ul className="list-disc space-y-1 pl-5">

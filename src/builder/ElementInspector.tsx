@@ -6,9 +6,9 @@
  */
 import { clsx } from "clsx";
 import { useMemo, useState, type ReactNode } from "react";
-import { IconChevronRight, IconGauge, IconGrid, IconLayout, IconLock, IconPencil, IconSettings } from "@/components/icons.tsx";
+import { IconChevronRight, IconGauge, IconGrid, IconLayout, IconLock, IconPencil, IconSettings, IconWarning } from "@/components/icons.tsx";
 import { Button } from "@/components/ui.tsx";
-import type { Device, SiteKit } from "@shared/builder/index.ts";
+import { UNSUPPORTED_TYPE, type Device, type Problem, type SiteKit } from "@shared/builder/index.ts";
 import { ControlRenderer, type ControlTarget } from "./controls/ControlRenderer.tsx";
 import { advancedSpecs, contentSpecsFor, styleSpecs } from "./controls/specs.ts";
 import { readAt } from "./controls/path.ts";
@@ -75,6 +75,7 @@ export function ElementInspector({
   kit,
   isStaff,
   sectionFields,
+  problems,
 }: {
   state: BuilderState;
   slug: string;
@@ -92,6 +93,8 @@ export function ElementInspector({
   isStaff: boolean;
   /** For a coded site section: the fields the page shows for it (words, pictures, links, lists). */
   sectionFields?: SectionField[];
+  /** Settings of this element the validator could not read (kept in the file, ignored on the page). */
+  problems?: Problem[];
 }) {
   const [tab, setTab] = useState<InspectorTab>("content");
   const [styleState, setStyleState] = useState<"normal" | "hover">("normal");
@@ -122,6 +125,51 @@ export function ElementInspector({
   if (!element || !target) return null;
   const content = contentSpecsFor(element.type);
   const restyleBlocked = locked;
+
+  const unreadNote =
+    problems && problems.length > 0 ? (
+      <div className="mx-5 mt-3 rounded-control border border-amber/40 bg-amber-soft p-3 text-[12px] leading-relaxed text-text" data-testid="element-problems" role="note">
+        <p className="flex items-center gap-1.5 font-semibold">
+          <IconWarning size={14} /> {problems.length === 1 ? "One setting could not be read" : `${problems.length} settings could not be read`}
+        </p>
+        <ul className="mt-1.5 list-disc space-y-1 pl-4 text-muted">
+          {problems.map((problem, index) => (
+            <li key={`${index}-${problem.setting}`}>
+              <span className="text-text">{problem.setting}</span> is {problem.found}. Allowed: {problem.allowed}. It is ignored here and kept as it is in the file until you change it.
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null;
+
+  if (element.type === UNSUPPORTED_TYPE) {
+    const props = element.props as { originalType?: string; reason?: string };
+    return (
+      <>
+        <div className="flex flex-col gap-2.5 border-b border-line px-4 pb-3 pt-3">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={actions.onBackToElements} aria-label="Back to Elements" title="Back to Elements" data-testid="edit-back" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-muted hover:bg-ground hover:text-text">
+              <IconGrid size={18} />
+            </button>
+            <h2 className="min-w-0 flex-1 truncate font-display text-[16px] font-semibold text-text" data-testid="edit-title">
+              Unsupported element
+            </h2>
+          </div>
+          <Crumbs state={state} slug={slug} id={id} onSelect={actions.onSelect} />
+        </div>
+        <div className="flex flex-col gap-3 px-5 py-4 text-[13px] leading-relaxed text-muted" data-testid="unsupported-note">
+          <p className="flex items-start gap-1.5 text-text">
+            <IconWarning size={14} className="mt-0.5 shrink-0" />
+            This {props.originalType ? `"${props.originalType}"` : "element"} could not be read{props.reason ? `: ${props.reason}` : ""}.
+          </p>
+          <p>It is skipped on the live site and shown here as a placeholder. Nothing is lost: a publish keeps it in the file exactly as it is. You can move or delete it; {isStaff ? "fix the value in the site's repository to make it editable" : "ask your agency to fix it"}.</p>
+          <Button variant="secondary" size="sm" onClick={requestChange} className="w-full" aria-label="Request a change to this element">
+            Request a change here
+          </Button>
+        </div>
+      </>
+    );
+  }
 
   let body;
   if (tab === "content") {
@@ -229,6 +277,7 @@ export function ElementInspector({
         </div>
       </div>
       <div className="dense-controls flex flex-col pb-4" data-testid="element-inspector" data-tab={tab}>
+        {unreadNote}
         {body}
         <div className="px-5 pt-4">
           <Button variant="secondary" size="sm" onClick={requestChange} className="w-full" aria-label="Request a change to this element">

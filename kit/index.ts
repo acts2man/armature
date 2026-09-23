@@ -34,7 +34,7 @@ import type { LayoutDoc, SiteKit } from "./types.ts";
 import "./widgets.tsx";
 import "./library/index.ts";
 
-export const KIT_VERSION = "2.2.0";
+export const KIT_VERSION = "2.3.0";
 export { PROTOCOL_VERSION };
 
 export type ArmatureKitConfig = {
@@ -147,5 +147,6 @@ export { registerWidget } from "./widgets.tsx";
 export { defaultSiteKit } from "./defaults.ts";
 export { resolve, own, setAt, isResponsive, hasOverride } from "./responsive.ts";
 export * from "./values.ts";
+export { checkLayout, checkSiteKit, checkElement, describeProblem, settingLabel, readPath, LAYOUT_LIMITS, isAllowedHref, isAllowedMediaSrc, isAllowedVideoUrl, CONTAINER_TYPES, AGENCY_ONLY_TYPES, isKnownElementType, registerPropsCheck, type Problem, type ProblemPath, type CheckReport } from "./validate.ts";
 export type * from "./types.ts";
 export type { ContentTree, LinkValue, ListValue } from "./store.ts";

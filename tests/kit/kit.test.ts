@@ -11,7 +11,7 @@ import demoHome from "../../examples/demo-site/content/layouts/home.json";
 import demoKit from "../../examples/demo-site/content/site-kit.json";
 import demoContent from "../../examples/demo-site/content/pages.json";
 import demoSchema from "../../examples/demo-site/content/schema.json";
-import { LAYOUT_LIMITS, layoutDocSchema, validateElement, validateLayout, validateSiteKit } from "../../shared/builder/schema.ts";
+import { LAYOUT_LIMITS, validateElement, validateLayout, validateSiteKit } from "../../shared/builder/schema.ts";
 import { newElementId, withFreshIds } from "../../shared/builder/ids.ts";
 import { BRIDGE_MESSAGE_TYPES, BUILDER_PROTOCOL_VERSION, EDITOR_MESSAGE_TYPES } from "../../shared/visualProtocol.ts";
 import { PROTOCOL_VERSION, type SiteSchemaLike } from "../../kit/bridge.ts";
@@ -62,7 +62,7 @@ describe("schemas", () => {
     expect(validateLayout(layout).errors.join()).toMatch(/nested/);
     const twin = element({ type: "spacer" });
     expect(validateLayout({ version: 1, pageSlug: "p", path: "/p", root: [twin, { ...twin }] }).errors.join()).toMatch(/appears twice/);
-    expect(layoutDocSchema.safeParse({ version: 1, pageSlug: "Bad Slug", path: "/", root: [] }).success).toBe(false);
+    expect(validateLayout({ version: 1, pageSlug: "Bad Slug", path: "/", root: [] }).value).toBeUndefined();
   });
 
   it("makes ids of eight safe characters and regenerates them on copies", () => {

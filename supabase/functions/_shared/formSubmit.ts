@@ -5,7 +5,7 @@
  * database, GitHub, Resend, the clock) comes in through `FormDeps`, so this is tested
  * with plain fakes.
  */
-import { formPropsSchema } from "../../../shared/builder/widgetSchemas.ts";
+import { checkElement } from "../../../shared/builder/schema.ts";
 import type { FormField, FormProps } from "../../../kit/types.ts";
 import { ArmatureError } from "./errors.ts";
 
@@ -89,8 +89,9 @@ export function findForm(layout: unknown, elementId: string): Found {
       if (!element || typeof element !== "object") continue;
       const record = element as { id?: unknown; type?: unknown; props?: unknown; children?: unknown };
       if (record.id === elementId && record.type === "form") {
-        const parsed = formPropsSchema.safeParse(record.props);
-        return parsed.success ? { props: parsed.data } : null;
+        // The same validator as everywhere else; a form the validator cannot read does not send.
+        const report = checkElement(element);
+        return report.problems.length === 0 && report.value?.type === "form" ? { props: report.value.props as unknown as FormProps } : null;
       }
       const inner = walk(record.children);
       if (inner) return inner;

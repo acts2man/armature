@@ -1,0 +1,1653 @@
+{
+  "pageSlug": "home",
+  "path": "/",
+  "root": [
+    {
+      "advanced": {
+        "cssClasses": "hero",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 0
+            },
+            "left": {
+              "unit": "px",
+              "value": 0
+            },
+            "right": {
+              "unit": "px",
+              "value": 0
+            },
+            "top": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "wrap hero-inner",
+            "padding": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 32
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 15
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 36
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 25
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "advanced": {
+                "attributes": [
+                  {
+                    "name": "data-armature-page-title",
+                    "value": ""
+                  }
+                ],
+                "cssId": "hero-title",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 25
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  },
+                  "mobile": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "hmheroh1",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h1",
+                "text": "Become An ISA Certified Arborist"
+              },
+              "style": {
+                "color": {
+                  "desktop": "#ffffff"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 39
+                    },
+                    "mobile": {
+                      "unit": "px",
+                      "value": 30
+                    },
+                    "tablet": {
+                      "unit": "px",
+                      "value": 30
+                    }
+                  },
+                  "fontWeight": 650,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.15
+                  },
+                  "textAlign": {
+                    "desktop": "left",
+                    "mobile": "center"
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {},
+              "children": [
+                {
+                  "advanced": {
+                    "cssClasses": "credential"
+                  },
+                  "id": "hmcreden",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "alt": "ISA Certified Arborist credential badge",
+                    "fit": "cover",
+                    "src": "/assets/isa-certified-arborist-credential-badge.webp"
+                  },
+                  "style": {
+                    "border": {
+                      "radius": {
+                        "desktop": {
+                          "bottomLeft": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "bottomRight": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "topLeft": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "topRight": {
+                            "unit": "px",
+                            "value": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "image"
+                },
+                {
+                  "advanced": {
+                    "cssClasses": "hero-copy"
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 16
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "hmhcp010",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Take your tree care career to the next level by becoming an ISA Certified Arborist. Let your customers know that you possess the high degree of knowledge that it takes to become certified by the International Society of Arboriculture.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 16
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "hmhcp020",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Tuesdays",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": " · 6:00 – 8:30 PM",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 16
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "hmhcp030",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Dates:",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": " Sep 15, 22, 29 · Oct 6, 13, 20, 27 · Nov 3, 2026",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "hmhcopy0",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "direction": {
+                      "desktop": "column"
+                    },
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "div"
+                  },
+                  "style": {},
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "cssClasses": "video-column",
+                    "customCss": "@media (max-width: 767px) { selector { display: contents; } selector > .ae-con-inner { display: contents; } }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 2
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "cssClasses": "video-frame",
+                        "customCss": "selector .ae-video-facade { background: #000; } selector .ae-video-note { display: none; }"
+                      },
+                      "id": "hmvideo0",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "aspect": "16/9",
+                        "controls": true,
+                        "source": "wistia",
+                        "title": "Tree Test Prep course video",
+                        "url": "https://fast.wistia.net/embed/iframe/mjst5n61w1?seo=true&videoFoam=true"
+                      },
+                      "style": {
+                        "background": {
+                          "desktop": {
+                            "color": "#000000",
+                            "kind": "color"
+                          }
+                        },
+                        "border": {
+                          "radius": {
+                            "desktop": {
+                              "bottomLeft": {
+                                "unit": "px",
+                                "value": 0
+                              },
+                              "bottomRight": {
+                                "unit": "px",
+                                "value": 0
+                              },
+                              "topLeft": {
+                                "unit": "px",
+                                "value": 0
+                              },
+                              "topRight": {
+                                "unit": "px",
+                                "value": 0
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "type": "video"
+                    },
+                    {
+                      "advanced": {
+                        "cssClasses": "hero-button",
+                        "customCss": "selector .ae-btn { min-height: 48px; }"
+                      },
+                      "id": "hmherobt",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "align": {
+                          "desktop": "justify"
+                        },
+                        "link": {
+                          "href": "/class-registration-page/"
+                        },
+                        "preset": "kit:button.primary",
+                        "size": "md",
+                        "text": "Register for the course"
+                      },
+                      "style": {
+                        "typography": {
+                          "fontSize": {
+                            "desktop": {
+                              "unit": "px",
+                              "value": 16
+                            }
+                          },
+                          "fontWeight": 600
+                        }
+                      },
+                      "type": "button"
+                    }
+                  ],
+                  "id": "hmvcol00",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "align": {
+                      "desktop": "center"
+                    },
+                    "direction": {
+                      "desktop": "column"
+                    },
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "div"
+                  },
+                  "style": {},
+                  "type": "container"
+                }
+              ],
+              "id": "hmherogr",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alignItems": {
+                  "desktop": "start"
+                },
+                "columns": {
+                  "desktop": "160px 1fr 1.35fr",
+                  "mobile": "104px 1fr",
+                  "tablet": "135px 1fr 1fr"
+                },
+                "gap": {
+                  "desktop": {
+                    "column": {
+                      "unit": "px",
+                      "value": 27
+                    },
+                    "row": {
+                      "unit": "px",
+                      "value": 27
+                    }
+                  },
+                  "mobile": {
+                    "column": {
+                      "unit": "px",
+                      "value": 18
+                    },
+                    "row": {
+                      "unit": "px",
+                      "value": 18
+                    }
+                  },
+                  "tablet": {
+                    "column": {
+                      "unit": "px",
+                      "value": 20
+                    },
+                    "row": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div"
+              },
+              "style": {},
+              "type": "grid"
+            }
+          ],
+          "id": "hmheroin",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "boxed",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "container"
+        }
+      ],
+      "id": "hmhero00",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "layout": "full",
+        "minHeight": {
+          "desktop": {
+            "unit": "px",
+            "value": 438
+          }
+        },
+        "tag": "section"
+      },
+      "style": {
+        "background": {
+          "desktop": {
+            "kind": "image",
+            "position": "center",
+            "size": "cover",
+            "src": "/assets/background-2.webp"
+          },
+          "mobile": {
+            "kind": "image",
+            "position": "center",
+            "size": "cover",
+            "src": "/assets/background-1.webp"
+          }
+        },
+        "backgroundOverlay": {
+          "desktop": {
+            "background": {
+              "angle": 90,
+              "kind": "gradient",
+              "stops": [
+                {
+                  "color": "rgba(0,0,0,0.83)",
+                  "position": 0
+                },
+                {
+                  "color": "rgba(0,0,0,0.43)",
+                  "position": 52
+                },
+                {
+                  "color": "rgba(0,0,0,0.06)",
+                  "position": 88
+                }
+              ],
+              "type": "linear"
+            },
+            "opacity": 1
+          }
+        },
+        "color": {
+          "desktop": "#ffffff"
+        }
+      },
+      "type": "container"
+    },
+    {
+      "advanced": {
+        "cssClasses": "course wrap",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 52
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 40
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 52
+            },
+            "left": {
+              "unit": "px",
+              "value": 14
+            },
+            "right": {
+              "unit": "px",
+              "value": 14
+            },
+            "top": {
+              "unit": "px",
+              "value": 35
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "course-copy",
+            "customCss": "selector > .ae-con-inner { display: block; }"
+          },
+          "children": [
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "hmch2000",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h2",
+                "text": "Arborist Certification Study Guide, Fourth Edition is the program material covered in this course"
+              },
+              "style": {},
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "cssClasses": "mobile-inline-image",
+                "customCss": "selector img { margin: 0; }",
+                "hidden": {
+                  "desktop": true,
+                  "tablet": true
+                },
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 24
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                }
+              },
+              "id": "hmcmimg0",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alt": "Two mature trees at sunset with the sun flaring through a wooden fence",
+                "fit": "cover",
+                "height": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 320
+                  }
+                },
+                "src": "/assets/two-mature-trees-at-sunset-with-the-sun-flaring-through-a-wooden-fence.webp",
+                "width": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 100
+                  }
+                }
+              },
+              "style": {
+                "border": {
+                  "radius": {
+                    "desktop": {
+                      "bottomLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "bottomRight": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topRight": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "image"
+            },
+            {
+              "advanced": {
+                "cssClasses": "week-list",
+                "customCss": "selector ul { list-style: none; padding: 0; margin: 0; } selector li p { margin: 0; }",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 17
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "hmcwklst",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 1: Tree Biology, Tree Identification",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 2: Soil Science, Pruning",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 3: Water Management, Tree Selection",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 4: Installation and Establishment, Tree Nutrition and Fertilizer",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 5: Tree Support and Lightning Protection, Urban Forestry",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 6: Diagnosis of Plant Disorders, Plant Healthcare",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 7: Tree Assessment and Risk Management, Trees and Construction",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        },
+                        {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "text": "Week 8: Tree Worker Safety, Climbing and Working in Trees",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "listItem"
+                        }
+                      ],
+                      "type": "bulletList"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "cssClasses": "week-nine",
+                "customCss": "selector p { position: relative; padding-left: 34px; margin: 0; } selector p::before { content: \"\\2794\"; position: absolute; left: 0; top: 0; display: grid; place-items: center; width: 22px; height: 22px; border: 2px solid #d0342c; color: #d0342c; border-radius: 50%; font-size: 12px; line-height: 1; box-sizing: content-box; }",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 18
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 30
+                    }
+                  }
+                }
+              },
+              "id": "hmcwknin",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "Week 9: Take the Arborist Certification Exam",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "cssClasses": "exam-note",
+                "cssId": "exam",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 14
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 14
+                    }
+                  }
+                }
+              },
+              "id": "hmcexnot",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "You must apply and register separately with the ISA to take the exam. See our ",
+                          "type": "text"
+                        },
+                        {
+                          "marks": [
+                            {
+                              "attrs": {
+                                "href": "https://treetestprep.com/exam-information/",
+                                "target": null
+                              },
+                              "type": "link"
+                            }
+                          ],
+                          "text": "Exam Information page",
+                          "type": "text"
+                        },
+                        {
+                          "text": " for details, or read the ",
+                          "type": "text"
+                        },
+                        {
+                          "marks": [
+                            {
+                              "attrs": {
+                                "href": "https://www.isa-arbor.com/Credentials/Common-Questions",
+                                "target": null
+                              },
+                              "type": "link"
+                            }
+                          ],
+                          "text": "ISA’s common questions about certification",
+                          "type": "text"
+                        },
+                        {
+                          "text": ".",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "customCss": "selector .ae-btn { min-height: 42px; padding-left: 24px; padding-right: 24px; }",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 28
+                    }
+                  }
+                }
+              },
+              "id": "hmcbtn00",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "link": {
+                  "href": "/events/location/"
+                },
+                "preset": "kit:button.secondary",
+                "size": "md",
+                "text": "Course Overview"
+              },
+              "style": {
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 15
+                    }
+                  },
+                  "fontWeight": 500
+                }
+              },
+              "type": "button"
+            }
+          ],
+          "id": "hmccopy0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "full",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "container"
+        },
+        {
+          "advanced": {
+            "cssClasses": "course-image",
+            "hidden": {
+              "mobile": true
+            }
+          },
+          "id": "hmcimg00",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "alt": "Two mature trees at sunset with the sun flaring through a wooden fence",
+            "fit": "cover",
+            "height": {
+              "desktop": {
+                "unit": "px",
+                "value": 368
+              }
+            },
+            "src": "/assets/two-mature-trees-at-sunset-with-the-sun-flaring-through-a-wooden-fence.webp",
+            "width": {
+              "desktop": {
+                "unit": "%",
+                "value": 100
+              }
+            }
+          },
+          "style": {
+            "border": {
+              "radius": {
+                "desktop": {
+                  "bottomLeft": {
+                    "unit": "px",
+                    "value": 0
+                  },
+                  "bottomRight": {
+                    "unit": "px",
+                    "value": 0
+                  },
+                  "topLeft": {
+                    "unit": "px",
+                    "value": 0
+                  },
+                  "topRight": {
+                    "unit": "px",
+                    "value": 0
+                  }
+                }
+              }
+            }
+          },
+          "type": "image"
+        }
+      ],
+      "id": "hmcourse",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "alignItems": {
+          "desktop": "start"
+        },
+        "columns": {
+          "desktop": "1.45fr 0.95fr",
+          "mobile": "1fr",
+          "tablet": "1.45fr 0.95fr"
+        },
+        "gap": {
+          "desktop": {
+            "column": {
+              "unit": "px",
+              "value": 34
+            },
+            "row": {
+              "unit": "px",
+              "value": 34
+            }
+          },
+          "mobile": {
+            "column": {
+              "unit": "px",
+              "value": 28
+            },
+            "row": {
+              "unit": "px",
+              "value": 28
+            }
+          },
+          "tablet": {
+            "column": {
+              "unit": "px",
+              "value": 34
+            },
+            "row": {
+              "unit": "px",
+              "value": 34
+            }
+          }
+        },
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "grid"
+    },
+    {
+      "advanced": {
+        "cssClasses": "faq-section",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 64
+            },
+            "left": {
+              "unit": "px",
+              "value": 0
+            },
+            "right": {
+              "unit": "px",
+              "value": 0
+            },
+            "top": {
+              "unit": "px",
+              "value": 58
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "wrap faq-grid",
+            "padding": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "advanced": {
+                "cssClasses": "faq-image",
+                "hidden": {
+                  "mobile": true
+                }
+              },
+              "id": "hmfqimg0",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alt": "Looking up at the trunk and spreading branches of a large oak tree",
+                "fit": "cover",
+                "focal": {
+                  "x": 50,
+                  "y": 38
+                },
+                "height": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 570
+                  }
+                },
+                "src": "/assets/looking-up-at-the-trunk-and-spreading-branches-of-a-large-oak-tree.webp",
+                "width": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 100
+                  }
+                }
+              },
+              "style": {
+                "border": {
+                  "radius": {
+                    "desktop": {
+                      "bottomLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "bottomRight": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topRight": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "image"
+            },
+            {
+              "advanced": {
+                "cssClasses": "faq-content",
+                "customCss": "selector > .ae-con-inner { display: block; }"
+              },
+              "children": [
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "hmfqh200",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "tag": "h2",
+                    "text": "Frequently Asked Question"
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "kit:color.primary"
+                    },
+                    "typography": {
+                      "fontSize": {
+                        "desktop": {
+                          "unit": "px",
+                          "value": 38
+                        },
+                        "mobile": {
+                          "unit": "px",
+                          "value": 31
+                        }
+                      },
+                      "lineHeight": {
+                        "unit": "",
+                        "value": 1.15
+                      }
+                    }
+                  },
+                  "type": "heading"
+                },
+                {
+                  "advanced": {
+                    "cssClasses": "mobile-inline-image",
+                    "customCss": "selector img { margin: 0; }",
+                    "hidden": {
+                      "desktop": true,
+                      "tablet": true
+                    },
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 24
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "id": "hmfqmimg",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "alt": "Looking up at the trunk and spreading branches of a large oak tree",
+                    "fit": "cover",
+                    "height": {
+                      "desktop": {
+                        "unit": "px",
+                        "value": 320
+                      }
+                    },
+                    "src": "/assets/looking-up-at-the-trunk-and-spreading-branches-of-a-large-oak-tree.webp",
+                    "width": {
+                      "desktop": {
+                        "unit": "%",
+                        "value": 100
+                      }
+                    }
+                  },
+                  "style": {
+                    "border": {
+                      "radius": {
+                        "desktop": {
+                          "bottomLeft": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "bottomRight": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "topLeft": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "topRight": {
+                            "unit": "px",
+                            "value": 0
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "image"
+                },
+                {
+                  "advanced": {
+                    "cssClasses": "eyebrow",
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 30
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 9
+                        }
+                      }
+                    }
+                  },
+                  "id": "hmfqeye0",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "General Questions",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "kit:color.secondary"
+                    },
+                    "typography": {
+                      "fontWeight": 700
+                    }
+                  },
+                  "type": "text"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector { border: 0; border-top: 1px solid #d9dce2; border-radius: 0; overflow: visible; } selector .ae-panel { border-bottom: 1px solid #d9dce2; } selector .ae-panel + .ae-panel { border-top: 0; } selector .ae-panel-toggle { padding: 20px 4px; font-weight: 700; color: #1d3770; gap: 20px; } selector .ae-panel-icon { color: #349e49; font-size: 22px; } selector .ae-panel-body { padding: 0 38px 21px 4px; color: #646c79; }"
+                  },
+                  "id": "hmfqacc0",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "iconPosition": "right",
+                    "items": [
+                      {
+                        "content": "The exam can be difficult, but not impossible. By attending this course, you will be more than prepared to pass the exam.",
+                        "id": "faq0",
+                        "title": "How hard is the Certified Arborist exam?"
+                      },
+                      {
+                        "content": "The computer-based exam contains 200 multiple-choice questions. Candidates should review the current ISA candidate guide for complete testing details.",
+                        "id": "faq1",
+                        "title": "How many questions are on the Certified Arborist exam?"
+                      },
+                      {
+                        "content": "Candidates are given 3.5 hours to complete the Certified Arborist examination.",
+                        "id": "faq2",
+                        "title": "How long is the Certified Arborist exam?"
+                      },
+                      {
+                        "content": "A scaled score of 76 percent is required to pass the Certified Arborist examination.",
+                        "id": "faq3",
+                        "title": "What is a passing score for the Certified Arborist exam?"
+                      }
+                    ],
+                    "open": "first",
+                    "titleTag": "div"
+                  },
+                  "style": {},
+                  "type": "accordion"
+                }
+              ],
+              "id": "hmfqcont",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "gap": {
+                  "desktop": {
+                    "row": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div"
+              },
+              "style": {},
+              "type": "container"
+            }
+          ],
+          "id": "hmfqgrid",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "alignItems": {
+              "desktop": "center"
+            },
+            "columns": {
+              "desktop": "0.84fr 1.16fr",
+              "mobile": "1fr",
+              "tablet": "0.84fr 1.16fr"
+            },
+            "gap": {
+              "desktop": {
+                "column": {
+                  "unit": "px",
+                  "value": 72
+                },
+                "row": {
+                  "unit": "px",
+                  "value": 72
+                }
+              },
+              "mobile": {
+                "column": {
+                  "unit": "px",
+                  "value": 40
+                },
+                "row": {
+                  "unit": "px",
+                  "value": 40
+                }
+              },
+              "tablet": {
+                "column": {
+                  "unit": "px",
+                  "value": 40
+                },
+                "row": {
+                  "unit": "px",
+                  "value": 40
+                }
+              }
+            },
+            "layout": "boxed",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "grid"
+        }
+      ],
+      "id": "hmfaq000",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "layout": "full",
+        "tag": "section"
+      },
+      "style": {
+        "background": {
+          "desktop": {
+            "color": "#f4f5f7",
+            "kind": "color"
+          }
+        }
+      },
+      "type": "container"
+    }
+  ],
+  "seo": {},
+  "version": 1
+}

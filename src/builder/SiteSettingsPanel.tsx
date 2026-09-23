@@ -40,7 +40,7 @@ const WEIGHTS = ["300", "400", "500", "600", "700", "800", "900"].map((weight) =
 const presetSpecs = (name: string): ControlSpec[] => [
   { kind: "font", label: "Font", path: ["typography", name, "fontFamily"] },
   { kind: "size", label: "Size", path: ["typography", name, "fontSize"], responsive: true, units: ["px", "em", "rem"], min: 6, max: 200 },
-  { kind: "select", label: "Weight", path: ["typography", name, "fontWeight"], numeric: true, options: WEIGHTS },
+  { kind: "select", label: "Weight", path: ["typography", name, "fontWeight"], numeric: true, custom: { min: 1, max: 1000 }, options: WEIGHTS },
   { kind: "size", label: "Line height", path: ["typography", name, "lineHeight"], units: ["", "px", "em"], min: 0 },
   { kind: "size", label: "Letter spacing", path: ["typography", name, "letterSpacing"], units: ["px", "em"] },
   { kind: "select", label: "Transform", path: ["typography", name, "textTransform"], options: [{ value: "none", label: "None" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }, { value: "capitalize", label: "Capitalize" }] },

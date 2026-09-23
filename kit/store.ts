@@ -5,6 +5,7 @@
  */
 import { defaultSiteKit } from "./defaults.ts";
 import type { LayoutDoc, SiteKit, SiteSectionInfo } from "./types.ts";
+import { checkLayout, checkSiteKit } from "./validate.ts";
 
 export type LinkValue = { label: string; href: string };
 export type ListValue = Record<string, string>[];
@@ -36,18 +37,43 @@ export function parseFieldPath(path: string): ParsedPath | null {
   return { slug, section, field };
 }
 
-/** Unwrap `import.meta.glob(..., { eager: true })` modules (or plain objects) into layouts by slug. */
+/**
+ * Unwrap `import.meta.glob(..., { eager: true })` modules (or plain objects) into layouts by
+ * slug. Every layout goes through the validator (kit/validate.ts): a setting it cannot
+ * read is ignored, an element it cannot read is skipped, and the page still renders.
+ * Problems are reported once to the console so a developer sees them; the dashboard
+ * shows the same list with a "Show me" link.
+ */
 export function collectLayouts(input: Record<string, unknown> | LayoutDoc[] | undefined): Record<string, LayoutDoc> {
   const out: Record<string, LayoutDoc> = {};
   const values = Array.isArray(input) ? input : Object.values(input ?? {});
   for (const raw of values) {
     const candidate = raw && typeof raw === "object" && "default" in (raw as object) ? (raw as { default: unknown }).default : raw;
-    if (isLayoutLike(candidate)) out[candidate.pageSlug] = candidate;
+    const cleaned = cleanLayout(candidate);
+    if (cleaned) out[cleaned.pageSlug] = cleaned;
   }
   return out;
 }
 
-/** The light guard the renderer relies on: the strict check ran before the file was committed. */
+/** A layout as the site should render it, or null when it is not a layout at all. */
+export function cleanLayout(value: unknown): LayoutDoc | null {
+  if (!isLayoutLike(value)) return null;
+  const report = checkLayout(value);
+  if (report.problems.length > 0 && typeof console !== "undefined") {
+    warnLayoutOnce(value.pageSlug, report.problems.length);
+  }
+  return report.value;
+}
+
+const warnedLayouts = new Set<string>();
+function warnLayoutOnce(slug: string, count: number): void {
+  const key = `${slug}:${count}`;
+  if (warnedLayouts.has(key)) return;
+  warnedLayouts.add(key);
+  console.warn(`Armature: content/layouts/${slug}.json has ${count} ${count === 1 ? "setting" : "settings"} the kit cannot read; ${count === 1 ? "it is" : "they are"} ignored. The dashboard's Pages screen lists ${count === 1 ? "it" : "them"}.`);
+}
+
+/** The light guard before validation: the shape of a layout file at all. */
 export function isLayoutLike(value: unknown): value is LayoutDoc {
   if (!value || typeof value !== "object") return false;
   const layout = value as Partial<LayoutDoc>;
@@ -57,7 +83,8 @@ export function isLayoutLike(value: unknown): value is LayoutDoc {
 export function createKitStore(config: { content?: ContentTree; layouts?: Record<string, unknown> | LayoutDoc[]; siteKit?: SiteKit | null }) {
   const baseContent: ContentTree = clone(config.content ?? {});
   const baseLayouts = collectLayouts(config.layouts);
-  const baseKit: SiteKit = config.siteKit ? clone(config.siteKit) : defaultSiteKit();
+  // The kit always loads: anything unreadable in site-kit.json falls back to the default kit's value.
+  const baseKit: SiteKit = config.siteKit ? (checkSiteKit(clone(config.siteKit)).value ?? defaultSiteKit()) : defaultSiteKit();
 
   const fieldDraft = new Map<string, unknown>();
   let draftLayouts: Record<string, LayoutDoc | null> | null = null;
@@ -121,8 +148,12 @@ export function createKitStore(config: { content?: ContentTree; layouts?: Record
     },
     /** Replace the draft layouts and kit. A null layout means "deleted in the draft". */
     applyLayouts(layouts: Record<string, LayoutDoc | null> | null, kit: SiteKit | null) {
-      draftLayouts = layouts;
-      draftKit = kit;
+      if (layouts) {
+        const cleaned: Record<string, LayoutDoc | null> = {};
+        for (const [slug, layout] of Object.entries(layouts)) cleaned[slug] = layout === null ? null : (checkLayout(layout).value ?? null);
+        draftLayouts = cleaned;
+      } else draftLayouts = null;
+      draftKit = kit ? checkSiteKit(kit).value : null;
       rebuild();
     },
     setEditMode(next: boolean) {

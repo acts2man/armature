@@ -72,8 +72,9 @@ import { fileToBase64, prepareImage } from "@/lib/resizeImage.ts";
 import type { Agency, Site } from "@/lib/types.ts";
 import { defaultSiteKit, setAt, validateSiteKit, withFreshIds, type Element, type LayoutDoc, type RichDoc } from "@shared/builder/index.ts";
 import { layoutPermissionErrors } from "@shared/builder/permissions.ts";
+import { restoreKitProblems, restoreLayoutProblems } from "@shared/builder/preserve.ts";
 import type { ContentValue } from "@shared/contentFile.ts";
-import type { BuilderPublishRequest, BuilderPublishResponse, ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
+import type { BuilderPublishRequest, BuilderPublishResponse, ContentGetResponse, FileProblem, PublishBatchResponse } from "@shared/publishTypes.ts";
 import type { Resolution } from "@shared/builder/merge.ts";
 import type { PageDefinition, SiteSchema } from "@shared/schema.ts";
 import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type RichTextState, type ShortcutKey } from "@shared/visualProtocol.ts";
@@ -171,6 +172,7 @@ export function EditorWorkspace({
   content,
   refetchContent,
   initialSlug,
+  initialElementId = null,
 }: {
   site: Site;
   isStaff: boolean;
@@ -180,6 +182,8 @@ export function EditorWorkspace({
   content: ContentGetResponse;
   refetchContent: () => Promise<unknown>;
   initialSlug: string | undefined;
+  /** An element to select once the page is up (the "Show me" link on the Pages screen). */
+  initialElementId?: string | null;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -196,6 +200,15 @@ export function EditorWorkspace({
     () => ({ layouts: content.layouts ?? {}, kit: content.siteKit ?? defaultSiteKit(), media: Object.fromEntries((content.media ?? []).filter((file) => file.alt).map((file) => [file.path, { alt: file.alt }])) }),
     [content.layouts, content.siteKit, content.media],
   );
+  // Values in the site's files the validator could not read. They are shown per element,
+  // and put back untouched when a publish carries the file (unless that setting changed).
+  const problems = useMemo<FileProblem[]>(() => content.problems ?? [], [content.problems]);
+  const problemsBySlug = useMemo(() => {
+    const out: Record<string, FileProblem[]> = {};
+    for (const problem of problems) if (problem.slug) (out[problem.slug] ??= []).push(problem);
+    return out;
+  }, [problems]);
+  const kitProblems = useMemo(() => problems.filter((problem) => !problem.slug), [problems]);
   const editingLevel = content.editingLevel ?? "content";
   const canBuild = isStaff || editingLevel === "builder";
   /** The style level: the builder's canvas and inspector, but nothing added, moved or removed. */
@@ -410,6 +423,7 @@ export function EditorWorkspace({
   const geometry = useMemo(() => createGeometryStore(), []);
   const editStartValue = useRef<string | null>(null);
   const editStartElement = useRef<unknown>(null);
+  const pendingElement = useRef<string | null>(initialElementId);
   const sheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -912,6 +926,16 @@ export function EditorWorkspace({
       case "armature:ready": {
         const target = pageForRoute(schema, message.route) ?? builderPages.find((item) => normalizePath(item.path) === normalizePath(message.route));
         if (target && target.slug !== pageSlug) setPageSlug(target.slug);
+        if (pendingElement.current && message.protocolVersion === 2) {
+          // "Show me" from the Pages screen: select the element once the page has its layout.
+          const id = pendingElement.current;
+          pendingElement.current = null;
+          window.setTimeout(() => {
+            setSelection({ kind: "element", id, slug: target?.slug ?? pageSlug });
+            setPanelView("auto");
+            send({ type: "armature:element:select", id, scroll: true });
+          }, 250);
+        }
         {
           const builderTour = message.protocolVersion === 2 && (canBuild || styleOnly);
           if (!tourSeen(builderTour ? "builder" : "content") && !pendingRestore) setTourOpen(true);
@@ -1075,13 +1099,17 @@ export function EditorWorkspace({
       const builderChanges = layoutChanges.length > 0 || kitChanged(state.builder, baseline) || mediaChanged(state.builder, baseline);
       if (protocol === 2 && builderChanges) {
         const layouts: Record<string, LayoutDoc | null> = {};
-        for (const change of layoutChanges) layouts[change.slug] = change.kind === "deleted" ? null : (state.builder.layouts[change.slug] ?? null);
+        for (const change of layoutChanges) {
+          const layout = change.kind === "deleted" ? null : (state.builder.layouts[change.slug] ?? null);
+          // Anything the validator could not read goes back exactly as it was, unless that setting was changed.
+          layouts[change.slug] = layout ? restoreLayoutProblems(layout, baseline.layouts[change.slug], problemsBySlug[change.slug] ?? []) : null;
+        }
         const builderRequest: BuilderPublishRequest = {
           site_id: site.id,
           baseCommitSha: content.commitSha,
           pages: request.pages,
           layouts,
-          kit: kitChanged(state.builder, baseline) ? state.builder.kit : null,
+          kit: kitChanged(state.builder, baseline) ? restoreKitProblems(state.builder.kit, baseline.kit, kitProblems) : null,
           media: mediaChanged(state.builder, baseline) ? state.builder.media : null,
           resolutions,
         };
@@ -1430,6 +1458,7 @@ export function EditorWorkspace({
                   isStaff={isStaff}
                   actions={inspectorActions}
                   sectionFields={selectedSectionFields}
+                  problems={problemsBySlug[pageSlug]?.filter((problem) => problem.elementId === selectedId)}
                 />
               </div>
             ) : panelView === "auto" && selectedPath ? (

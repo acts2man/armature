@@ -14,7 +14,7 @@
  */
 import type { Element, LayoutDoc } from "../../kit/types.ts";
 import { stableJson } from "./merge.ts";
-import { AGENCY_ONLY_TYPES } from "./widgetSchemas.ts";
+import { AGENCY_ONLY_TYPES } from "../../kit/validate.ts";
 
 export type EditingLevel = "content" | "style" | "builder";
 export type Permissions = { staff: boolean; level: EditingLevel };

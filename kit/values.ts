@@ -4,7 +4,7 @@
  */
 import type { Color, Corners, Sides, Size, SiteKit, Unit } from "./types.ts";
 
-export const UNITS: readonly Unit[] = ["px", "%", "em", "rem", "vw", "vh", "auto", ""];
+export const UNITS: readonly Unit[] = ["px", "%", "em", "rem", "vw", "vh", "vmin", "vmax", "ch", "ex", "svh", "dvh", "lvh", "svw", "dvw", "lvw", "pt", "auto", ""];
 
 export const px = (value: number): Size => ({ value, unit: "px" });
 export const pct = (value: number): Size => ({ value, unit: "%" });
@@ -17,15 +17,16 @@ export function sizeToCss(size: Size | undefined): string | undefined {
   return size.unit === "" ? String(value) : `${value}${size.unit}`;
 }
 
-/** "12px", "2rem", "50%", "auto", "1.4" → a Size, or null when it is not one. */
+/** "12px", "2rem", "50%", "auto", "1.4", "-0.02em", ".5rem", "0" → a Size, or null when it is not one. */
 export function parseSize(text: string, fallbackUnit: Unit = "px"): Size | null {
   const trimmed = text.trim().toLowerCase();
   if (trimmed === "auto") return auto();
-  const match = /^(-?\d*\.?\d+)\s*(px|%|em|rem|vw|vh)?$/.exec(trimmed);
+  const match = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)\s*(px|%|em|rem|vw|vh|vmin|vmax|ch|ex|svh|dvh|lvh|svw|dvw|lvw|pt)?$/.exec(trimmed);
   if (!match) return null;
   const value = Number(match[1]);
   if (!Number.isFinite(value)) return null;
-  return { value, unit: (match[2] as Unit | undefined) ?? fallbackUnit };
+  // A bare 0 needs no unit in CSS; any other bare number takes the control's unit ("" for line-height).
+  return { value, unit: (match[2] as Unit | undefined) ?? (value === 0 && fallbackUnit !== "" ? "px" : fallbackUnit) };
 }
 
 export const sidesToCss = (sides: Sides<Size> | undefined): Partial<Record<"top" | "right" | "bottom" | "left", string>> => ({
@@ -97,9 +98,40 @@ export function resolveKitFont(kit: SiteKit, value: string | undefined): string 
 
 // --- colours ---------------------------------------------------------------------------------
 
-const COLOR_PATTERN = /^(#[0-9a-f]{3}|#[0-9a-f]{4}|#[0-9a-f]{6}|#[0-9a-f]{8}|rgba?\([\d\s.,%/]+\)|hsla?\([\d\s.,%/deg]+\)|transparent|currentcolor|inherit)$/i;
+/** Every CSS named colour, plus the keywords a stylesheet may use where a colour goes. */
+export const NAMED_COLORS: readonly string[] = [
+  "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", "bisque", "black", "blanchedalmond", "blue", "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse", "chocolate", "coral", "cornflowerblue", "cornsilk", "crimson", "cyan", "darkblue", "darkcyan", "darkgoldenrod", "darkgray", "darkgreen", "darkgrey", "darkkhaki", "darkmagenta", "darkolivegreen", "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue", "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", "dimgray", "dimgrey", "dodgerblue", "firebrick", "floralwhite", "forestgreen", "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod", "gray", "green", "greenyellow", "grey", "honeydew", "hotpink", "indianred", "indigo", "ivory", "khaki", "lavender", "lavenderblush", "lawngreen", "lemonchiffon", "lightblue", "lightcoral", "lightcyan", "lightgoldenrodyellow", "lightgray", "lightgreen", "lightgrey", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", "lightslategray", "lightslategrey", "lightsteelblue", "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "mediumaquamarine", "mediumblue", "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise", "mediumvioletred", "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navy", "oldlace", "olive", "olivedrab", "orange", "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise", "palevioletred", "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple", "rebeccapurple", "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue", "slategray", "slategrey", "snow", "springgreen", "steelblue", "tan", "teal", "thistle", "tomato", "turquoise", "violet", "wheat", "white", "whitesmoke", "yellow", "yellowgreen",
+  "transparent", "currentcolor", "inherit", "initial", "unset", "revert",
+];
+const NAMED_COLOR_SET = new Set(NAMED_COLORS);
 
-export const isColorLiteral = (value: unknown): boolean => typeof value === "string" && COLOR_PATTERN.test(value.trim());
+const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+/**
+ * rgb()/rgba()/hsl()/hsla()/hwb()/lab()/lch()/oklab()/oklch()/color()/color-mix()/
+ * light-dark() with any argument syntax CSS allows (commas, spaces, slashes, percentages,
+ * nested colours), and var(--name[, fallback]). The character set is what keeps this safe:
+ * no quotes, semicolons, braces, angle brackets or backslashes, so a value can never
+ * escape its declaration, and url()/expression() are refused by name.
+ */
+const FUNCTIONAL_COLOR = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color|color-mix|light-dark|var)\([a-z0-9\s.,%/+*()#-]*\)$/i;
+const UNSAFE_CSS = /url\s*\(|expression\s*\(|@import|javascript:/i;
+
+/** A CSS colour: 3/4/6/8-digit hex, a named colour, transparent/currentColor, any colour function, or var(). */
+export const isColorLiteral = (value: unknown): boolean => {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > 200) return false;
+  if (HEX_COLOR.test(trimmed) || NAMED_COLOR_SET.has(trimmed.toLowerCase())) return true;
+  if (UNSAFE_CSS.test(trimmed) || !FUNCTIONAL_COLOR.test(trimmed)) return false;
+  // Parentheses must balance, so a value cannot open a function it never closes.
+  let depth = 0;
+  for (const char of trimmed) {
+    if (char === "(") depth += 1;
+    else if (char === ")") depth -= 1;
+    if (depth < 0) return false;
+  }
+  return depth === 0;
+};
 
 export const isColorValue = (value: unknown): boolean => isColorLiteral(value) || parseKitRef(value)?.group === "color";
 

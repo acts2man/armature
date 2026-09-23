@@ -7,6 +7,7 @@
  * editor renders `message` verbatim, which is what keeps every failure visible.
  */
 import type { LayoutDoc, SiteKit } from "../kit/types.ts";
+import type { Problem } from "../kit/validate.ts";
 import type { ContentTree, ContentValue } from "./contentFile.ts";
 import type { SiteSchema } from "./schema.ts";
 
@@ -66,10 +67,20 @@ export type ContentGetResponse = {
   repo: string;
   /** Warnings from the content check, shown but not blocking. */
   warnings: string[];
-  /** Site contract v2: every valid layout under content/layouts/, by page slug. */
+  /**
+   * Site contract v2: every layout under content/layouts/ that is a layout at all, by
+   * page slug, as the validator cleaned it (an unreadable setting is left out, an
+   * unreadable element is an "unsupported" placeholder). `problems` lists what was left out.
+   */
   layouts: Record<string, LayoutDoc>;
-  /** content/site-kit.json when present and valid, else null (the default kit applies). */
+  /** content/site-kit.json when present (with anything unreadable filled from the default kit), else null (the default kit applies). */
   siteKit: SiteKit | null;
+  /**
+   * Every value in the builder files the validator could not read, in plain English and
+   * with the raw value, so the editor can show "what and where" and put the value back
+   * untouched when it publishes.
+   */
+  problems: FileProblem[];
   /** Pictures and videos under public/assets/, for the media library. */
   media: MediaFile[];
   /** The site's editing level for clients (agency staff always get the full builder). */
@@ -77,6 +88,9 @@ export type ContentGetResponse = {
 };
 
 export type EditingLevel = "content" | "style" | "builder";
+
+/** A validator problem with the file it came from (`slug` for a page layout). */
+export type FileProblem = Problem & { file: string; slug?: string };
 
 export type MediaFile = { path: string; bytes: number; kind: "image" | "video"; alt: string };
 

@@ -1,0 +1,2735 @@
+{
+  "pageSlug": "course-overview",
+  "path": "/events/location/",
+  "root": [
+    {
+      "advanced": {
+        "cssClasses": "course-overview wrap",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 70
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 78
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 70
+            },
+            "left": {
+              "unit": "px",
+              "value": 14
+            },
+            "right": {
+              "unit": "px",
+              "value": 14
+            },
+            "top": {
+              "unit": "px",
+              "value": 38
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "course-overview-main",
+            "customCss": "selector > .ae-con-inner { display: block; }"
+          },
+          "children": [
+            {
+              "advanced": {},
+              "id": "coimgmn0",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alt": "Students attending an arborist preparation course",
+                "fit": "cover",
+                "height": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 552
+                  },
+                  "mobile": {
+                    "unit": "auto",
+                    "value": 0
+                  },
+                  "tablet": {
+                    "unit": "px",
+                    "value": 460
+                  }
+                },
+                "src": "/assets/course-classroom.webp",
+                "width": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 100
+                  }
+                }
+              },
+              "style": {},
+              "type": "image"
+            },
+            {
+              "advanced": {
+                "attributes": [
+                  {
+                    "name": "data-armature-page-title",
+                    "value": ""
+                  }
+                ],
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 14
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                }
+              },
+              "id": "coh1main",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h1",
+                "text": "8-Week In-Person and Online Course"
+              },
+              "style": {},
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 5
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "children": [
+                {
+                  "advanced": {},
+                  "id": "cometa01",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "marks": [
+                                {
+                                  "attrs": {
+                                    "color": "#31ca8b"
+                                  },
+                                  "type": "textStyle"
+                                }
+                              ],
+                              "text": "▣",
+                              "type": "text"
+                            },
+                            {
+                              "text": " Tuesdays, Sep 15 – Nov 3, 2026",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {},
+                  "type": "text"
+                },
+                {
+                  "advanced": {},
+                  "id": "cometa02",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "marks": [
+                                {
+                                  "attrs": {
+                                    "color": "#31ca8b"
+                                  },
+                                  "type": "textStyle"
+                                }
+                              ],
+                              "text": "◷",
+                              "type": "text"
+                            },
+                            {
+                              "text": " 6:00 – 8:30 PM",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {},
+                  "type": "text"
+                },
+                {
+                  "advanced": {
+                    "width": {
+                      "desktop": "full"
+                    }
+                  },
+                  "id": "cometa03",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "marks": [
+                                {
+                                  "attrs": {
+                                    "color": "#31ca8b"
+                                  },
+                                  "type": "textStyle"
+                                }
+                              ],
+                              "text": "⌖",
+                              "type": "text"
+                            },
+                            {
+                              "text": " Sierra 2 Center Curtis Hall 2791 24th St Sacramento, CA 95818",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "typography": {
+                      "fontWeight": 600
+                    }
+                  },
+                  "type": "text"
+                }
+              ],
+              "id": "cometa00",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "direction": {
+                  "desktop": "row"
+                },
+                "gap": {
+                  "desktop": {
+                    "column": {
+                      "unit": "px",
+                      "value": 28
+                    },
+                    "row": {
+                      "unit": "px",
+                      "value": 6
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div",
+                "wrap": {
+                  "desktop": true
+                }
+              },
+              "style": {
+                "color": {
+                  "desktop": "#40434a"
+                }
+              },
+              "type": "container"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 8
+                    }
+                  }
+                }
+              },
+              "id": "coh2desc",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h2",
+                "text": "Course Description"
+              },
+              "style": {
+                "color": {
+                  "desktop": "kit:color.primary"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 29
+                    }
+                  },
+                  "fontWeight": 700,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.18
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "cssClasses": "week-descriptions",
+                "customCss": "selector > .ae-con-inner { display: block; }"
+              },
+              "children": [
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh300",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 1:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp100",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 1 – Biology ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– This session covers tree biology, anatomy and physiology. The presentation addresses tree structure, anatomy and function. Class discussions cover the process of photosynthesis, respiration, transpiration, the vascular system and defense systems.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp200",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 2 – Tree Identification ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– This chapter will give you the basic skills and knowledge to recognize the differences in flowers, fruit, form, bark buds, twigs and leaves.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse00",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh301",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 2:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp101",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 3 – Soil Science ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Learn the fundamentals of the physical, chemical and biological properties of soil and understand how they affect soil moisture and plant growth, urban soils and improving soil.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp201",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 4 – Water Management ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Understand how trees absorb water from the soil and return it to the atmosphere and how different conditions affect the process.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse01",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh302",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 3:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp102",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 5 – Tree Nutrition and Fertilization ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Learn about the essential elements needed for trees to function and grow in urban landscapes and in a forest setting.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp202",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 6 – Tree Selection ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– This chapter covers the process for determining the appropriate and inappropriate tree species for a location.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse02",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh303",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 4:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp103",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 7 – Installation and Establishment ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– In this lesson you will learn the best practices for transport, planting and care of newly planted trees. Successful establishment of new trees depends on proper planting techniques and the right early care for each stock type.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp203",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 8 – Pruning ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Learn about the seven different pruning systems and the importance of the landscape needs and the client’s goals in deciding which system is best for each tree.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse03",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh304",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 5:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp104",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 9 – Tree Support and Lightning Protection ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Cabling, bracing, guying, and propping provide reinforcement for heavy loads and need routine inspection and maintenance. This chapter discusses each method and which is right for the job.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp204",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 10 – Diagnosis and Plant Disorders ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– The differences between signs and symptoms, biotic and abiotic, the importance of species, invasive pests and getting help from a lab are all taught in this chapter.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse04",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh305",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 6:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp105",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 11 – Plant Healthcare ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Health, structure and appearance are managed with a comprehensive program that includes strategy options of biological, chemical and/or cultural control. Learn which is best for your tree.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp205",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 12 – Tree Risk Assessment and Management ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– This chapter will explain the systematic process of identifying and evaluating tree risk and the tools used in different assessment levels. It will also get you thinking about your next credential, TRAQ.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse05",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh306",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 7:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp106",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 13 – Trees and Construction ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Learn how trees are damaged by construction and how to protect and preserve them, as well as remediation when the damage has already been done.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp206",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 14 – Urban Forestry ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Urban foresters differ from arborists in that they work with individuals in related and unrelated fields to manage the planting, removal, health, risk and sustainability of the trees while working within the context of the city’s tree protection ordinance. Maybe another introduction to your next credential, Certified Urban Forester.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse06",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                },
+                {
+                  "advanced": {
+                    "customCss": "selector > .ae-con-inner { display: block; }",
+                    "padding": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 20
+                        },
+                        "left": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "right": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 20
+                        }
+                      }
+                    }
+                  },
+                  "children": [
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 0
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkh307",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "tag": "h3",
+                        "text": "Week 8:"
+                      },
+                      "style": {},
+                      "type": "heading"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp107",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 15 – Tree Worker Safety ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Every year OSHA ranks Tree Worker in the top five most dangerous jobs. This chapter explains why and gives the basics of safety standards, personal protective equipment, good communication, electrical hazards, chainsaw and chipper safety, and others.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    },
+                    {
+                      "advanced": {
+                        "margin": {
+                          "desktop": {
+                            "bottom": {
+                              "unit": "px",
+                              "value": 8
+                            },
+                            "top": {
+                              "unit": "px",
+                              "value": 8
+                            }
+                          }
+                        }
+                      },
+                      "id": "cowkp207",
+                      "meta": {
+                        "createdBy": "armature-conversion",
+                        "updatedAt": "2026-09-23T00:00:00.000Z"
+                      },
+                      "props": {
+                        "doc": {
+                          "content": [
+                            {
+                              "content": [
+                                {
+                                  "marks": [
+                                    {
+                                      "type": "bold"
+                                    }
+                                  ],
+                                  "text": "Chapter 16 – Climbing and Working in Trees ",
+                                  "type": "text"
+                                },
+                                {
+                                  "text": "– Learn about a climber’s PPE and fall protection and their limitations, common knots used in climbing and rigging, and aerial rescue.",
+                                  "type": "text"
+                                }
+                              ],
+                              "type": "paragraph"
+                            }
+                          ],
+                          "type": "doc"
+                        }
+                      },
+                      "style": {},
+                      "type": "text"
+                    }
+                  ],
+                  "id": "cowkse07",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "gap": {
+                      "desktop": {
+                        "row": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    },
+                    "layout": "full",
+                    "tag": "section"
+                  },
+                  "style": {
+                    "border": {
+                      "color": {
+                        "desktop": "#e1e3e7"
+                      },
+                      "style": {
+                        "desktop": "solid"
+                      },
+                      "width": {
+                        "desktop": {
+                          "bottom": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "left": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "right": {
+                            "unit": "px",
+                            "value": 0
+                          },
+                          "top": {
+                            "unit": "px",
+                            "value": 1
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "type": "container"
+                }
+              ],
+              "id": "cowd0000",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "gap": {
+                  "desktop": {
+                    "row": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div"
+              },
+              "style": {},
+              "type": "container"
+            }
+          ],
+          "id": "comain00",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "full",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "container"
+        },
+        {
+          "advanced": {
+            "padding": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 43
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 37
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 37
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 39
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 30
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 25
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 25
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 30
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 28
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "cocdh200",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h2",
+                "text": "ISA Certified Arborist Prep Course"
+              },
+              "style": {
+                "color": {
+                  "desktop": "kit:color.primary"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 24
+                    }
+                  },
+                  "fontWeight": 700,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.18
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "padding": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 27
+                    },
+                    "left": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "right": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                }
+              },
+              "children": [
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "cocdlab1",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Course Price",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "kit:color.primary"
+                    },
+                    "typography": {
+                      "fontSize": {
+                        "desktop": {
+                          "unit": "px",
+                          "value": 17
+                        }
+                      },
+                      "fontWeight": 700
+                    }
+                  },
+                  "type": "text"
+                },
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "cocdval1",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "$395",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "#85878d"
+                    }
+                  },
+                  "type": "text"
+                }
+              ],
+              "id": "cocdrow1",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "direction": {
+                  "desktop": "column"
+                },
+                "gap": {
+                  "desktop": {
+                    "row": {
+                      "unit": "px",
+                      "value": 4
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div"
+              },
+              "style": {
+                "border": {
+                  "color": {
+                    "desktop": "#e4e5e8"
+                  },
+                  "style": {
+                    "desktop": "solid"
+                  },
+                  "width": {
+                    "desktop": {
+                      "bottom": {
+                        "unit": "px",
+                        "value": 1
+                      },
+                      "left": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "right": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "top": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "container"
+            },
+            {
+              "advanced": {
+                "padding": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 27
+                    },
+                    "left": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "right": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                }
+              },
+              "children": [
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "cocdlab2",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Email",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "kit:color.primary"
+                    },
+                    "typography": {
+                      "fontSize": {
+                        "desktop": {
+                          "unit": "px",
+                          "value": 17
+                        }
+                      },
+                      "fontWeight": 700
+                    }
+                  },
+                  "type": "text"
+                },
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "cocdval2",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "marks": [
+                                {
+                                  "attrs": {
+                                    "href": "mailto:Treetestprep@gmail.com",
+                                    "target": null
+                                  },
+                                  "type": "link"
+                                },
+                                {
+                                  "attrs": {
+                                    "color": "#85878d"
+                                  },
+                                  "type": "textStyle"
+                                }
+                              ],
+                              "text": "Treetestprep@gmail.com",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "#85878d"
+                    }
+                  },
+                  "type": "text"
+                }
+              ],
+              "id": "cocdrow2",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "direction": {
+                  "desktop": "column"
+                },
+                "gap": {
+                  "desktop": {
+                    "row": {
+                      "unit": "px",
+                      "value": 4
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div"
+              },
+              "style": {
+                "border": {
+                  "color": {
+                    "desktop": "#e4e5e8"
+                  },
+                  "style": {
+                    "desktop": "solid"
+                  },
+                  "width": {
+                    "desktop": {
+                      "bottom": {
+                        "unit": "px",
+                        "value": 1
+                      },
+                      "left": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "right": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "top": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "container"
+            },
+            {
+              "advanced": {
+                "padding": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 27
+                    },
+                    "left": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "right": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                }
+              },
+              "children": [
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "cocdlab3",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Location",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "kit:color.primary"
+                    },
+                    "typography": {
+                      "fontSize": {
+                        "desktop": {
+                          "unit": "px",
+                          "value": 17
+                        }
+                      },
+                      "fontWeight": 700
+                    }
+                  },
+                  "type": "text"
+                },
+                {
+                  "advanced": {
+                    "margin": {
+                      "desktop": {
+                        "bottom": {
+                          "unit": "px",
+                          "value": 0
+                        },
+                        "top": {
+                          "unit": "px",
+                          "value": 0
+                        }
+                      }
+                    }
+                  },
+                  "id": "cocdval3",
+                  "meta": {
+                    "createdBy": "armature-conversion",
+                    "updatedAt": "2026-09-23T00:00:00.000Z"
+                  },
+                  "props": {
+                    "doc": {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Sierra 2 Center Curtis Hall 2791 24th St Sacramento, CA 95818",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "doc"
+                    }
+                  },
+                  "style": {
+                    "color": {
+                      "desktop": "#85878d"
+                    }
+                  },
+                  "type": "text"
+                }
+              ],
+              "id": "cocdrow3",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "direction": {
+                  "desktop": "column"
+                },
+                "gap": {
+                  "desktop": {
+                    "row": {
+                      "unit": "px",
+                      "value": 4
+                    }
+                  }
+                },
+                "layout": "full",
+                "tag": "div"
+              },
+              "style": {
+                "border": {
+                  "color": {
+                    "desktop": "#e4e5e8"
+                  },
+                  "style": {
+                    "desktop": "solid"
+                  },
+                  "width": {
+                    "desktop": {
+                      "bottom": {
+                        "unit": "px",
+                        "value": 1
+                      },
+                      "left": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "right": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "top": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "container"
+            },
+            {
+              "advanced": {
+                "customCss": "selector .ae-btn { min-height: 48px; }",
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 0
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 40
+                    }
+                  }
+                },
+                "width": {
+                  "desktop": "full"
+                }
+              },
+              "id": "cocdbtn0",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "align": {
+                  "desktop": "justify"
+                },
+                "link": {
+                  "href": "/class-registration-page/"
+                },
+                "preset": "kit:button.primary",
+                "size": "md",
+                "text": "Register for the course"
+              },
+              "style": {
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 16
+                    }
+                  },
+                  "fontWeight": 600
+                }
+              },
+              "type": "button"
+            }
+          ],
+          "id": "cocard00",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "column": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "full",
+            "tag": "aside"
+          },
+          "style": {
+            "border": {
+              "color": {
+                "desktop": "#e4e5e8"
+              },
+              "style": {
+                "desktop": "solid"
+              },
+              "width": {
+                "desktop": {
+                  "bottom": {
+                    "unit": "px",
+                    "value": 1
+                  },
+                  "left": {
+                    "unit": "px",
+                    "value": 1
+                  },
+                  "right": {
+                    "unit": "px",
+                    "value": 1
+                  },
+                  "top": {
+                    "unit": "px",
+                    "value": 1
+                  }
+                }
+              }
+            },
+            "boxShadow": {
+              "desktop": {
+                "blur": 30,
+                "color": "rgba(25,44,79,0.08)",
+                "spread": 0,
+                "x": 0,
+                "y": 12
+              }
+            }
+          },
+          "type": "container"
+        }
+      ],
+      "id": "cogrid00",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "alignItems": {
+          "desktop": "start"
+        },
+        "columns": {
+          "desktop": "minmax(0, 2fr) minmax(315px, 0.96fr)",
+          "mobile": "1fr",
+          "tablet": "1fr 0.58fr"
+        },
+        "gap": {
+          "desktop": {
+            "column": {
+              "unit": "px",
+              "value": 24
+            },
+            "row": {
+              "unit": "px",
+              "value": 24
+            }
+          }
+        },
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "grid"
+    }
+  ],
+  "seo": {},
+  "version": 1
+}

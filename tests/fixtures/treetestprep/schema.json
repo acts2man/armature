@@ -1,0 +1,351 @@
+{
+  "armatureContract": 1,
+  "pages": [
+    {
+      "slug": "shared",
+      "label": "Header & Footer",
+      "path": "/",
+      "description": "Logo, navigation, contact email and footer content used on every page.",
+      "sections": [
+        {
+          "key": "header",
+          "label": "Header",
+          "fields": [
+            {
+              "key": "logo",
+              "label": "Logo",
+              "type": "image"
+            },
+            {
+              "key": "logo_alt",
+              "label": "Logo alt text",
+              "type": "text"
+            },
+            {
+              "key": "email",
+              "label": "Contact email",
+              "type": "text"
+            },
+            {
+              "key": "nav",
+              "label": "Navigation links",
+              "type": "list",
+              "itemFields": [
+                {
+                  "key": "label",
+                  "label": "Label",
+                  "type": "text"
+                },
+                {
+                  "key": "href",
+                  "label": "Destination",
+                  "type": "url"
+                }
+              ]
+            },
+            {
+              "key": "mobile_cta",
+              "label": "Mobile menu button",
+              "type": "link"
+            },
+            {
+              "key": "isa_url",
+              "label": "Mobile menu ISA icon link",
+              "type": "url"
+            }
+          ]
+        },
+        {
+          "key": "footer",
+          "label": "Footer",
+          "fields": [
+            {
+              "key": "logo",
+              "label": "Footer logo",
+              "type": "image"
+            },
+            {
+              "key": "blurb_one",
+              "label": "First paragraph",
+              "type": "textarea"
+            },
+            {
+              "key": "blurb_two",
+              "label": "Second paragraph",
+              "type": "textarea"
+            },
+            {
+              "key": "cta",
+              "label": "Footer button",
+              "type": "link"
+            },
+            {
+              "key": "image",
+              "label": "Footer photo",
+              "type": "image"
+            },
+            {
+              "key": "image_alt",
+              "label": "Footer photo alt text",
+              "type": "text"
+            },
+            {
+              "key": "links_heading",
+              "label": "Navigation heading",
+              "type": "text"
+            },
+            {
+              "key": "copyright",
+              "label": "Copyright line",
+              "type": "text"
+            },
+            {
+              "key": "privacy",
+              "label": "Privacy policy link",
+              "type": "link"
+            },
+            {
+              "key": "terms",
+              "label": "Terms of service link",
+              "type": "link"
+            },
+            {
+              "key": "credit_prefix",
+              "label": "Credit line prefix",
+              "type": "text"
+            },
+            {
+              "key": "credit",
+              "label": "Credit link",
+              "type": "link"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "home",
+      "label": "Home",
+      "path": "/",
+      "description": "Hero, course outline and FAQ on the front page.",
+      "sections": [
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "course-overview",
+      "label": "Course Overview",
+      "path": "/events/location/",
+      "description": "Location, dates and what the course covers.",
+      "sections": [
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "exam-information",
+      "label": "Exam Information",
+      "path": "/exam-information/",
+      "description": "ISA certification process and eligibility copy.",
+      "sections": [
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "inspiration",
+      "label": "The Inspiration",
+      "path": "/about-us/",
+      "description": "The Ken Menzer story.",
+      "sections": [
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "instructors",
+      "label": "Meet The Instructors",
+      "path": "/meet-your-instructors/",
+      "description": "Instructor intro copy. Individual bios live under Instructors.",
+      "sections": [
+        {
+          "key": "intro",
+          "label": "Intro",
+          "fields": [
+            {
+              "key": "heading",
+              "label": "Heading",
+              "type": "text"
+            },
+            {
+              "key": "body",
+              "label": "Body copy",
+              "type": "textarea"
+            },
+            {
+              "key": "role_label",
+              "label": "Subtitle shown under each instructor name",
+              "type": "text"
+            }
+          ]
+        },
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "contact",
+      "label": "Contact Us",
+      "path": "/contact-us/",
+      "description": "Contact hero and email call to action.",
+      "sections": [
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "registration",
+      "label": "Registration",
+      "path": "/class-registration-page/",
+      "description": "In-person and online registration options.",
+      "sections": [
+        {
+          "key": "seo",
+          "label": "SEO & sharing",
+          "fields": [
+            {
+              "key": "title",
+              "label": "Browser / search title",
+              "type": "text"
+            },
+            {
+              "key": "description",
+              "label": "Meta description",
+              "type": "textarea"
+            },
+            {
+              "key": "image",
+              "label": "Social share image URL (https)",
+              "type": "url"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

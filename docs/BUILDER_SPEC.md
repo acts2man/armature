@@ -22,7 +22,7 @@ everything in one commit. Existing Stage 1 sites keep working unchanged.
 
 | Where | What |
 | --- | --- |
-| `shared/builder/` | The data model as zod schemas (elements, layouts, site kit), id helpers, limits, the responsive-value helpers and the layout diff/merge used by the publish function. Imported by the dashboard and the edge functions. |
+| `shared/builder/` | Strict and tolerant wrappers over the kit's validator (`kit/validate.ts`: elements, layouts, site kit), the preserve module, id helpers, limits, the responsive-value helpers and the layout diff/merge used by the publish function. Imported by the dashboard and the edge functions. |
 | `kit/` | The site kit (site contract v2): the folder a site copies into `src/lib/armature-kit/`. React is its only dependency. Bridge v2, renderer, widgets, CSS generator, rich-text renderer. |
 | `src/builder/` | The editor side: normalized store and command/undo system, canvas overlays, drag and drop, inspector control library, panels, dialogs. `src/visual/` (Stage 1) stays and is composed into the new workspace. |
 | `supabase/functions/builder-publish/` | One commit for layouts, kit, content fields, images and media, with element-level conflict merge. |
@@ -95,13 +95,21 @@ type Element = {
   inner text and images keep editing through the Stage 1 field system. Duplicating is
   allowed only when the site registered the section with `repeatable: true`. Builder
   elements can go above, below and between site sections.
-- **Validation.** `shared/builder/schema.ts` holds a zod schema for every element type;
-  the editor validates before it stores, the publish function validates before it
-  commits. The kit's renderer skips an unknown type safely (it renders nothing for it and
-  logs once in development); the editor shows "Unsupported element" in the tree and the
-  inspector for a type it does not know.
-- **Limits.** Layout file under 1 MB (checked on the serialized text), nesting depth at
-  most 12, at most 2000 elements per page. Every limit failure names the page and the
+- **Validation.** `kit/validate.ts` (dependency-free, copied into every site) holds the
+  rules for every element type, the layout file and the site kit, and every side runs the
+  same code: the site when it loads its files, the site's own content check, the
+  dashboard when it reads a site, the publish function before it commits. It is tolerant:
+  an unreadable setting is ignored and reported, an unreadable element becomes an
+  "unsupported" placeholder (skipped on the site, named in the editor), the kit fills
+  unreadable values from the defaults, and only a file that is not a layout at all fails
+  to load. Every problem carries the page, element, setting, value found and what is
+  allowed, in plain English, plus the raw value; a publish puts unread values back exactly
+  as they were unless that setting was changed (`shared/builder/preserve.ts`), and refuses
+  a new unreadable value. The rules are as wide as CSS wherever that is safe and strict only
+  where a value reaches the page as code (links, media addresses, attribute names, anything
+  emitted into a stylesheet).
+- **Limits.** Layout file under 2 MB (checked on the serialized text), nesting depth at
+  most 20, at most 5000 elements per page. Every limit failure names the page and the
   limit.
 
 ### Site kit (`content/site-kit.json`)
@@ -337,7 +345,7 @@ right edge of the window (Stage 1 / content-only sites keep the older split of
   pages, media alt text). Autosaved every 2 seconds after a change, localStorage as the
   offline backup, restore prompt on return, leave-page warning.
 - **Publish:** `builder-publish` commits layouts, kit, media metadata, content fields and
-  images in ONE commit, keeping every existing guarantee: zod validation, URL/image rules,
+  images in ONE commit, keeping every existing guarantee: the kit's validator, URL/image rules,
   whole-file re-validation before the commit, no force-push, one `publishes` row.
   **Element-level conflict merge:** when the branch moved, the function reads each
   touched layout at the base commit and at the head, computes the element ids each side
@@ -384,8 +392,8 @@ Handles write the device being edited (a tablet drag never touches desktop) and 
 the element's own pixel value when it has one, else from what the page measured. While an
 element is typed into, the kit freezes its rendering and remounts it from the stored value
 when the edit ends.
-**Decision (M5):** the widget library's zod schemas live in `shared/builder/widgetSchemas.ts`
-(on top of `primitives.ts`, so schema.ts can fold them in without an import cycle); its
+**Decision (M5):** the widget library's rules live in `kit/validate.ts` (`PROPS_CHECKS`,
+next to the core widgets, so the kit and the dashboard can never disagree); its
 renderers in `kit/library/`, its editor definitions and Content tabs in
 `src/builder/widgets/library.ts`. Repeaters (accordion items, pictures, form fields) are a
 control kind that rewrites the whole list, so every row edit is one command. Accordion,
@@ -428,7 +436,7 @@ dialog) compared against the design.
 
 ## Milestones (build in order; tick when verified, changelogged, committed and pushed)
 
-- [x] **M1 Foundation.** Data model, zod schemas, `site-kit.json`, `kit/` with the renderer
+- [x] **M1 Foundation.** Data model, the validator, `site-kit.json`, `kit/` with the renderer
       core (Container, Grid, Heading, Text Editor, Image, Button, Spacer, Divider), CSS
       generator, rich-text renderer, bridge protocol v2 with v1.1 compatibility, demo-site
       upgrade, `docs/SITE_CONTRACT.md` v2.

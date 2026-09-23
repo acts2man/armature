@@ -30,7 +30,7 @@ export function registerWidgetDefinition(definition: WidgetDefinition): void {
 
 export const widgetDefinition = (type: string): WidgetDefinition | undefined => definitions.get(type);
 export const widgetDefinitions = (): WidgetDefinition[] => Array.from(definitions.values());
-export const widgetLabel = (type: string): string => definitions.get(type)?.label ?? (type === "site-section" ? "Section" : type.charAt(0).toUpperCase() + type.slice(1));
+export const widgetLabel = (type: string): string => definitions.get(type)?.label ?? (type === "site-section" ? "Section" : type === "unsupported" ? "Unsupported element" : type.charAt(0).toUpperCase() + type.slice(1));
 
 export const GROUP_LABELS: Record<WidgetGroup, string> = { layout: "Layout", basic: "Basic", general: "General", agency: "Agency only" };
 

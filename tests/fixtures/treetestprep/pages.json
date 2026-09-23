@@ -1,0 +1,124 @@
+{
+  "contact": {
+    "seo": {
+      "description": "Questions about the ISA Certified Arborist prep course? Email Tree Test Prep and a member of our team will reply within one business day.",
+      "image": "",
+      "title": "Contact Tree Test Prep | Arborist Exam Prep Questions"
+    }
+  },
+  "course-overview": {
+    "seo": {
+      "description": "Week-by-week breakdown of the ISA Certified Arborist prep course: dates, times, Sacramento location, price and every chapter covered.",
+      "image": "",
+      "title": "8-Week Arborist Prep Course Overview | Tree Test Prep"
+    }
+  },
+  "exam-information": {
+    "seo": {
+      "description": "How the ISA Certified Arborist exam works, eligibility requirements, and how to apply and register directly with the ISA.",
+      "image": "",
+      "title": "ISA Certified Arborist Exam Information & Eligibility | Tree Test Prep"
+    }
+  },
+  "home": {
+    "seo": {
+      "description": "Pass the ISA Certified Arborist exam with an 8-week instructor-led prep course in Sacramento, CA or live online — chapter-by-chapter study guide included.",
+      "image": "",
+      "title": "ISA Certified Arborist Exam Prep Course | Tree Test Prep"
+    }
+  },
+  "inspiration": {
+    "seo": {
+      "description": "Tree Test Prep was created in honor of Ken Menzer, City Arborist and Community Forester, to help tree care professionals become Certified Arborists.",
+      "image": "",
+      "title": "The Inspiration Behind Tree Test Prep | Ken Menzer"
+    }
+  },
+  "instructors": {
+    "intro": {
+      "body": "All of our instructors are ISA Certified Arborists with decades of experience.",
+      "heading": "Meet the Instructors",
+      "role_label": "ISA Certified Arborist"
+    },
+    "seo": {
+      "description": "Learn from ISA Certified Arborists and urban forestry professionals with decades of field, municipal, and teaching experience.",
+      "image": "",
+      "title": "Meet Your Arborist Instructors | Tree Test Prep"
+    }
+  },
+  "registration": {
+    "seo": {
+      "description": "Register for the ISA Certified Arborist prep course in Sacramento or online. In-person seats are limited to 30 participants.",
+      "image": "",
+      "title": "Register For The Arborist Prep Course | In Person & Online"
+    }
+  },
+  "shared": {
+    "footer": {
+      "blurb_one": "Take your tree care career to the next level by becoming an ISA Certified Arborist.",
+      "blurb_two": "Let your customers know that you possess the high degree of knowledge that it takes to become certified by the International Society of Arboriculture.",
+      "copyright": "© 2026 Tree Test Prep. All Rights Reserved.",
+      "credit": {
+        "href": "https://reputationguardians.net/",
+        "label": "Reputation Guardians"
+      },
+      "credit_prefix": "Site designed by",
+      "cta": {
+        "href": "/class-registration-page/",
+        "label": "Register For The Course"
+      },
+      "image": "/assets/flowering-tree-in-bloom-beside-a-marsh-with-hills-behind-it.webp",
+      "image_alt": "Flowering tree in bloom beside a marsh with hills behind it",
+      "links_heading": "Navigation Links",
+      "logo": "/assets/tree-test-prep-logo.webp",
+      "privacy": {
+        "href": "https://treetestprep.com/privacy-policy",
+        "label": "Privacy Policy"
+      },
+      "terms": {
+        "href": "https://treetestprep.com/terms-of-service",
+        "label": "Terms of Service"
+      }
+    },
+    "header": {
+      "email": "Treetestprep@gmail.com",
+      "isa_url": "https://www.isa-arbor.com/",
+      "logo": "/assets/tree-test-prep-logo.webp",
+      "logo_alt": "Tree Test Prep",
+      "mobile_cta": {
+        "href": "/class-registration-page/",
+        "label": "Register For The Course"
+      },
+      "nav": [
+        {
+          "href": "/",
+          "label": "Home"
+        },
+        {
+          "href": "/events/location/",
+          "label": "Course Overview"
+        },
+        {
+          "href": "/exam-information/",
+          "label": "Exam Information"
+        },
+        {
+          "href": "/about-us/",
+          "label": "The Inspiration"
+        },
+        {
+          "href": "/meet-your-instructors/",
+          "label": "Meet The Instructors"
+        },
+        {
+          "href": "/contact-us/",
+          "label": "Contact Us"
+        },
+        {
+          "href": "/class-registration-page/",
+          "label": "Register"
+        }
+      ]
+    }
+  }
+}

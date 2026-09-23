@@ -10,8 +10,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@shared/*": ["./shared/*"],
-      "@kit/*": ["./kit/*"],
-      "npm:zod@*": ["./node_modules/zod"]
+      "@kit/*": ["./kit/*"]
     },
     "strict": true,
     "noUncheckedIndexedAccess": true,

@@ -5,7 +5,7 @@
  * friendly note with the form editor instead.
  */
 import { useEffect, useState } from "react";
-import { useParams } from "react-router";
+import { useParams, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { useIsStaffFor, useSiteQuery } from "@/components/SiteLayout.tsx";
 import { LinkButton, Notice, Skeleton } from "@/components/ui.tsx";
@@ -39,6 +39,8 @@ function Frame({ children }: { children: React.ReactNode }) {
 
 export function VisualEditor() {
   const { siteId = "", pageSlug } = useParams();
+  const [search] = useSearchParams();
+  const elementId = search.get("element");
   const { user, agency } = useAuth();
   const siteQuery = useSiteQuery(siteId);
   const isStaff = useIsStaffFor(siteQuery.data);
@@ -145,6 +147,7 @@ export function VisualEditor() {
       content={content}
       refetchContent={contentQuery.refetch}
       initialSlug={pageSlug}
+      initialElementId={elementId && /^[a-z0-9]{8}$/.test(elementId) ? elementId : null}
     />
   );
 }

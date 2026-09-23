@@ -1,7 +1,7 @@
 /**
  * The editor side of the widget library: what the Elements panel lists, the content a
  * new element starts with, its Content tab and its Style tab kind. The kit renders each
- * of these (kit/library/); the shared schemas validate them (shared/builder/widgetSchemas.ts).
+ * of these (kit/library/); the kit validator checks them (kit/validate.ts).
  * Import this module once, next to the registry.
  */
 import { createElement as h } from "react";

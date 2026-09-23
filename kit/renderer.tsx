@@ -98,7 +98,7 @@ function renderElement(element: Element, state: RenderState, snapshot: KitSnapsh
     if (snapshot.editMode) {
       return (
         <div className={`ae-el ae-${cssIdent(element.id)} ae-unsupported`} data-ae-id={element.id} data-ae-type={element.type} style={{ padding: 12, border: "1px dashed #a32d2d", color: "#a32d2d", fontSize: 13 }}>
-          Unsupported element: {element.type}
+          Unsupported element: {element.type === "unsupported" ? String((element.props as { originalType?: string }).originalType ?? "unknown") : element.type}
         </div>
       );
     }
@@ -106,7 +106,7 @@ function renderElement(element: Element, state: RenderState, snapshot: KitSnapsh
     return null;
   }
   const common: Record<string, string | undefined> & { className: string } = {
-    className: `ae-el ae-${cssIdent(element.id)} ae-${cssIdent(element.type)}${element.advanced.cssClasses ? ` ${element.advanced.cssClasses.replace(/[^a-zA-Z0-9_\s-]/g, "")}` : ""}`,
+    className: `ae-el ae-${cssIdent(element.id)} ae-${cssIdent(element.type)}${element.advanced.cssClasses ? ` ${element.advanced.cssClasses.replace(/[<>"'&\\]/g, "")}` : ""}`,
     id: element.advanced.cssId ? cssIdent(element.advanced.cssId) : undefined,
     "data-ae-id": element.id,
     "data-ae-type": element.type,
@@ -126,7 +126,7 @@ function SiteSectionView({ element }: { element: Element; state: RenderState }) 
   const snapshot = useKitSnapshot();
   const props = element.props as SiteSectionProps;
   const registration = getKitRuntime().store.getSection(props.key);
-  const className = `ae-el ae-${cssIdent(element.id)} ae-site-section${element.advanced.cssClasses ? ` ${element.advanced.cssClasses.replace(/[^a-zA-Z0-9_\s-]/g, "")}` : ""}`;
+  const className = `ae-el ae-${cssIdent(element.id)} ae-site-section${element.advanced.cssClasses ? ` ${element.advanced.cssClasses.replace(/[<>"'&\\]/g, "")}` : ""}`;
   if (!registration) {
     if (!snapshot.editMode) return null;
     return (

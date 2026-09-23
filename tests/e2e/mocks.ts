@@ -7,6 +7,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Page, Route } from "@playwright/test";
+import { checkLayout, checkSiteKit } from "../../kit/validate.ts";
 
 export const SUPABASE_URL = "https://mock.supabase.test";
 export const DEMO_SITE_URL = "http://localhost:5174";
@@ -48,6 +49,10 @@ export type MockOptions = {
   builderPublish?: "ok" | "conflict-once";
   /** REST rows present before the test starts (a draft saved on another device, templates). */
   rows?: Record<string, Record<string, unknown>[]>;
+  /** Validator problems content-get reports (values the site's files hold that the editor cannot read). */
+  problems?: unknown[];
+  /** The site kit content-get returns; defaults to the demo site's. */
+  siteKit?: unknown;
 };
 
 export type MockState = {
@@ -101,7 +106,20 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     { path: "/assets/team.svg", bytes: 1800, kind: "image", alt: "" },
   ];
   let commitSha = COMMIT_SHA;
-  let siteKit: unknown = demoKit;
+  let siteKit: unknown = options.siteKit ?? demoKit;
+  /** What content-get answers: the files as the validator cleans them, plus every problem it found (exactly as the real function does). */
+  const builderFiles = () => {
+    const cleaned: Record<string, unknown> = {};
+    const problems: unknown[] = [...(options.problems ?? [])];
+    for (const [slug, raw] of Object.entries(layouts)) {
+      const report = checkLayout(raw);
+      if (report.value) cleaned[slug] = report.value;
+      problems.push(...report.problems.map((problem) => ({ ...problem, file: `content/layouts/${slug}.json`, slug })));
+    }
+    const kit = checkSiteKit(siteKit);
+    problems.push(...kit.problems.map((problem) => ({ ...problem, file: "content/site-kit.json" })));
+    return { layouts: cleaned, siteKit: kit.value, problems };
+  };
 
   // Nothing in these tests may leave the machine (fonts and the like).
   if (!options.allowFonts) await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
@@ -206,9 +224,9 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           if (typeof body["ref"] === "string") {
             // An older version: the home layout's "Recent builds" heading read differently then.
             const older = JSON.parse(JSON.stringify(layouts).replace('"Recent builds"', '"Builds from last spring"')) as Record<string, unknown>;
-            return json(route, { ok: true, schema: demoSchema, content, commitSha: body["ref"], branch: "main", repo: "acme/alder-stone", warnings: [], layouts: older, siteKit, media, editingLevel: options.editingLevel ?? "content" });
+            return json(route, { ok: true, schema: demoSchema, content, commitSha: body["ref"], branch: "main", repo: "acme/alder-stone", warnings: [], problems: [], layouts: older, siteKit: builderFiles().siteKit, media, editingLevel: options.editingLevel ?? "content" });
           }
-          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], layouts, siteKit, media, editingLevel: options.editingLevel ?? "content" });
+          return json(route, { ok: true, schema: demoSchema, content, commitSha, branch: "main", repo: "acme/alder-stone", warnings: [], ...builderFiles(), media, editingLevel: options.editingLevel ?? "content" });
         case "builder-publish": {
           state.builderPublishRequests.push(body);
           const resolutions = (body["resolutions"] ?? {}) as Record<string, string>;

@@ -44,17 +44,31 @@ Deno.test("loadBuilderFiles reads valid layouts, the kit, media meta and the ass
   assertEquals(files.warnings, []);
 });
 
-Deno.test("loadBuilderFiles skips a broken layout and a broken kit with a warning, never throwing", async () => {
+Deno.test("loadBuilderFiles keeps a page with a bad element (as a placeholder), fills a broken kit from the defaults, and skips only what is not a layout at all", async () => {
   const repo = fakeRepo({
     "content/layouts/bad.json": "{ not json",
-    "content/layouts/wrong.json": serializeBuilderFile({ ...layout, root: [{ ...layout.root[0], id: "TOO-LONG-ID" }] }),
+    "content/layouts/notalayout.json": JSON.stringify({ version: 2 }),
+    "content/layouts/wrong.json": serializeBuilderFile({ ...layout, pageSlug: "wrong", root: [{ ...layout.root[0], id: "TOO-LONG-ID" }, { ...layout.root[0], id: "b2c3d4e5", style: { color: "reddish" } }] }),
     "content/layouts/contact.json": serializeBuilderFile(layout),
-    "content/site-kit.json": JSON.stringify({ version: 2 }),
+    "content/site-kit.json": JSON.stringify({ ...defaultSiteKit(), typography: { ...defaultSiteKit().typography, h1: { ...defaultSiteKit().typography.h1, fontWeight: "heavy" } } }),
   });
   const files = await loadBuilderFiles(repo, "head");
-  assertEquals(Object.keys(files.layouts), ["contact"]);
-  assertEquals(files.siteKit, null);
+  assertEquals(Object.keys(files.layouts).sort(), ["contact", "wrong"]);
+  // The unreadable element is a placeholder; the readable one keeps everything but its bad colour.
+  assertEquals(files.layouts["wrong"]?.root.map((element) => element.type), ["unsupported", "heading"]);
+  assertEquals(files.layouts["wrong"]?.root[1]?.style, {});
+  // The kit loads; the unreadable weight is left out (the heading falls back to normal) and reported.
+  assertEquals(files.siteKit?.typography.h1.fontWeight, undefined);
+  assertEquals(files.siteKit?.typography.h1.fontSize, defaultSiteKit().typography.h1.fontSize);
   assertStringIncludes(files.warnings.join("\n"), "bad.json: not valid JSON");
-  assertStringIncludes(files.warnings.join("\n"), "wrong.json");
-  assertStringIncludes(files.warnings.join("\n"), "default kit applies");
+  assertStringIncludes(files.warnings.join("\n"), "notalayout.json");
+  assertEquals(files.problems.map((problem) => [problem.file, problem.effect, problem.setting]), [
+    ["content/layouts/notalayout.json", "file", "Version"],
+    ["content/layouts/wrong.json", "element", "Element"],
+    ["content/layouts/wrong.json", "ignored", "Style › Color"],
+    ["content/site-kit.json", "ignored", "Typography › Heading 1 › Font weight"],
+  ]);
+  assertEquals(files.problems[2]?.elementId, "b2c3d4e5");
+  assertEquals(files.problems[2]?.value, "reddish");
+  assertEquals(files.problems[3]?.value, "heavy");
 });

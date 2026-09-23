@@ -1,17 +1,23 @@
 /**
  * The page builder's publish, without the network: content fields (through the same
  * engine as content-publish-batch), layouts, the site kit and media metadata, all in
- * ONE commit, with every guarantee the other publishes keep: zod validation, URL and
- * image rules, whole-file checks, no force-push. When the branch moved since the draft
- * began, layouts merge per element and the kit and media per value; anything both sides
- * changed comes back as a conflict naming each element, for "keep mine" / "take theirs".
+ * ONE commit, with every guarantee the other publishes keep: the kit's validator, URL
+ * and image rules, whole-file checks, no force-push. When the branch moved since the
+ * draft began, layouts merge per element and the kit and media per value; anything both
+ * sides changed comes back as a conflict naming each element, for "keep mine" / "take
+ * theirs".
+ *
+ * Values the validator cannot read are never lost: one that is already in the committed
+ * file is written back exactly as it was (unless that very setting was changed); one
+ * that is new is refused with a plain-English message.
  */
 import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta } from "../../../shared/publishTypes.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
 import { mergeLayouts, mergeValues, stableJson, type MergeConflict, type Resolution } from "../../../shared/builder/merge.ts";
 import { kitPermissionErrors, layoutPermissionErrors, type Permissions } from "../../../shared/builder/permissions.ts";
-import { LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutPath, serializeBuilderFile, validateLayout, validateSiteKit } from "../../../shared/builder/schema.ts";
+import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, type Problem } from "../../../shared/builder/schema.ts";
+import { restoreKitProblems, restoreLayoutProblems, unpreservedProblems } from "../../../shared/builder/preserve.ts";
 import { base64ByteLength, isValidBase64 } from "../../../shared/base64.ts";
 import { MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES } from "../../../shared/publishTypes.ts";
 import { ArmatureError } from "./errors.ts";
@@ -79,10 +85,13 @@ async function readJson(repo: ContentRepo, path: string, ref: string): Promise<u
   }
 }
 
-const readLayout = async (repo: ContentRepo, slug: string, ref: string): Promise<LayoutDoc | null> => {
+/** A committed layout as the validator cleans it, with its raw form and problems (for preserving unread values). */
+type CommittedLayout = { raw: unknown; layout: LayoutDoc | null; problems: Problem[] };
+const readLayout = async (repo: ContentRepo, slug: string, ref: string): Promise<CommittedLayout> => {
   const raw = await readJson(repo, layoutPath(slug), ref);
-  const report = validateLayout(raw);
-  return report.value ?? null;
+  if (raw === null) return { raw: null, layout: null, problems: [] };
+  const report = checkLayout(raw);
+  return { raw, layout: report.value, problems: report.problems };
 };
 
 const normalizePath = (path: string) => {
@@ -140,8 +149,9 @@ export async function runBuilderPublish(opts: {
       errors.push(`"${slug.slice(0, 60)}" is not a valid page name`);
       continue;
     }
-    const theirs = await readLayout(repo, slug, head);
-    const base = moved ? await readLayout(repo, slug, input.baseCommitSha) : theirs;
+    const committed = await readLayout(repo, slug, head);
+    const theirs = committed.layout;
+    const base = moved ? (await readLayout(repo, slug, input.baseCommitSha)).layout : theirs;
 
     if (raw === null) {
       // Deleting a page's layout (a builder page goes away; a coded page returns to its sections).
@@ -160,9 +170,16 @@ export async function runBuilderPublish(opts: {
     }
 
     const extracted = await extractUploads(raw, slug, uploads, errors);
-    const report = validateLayout(extracted, `${slug}.json`);
-    if (report.errors.length > 0 || !report.value) {
-      errors.push(...report.errors);
+    const report = checkLayout(extracted);
+    if (!report.value) {
+      errors.push(...report.problems.map((problem) => describeProblem(problem, `${slug}.json`)));
+      continue;
+    }
+    // A value the validator cannot read is fine when the committed file already has it
+    // (it is put back below, untouched); a new one is refused.
+    const fresh = unpreservedProblems(report.problems, committed.raw);
+    if (fresh.length > 0) {
+      errors.push(...fresh.map((problem) => `${describeProblem(problem, `${slug}.json`)} Publishing is refused because this value is new.`));
       continue;
     }
     const mine = report.value;
@@ -178,7 +195,7 @@ export async function runBuilderPublish(opts: {
       result = merge.layout;
     }
     errors.push(...layoutPermissionErrors(theirs, result, permissions, { coded: codedSlugs.has(slug) }));
-    finalLayouts.set(slug, result);
+    finalLayouts.set(slug, restoreLayoutProblems(result, theirs ?? undefined, committed.problems));
   }
 
   // Paths: a builder page may not take a coded page's path or another page's.
@@ -188,7 +205,7 @@ export async function runBuilderPublish(opts: {
   for (const entry of await repo.listTree("content/layouts", head)) {
     const slug = entry.path.replace(/^content\/layouts\//, "").replace(/\.json$/, "");
     if (!finalLayouts.has(slug) && PAGE_SLUG_PATTERN.test(slug)) {
-      const layout = await readLayout(repo, slug, head);
+      const { layout } = await readLayout(repo, slug, head);
       if (layout) allLayouts.set(slug, layout);
     }
   }
@@ -206,7 +223,7 @@ export async function runBuilderPublish(opts: {
       files.push({ path: layoutPath(slug), content: "", encoding: "utf-8", delete: true });
     } else {
       const text = serializeBuilderFile(layout);
-      if (new TextEncoder().encode(text).length > LAYOUT_LIMITS.fileBytes) errors.push(`${slug}.json: the page is larger than ${LAYOUT_LIMITS.fileBytes / 1024 / 1024} MB; split it into two pages`);
+      if (layoutBytes(layout) > LAYOUT_LIMITS.fileBytes) errors.push(`${slug}.json: the page is larger than ${LAYOUT_LIMITS.fileBytes / 1024 / 1024} MB; split it into two pages`);
       files.push({ path: layoutPath(slug), content: text, encoding: "utf-8" });
     }
     writtenLayouts.push(slug);
@@ -219,15 +236,17 @@ export async function runBuilderPublish(opts: {
   // --- the site kit ------------------------------------------------------------------
   let kitWritten = false;
   if (input.kit !== null && input.kit !== undefined) {
-    const report = validateSiteKit(input.kit);
-    if (report.errors.length > 0 || !report.value) errors.push(...report.errors);
+    const theirsRaw = await readJson(repo, SITE_KIT_PATH, head);
+    const report = checkSiteKit(input.kit);
+    const fresh = unpreservedProblems(report.problems, theirsRaw);
+    if (fresh.length > 0 || !report.value) errors.push(...fresh.map((problem) => `${describeProblem(problem, "site-kit.json")} Publishing is refused because this value is new.`));
     else {
-      const theirsRaw = await readJson(repo, SITE_KIT_PATH, head);
-      const theirs = (theirsRaw ? validateSiteKit(theirsRaw).value : null) ?? defaultSiteKit();
+      const committed = theirsRaw ? checkSiteKit(theirsRaw) : null;
+      const theirs = committed?.value ?? defaultSiteKit();
       let next: SiteKit = report.value;
       if (moved) {
         const baseRaw = await readJson(repo, SITE_KIT_PATH, input.baseCommitSha);
-        const base = (baseRaw ? validateSiteKit(baseRaw).value : null) ?? defaultSiteKit();
+        const base = (baseRaw ? checkSiteKit(baseRaw).value : null) ?? defaultSiteKit();
         const merge = mergeValues("kit", base, report.value, theirs, input.resolutions ?? {}, (path) => `Site settings: ${path.replace(/\./g, " → ")}`);
         conflicts.push(...merge.conflicts);
         next = merge.value;
@@ -235,9 +254,9 @@ export async function runBuilderPublish(opts: {
       const changed = stableJson(next) !== stableJson(theirs) || !theirsRaw;
       errors.push(...kitPermissionErrors(stableJson(next) !== stableJson(theirs), permissions));
       if (changed) {
-        const check = validateSiteKit(next);
-        if (check.errors.length > 0) errors.push(...check.errors);
-        files.push({ path: SITE_KIT_PATH, content: serializeBuilderFile(next), encoding: "utf-8" });
+        const check = checkSiteKit(next);
+        if (check.problems.length > 0) errors.push(...check.problems.map((problem) => describeProblem(problem, "site-kit.json")));
+        files.push({ path: SITE_KIT_PATH, content: serializeBuilderFile(restoreKitProblems(next, theirs, committed?.problems ?? [])), encoding: "utf-8" });
         kitWritten = true;
         labels.push("Site settings");
       }

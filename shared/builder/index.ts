@@ -5,3 +5,4 @@ export { DEVICES, hasOverride, isResponsive, own, perDevice, resolve, setAt } fr
 export { defaultSiteKit } from "../../kit/defaults.ts";
 export * from "../../kit/values.ts";
 export type * from "../../kit/types.ts";
+export { UNSUPPORTED_TYPE, BLEND_MODES } from "../../kit/types.ts";

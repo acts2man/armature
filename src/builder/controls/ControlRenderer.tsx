@@ -98,6 +98,8 @@ function TextControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
   );
 }
 
+const CUSTOM_OPTION = "__custom__";
+
 function SelectControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "select" }> }) {
   const id = useId();
   const { value, inherited, set } = useValue<string | number>(target, spec.path, spec.responsive, spec.fallback);
@@ -106,20 +108,58 @@ function SelectControl({ target, spec }: { target: ControlTarget; spec: Extract<
     if (spec.numeric && /^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
     return raw;
   };
+  // A value outside the list (a variable font weight such as 650) shows in the custom entry.
+  const shown = value ?? inherited;
+  const listed = shown === undefined || spec.options.some((option) => option.value === String(shown));
+  const [customOpen, setCustomOpen] = useState(false);
+  const customMode = !!spec.custom && (customOpen || !listed);
+  const [customText, setCustomText] = useState(() => (shown !== undefined && !listed ? String(shown) : ""));
   return (
     <Responsive target={target} spec={spec} htmlFor={id} hint={spec.hint}>
-      <select id={id} value={String(value ?? inherited ?? "")} onChange={(event) => {
-        const next = parse(event.target.value);
-        if (next === undefined && spec.clearPath) target.write(spec.clearPath, undefined, `Reset ${spec.label.toLowerCase()}`);
-        else set(next, `Changed ${spec.label.toLowerCase()}`);
-      }} className={clsx(controlInputClass, value === undefined && inherited !== undefined && "text-muted")}>
-        {!spec.required && !spec.options.some((option) => option.value === "") && <option value="">Default</option>}
-        {spec.options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="flex w-full items-center gap-1">
+        <select
+          id={id}
+          value={customMode ? CUSTOM_OPTION : String(shown ?? "")}
+          onChange={(event) => {
+            if (event.target.value === CUSTOM_OPTION) {
+              setCustomOpen(true);
+              setCustomText(shown !== undefined ? String(shown) : "");
+              return;
+            }
+            setCustomOpen(false);
+            const next = parse(event.target.value);
+            if (next === undefined && spec.clearPath) target.write(spec.clearPath, undefined, `Reset ${spec.label.toLowerCase()}`);
+            else set(next, `Changed ${spec.label.toLowerCase()}`);
+          }}
+          className={clsx(controlInputClass, customMode && "w-1/2", value === undefined && inherited !== undefined && "text-muted")}
+        >
+          {!spec.required && !spec.options.some((option) => option.value === "") && <option value="">Default</option>}
+          {spec.options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+          {spec.custom && <option value={CUSTOM_OPTION}>Custom…</option>}
+        </select>
+        {customMode && spec.custom && (
+          <input
+            type="number"
+            aria-label={`Custom ${spec.label.toLowerCase()}`}
+            data-testid={`custom-${spec.label.toLowerCase().replace(/\s+/g, "-")}`}
+            min={spec.custom.min}
+            max={spec.custom.max}
+            step={spec.custom.step ?? 1}
+            value={customText}
+            placeholder={`${spec.custom.min}–${spec.custom.max}`}
+            onChange={(event) => {
+              setCustomText(event.target.value);
+              const number = Number(event.target.value);
+              if (event.target.value !== "" && Number.isFinite(number) && number >= spec.custom!.min && number <= spec.custom!.max) set(number, `Changed ${spec.label.toLowerCase()}`, `custom:${spec.path.join(".")}`);
+            }}
+            className={clsx(controlInputClass, "w-1/2")}
+          />
+        )}
+      </div>
     </Responsive>
   );
 }
@@ -701,7 +741,7 @@ function TypographyControl({ target, spec }: { target: ControlTarget; spec: Extr
         target={target}
         specs={[
           { kind: "size", label: "Size", path: [...base, "fontSize"], units: FONT_UNITS, responsive: true, min: 0, fallback: fromPreset.fontSize },
-          { kind: "select", label: "Weight", path: [...base, "fontWeight"], responsive: true, numeric: true, fallback: fromPreset.fontWeight, options: WEIGHTS.map((weight) => ({ value: weight, label: weight === "400" ? "400 Regular" : weight === "700" ? "700 Bold" : weight })) },
+          { kind: "select", label: "Weight", path: [...base, "fontWeight"], responsive: true, numeric: true, fallback: fromPreset.fontWeight, custom: { min: 1, max: 1000 }, options: WEIGHTS.map((weight) => ({ value: weight, label: weight === "400" ? "400 Regular" : weight === "700" ? "700 Bold" : weight })) },
           { kind: "select", label: "Transform", path: [...base, "textTransform"], responsive: true, fallback: fromPreset.textTransform, options: [{ value: "none", label: "None" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }, { value: "capitalize", label: "Capitalize" }] },
           { kind: "select", label: "Style", path: [...base, "fontStyle"], responsive: true, options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Italic" }] },
           { kind: "select", label: "Decoration", path: [...base, "textDecoration"], responsive: true, options: [{ value: "none", label: "None" }, { value: "underline", label: "Underline" }, { value: "line-through", label: "Strike" }, { value: "overline", label: "Overline" }] },

@@ -1,0 +1,728 @@
+{
+  "pageSlug": "inspiration",
+  "path": "/about-us/",
+  "root": [
+    {
+      "advanced": {
+        "cssClasses": "inner-hero inspiration-hero",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 0
+            },
+            "left": {
+              "unit": "px",
+              "value": 0
+            },
+            "right": {
+              "unit": "px",
+              "value": 0
+            },
+            "top": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "wrap",
+            "padding": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "advanced": {
+                "attributes": [
+                  {
+                    "name": "data-armature-page-title",
+                    "value": ""
+                  }
+                ]
+              },
+              "id": "inheroh1",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h1",
+                "text": "The Inspiration"
+              },
+              "style": {
+                "color": {
+                  "desktop": "#ffffff"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 44
+                    },
+                    "mobile": {
+                      "unit": "px",
+                      "value": 34
+                    },
+                    "tablet": {
+                      "unit": "px",
+                      "value": 34
+                    }
+                  },
+                  "fontWeight": 700,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.1
+                  },
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "alignSelf": {
+                  "desktop": "center"
+                },
+                "margin": {
+                  "desktop": {
+                    "top": {
+                      "unit": "px",
+                      "value": 22
+                    }
+                  }
+                },
+                "maxWidth": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 1120
+                  }
+                }
+              },
+              "id": "inherotx",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "In honor of Ken Menzer, Tree Test Prep was created to help tree care professionals by providing ISA certification training that will help them reach the upper echelons of arboriculture.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {
+                "color": {
+                  "desktop": "#ffffff"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 20
+                    },
+                    "mobile": {
+                      "unit": "px",
+                      "value": 17
+                    }
+                  },
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.4
+                  },
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "text"
+            }
+          ],
+          "id": "inherwr0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "contentWidth": {
+              "desktop": {
+                "unit": "px",
+                "value": 1140
+              }
+            },
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "boxed",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "container"
+        }
+      ],
+      "id": "inhero00",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "justify": {
+          "desktop": "center"
+        },
+        "layout": "full",
+        "minHeight": {
+          "desktop": {
+            "unit": "px",
+            "value": 490
+          },
+          "mobile": {
+            "unit": "px",
+            "value": 380
+          }
+        },
+        "tag": "section"
+      },
+      "style": {
+        "background": {
+          "desktop": {
+            "kind": "image",
+            "position": "center 37%",
+            "size": "cover",
+            "src": "/assets/ken-menzer-hero.webp"
+          }
+        },
+        "backgroundOverlay": {
+          "desktop": {
+            "background": {
+              "color": "rgba(0,0,0,0.58)",
+              "kind": "color"
+            },
+            "opacity": 1
+          }
+        }
+      },
+      "type": "container"
+    },
+    {
+      "advanced": {
+        "cssClasses": "wrap story-grid",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 76
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 76
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 46
+            },
+            "left": {
+              "unit": "px",
+              "value": 14
+            },
+            "right": {
+              "unit": "px",
+              "value": 14
+            },
+            "top": {
+              "unit": "px",
+              "value": 42
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "hidden": {
+              "mobile": true
+            },
+            "width": {
+              "desktop": "full"
+            }
+          },
+          "id": "instimg0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "alt": "Ken Menzer fishing on the ocean",
+            "fit": "cover",
+            "height": {
+              "desktop": {
+                "unit": "px",
+                "value": 520
+              }
+            },
+            "src": "/assets/ken-menzer-fishing.webp",
+            "width": {
+              "desktop": {
+                "unit": "%",
+                "value": 100
+              }
+            }
+          },
+          "style": {
+            "border": {
+              "radius": {
+                "desktop": {
+                  "bottomLeft": {
+                    "unit": "px",
+                    "value": 0
+                  },
+                  "bottomRight": {
+                    "unit": "px",
+                    "value": 0
+                  },
+                  "topLeft": {
+                    "unit": "px",
+                    "value": 0
+                  },
+                  "topRight": {
+                    "unit": "px",
+                    "value": 0
+                  }
+                }
+              }
+            }
+          },
+          "type": "image"
+        },
+        {
+          "advanced": {
+            "cssClasses": "prose-page",
+            "customCss": "selector > .ae-con-inner { display: block; }"
+          },
+          "children": [
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 7
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "insph100",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h1",
+                "text": "Ken Menzer"
+              },
+              "style": {},
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 2
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 0
+                    }
+                  }
+                }
+              },
+              "id": "insph200",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h2",
+                "text": "The Inspiration Behind Our Mission"
+              },
+              "style": {},
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "hidden": {
+                  "desktop": true,
+                  "tablet": true
+                },
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 24
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 20
+                    }
+                  }
+                }
+              },
+              "id": "instimgm",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "alt": "Ken Menzer fishing on the ocean",
+                "fit": "cover",
+                "height": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 320
+                  }
+                },
+                "src": "/assets/ken-menzer-fishing.webp",
+                "width": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 100
+                  }
+                }
+              },
+              "style": {
+                "border": {
+                  "radius": {
+                    "desktop": {
+                      "bottomLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "bottomRight": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topLeft": {
+                        "unit": "px",
+                        "value": 0
+                      },
+                      "topRight": {
+                        "unit": "px",
+                        "value": 0
+                      }
+                    }
+                  }
+                }
+              },
+              "type": "image"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 7
+                    }
+                  }
+                }
+              },
+              "id": "inspp000",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "Tree Test Prep was created in honor of Ken Menzer to help aspiring and seasoned tree care professionals become Certified Arborists.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 7
+                    }
+                  }
+                }
+              },
+              "id": "inspp001",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "Ken was a Community Forester for the Sacramento Tree Foundation, where he grew shade trees for the Community Shade program. He also served the City of Folsom for 11 years as their City Arborist. In that role, he assisted residents with tree care, organized numerous volunteer plantings, and hosted the annual Arborists Breakfast, which brought professionals from across the metropolitan area together for a day of continuing education.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 7
+                    }
+                  }
+                }
+              },
+              "id": "inspp002",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "As the City Arborist in Folsom, Ken continually encouraged tree care professionals to expand their skills and pursue certification. He was always willing to share his expertise, meeting with professionals to support their growth. His motto was simple: Educate and elevate.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            },
+            {
+              "advanced": {
+                "margin": {
+                  "desktop": {
+                    "bottom": {
+                      "unit": "px",
+                      "value": 22
+                    },
+                    "top": {
+                      "unit": "px",
+                      "value": 7
+                    }
+                  }
+                }
+              },
+              "id": "inspp003",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "For the last five years of his life, Ken bravely battled non-Hodgkin's lymphoma.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {},
+              "type": "text"
+            }
+          ],
+          "id": "instpros",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "full",
+            "tag": "article"
+          },
+          "style": {},
+          "type": "container"
+        }
+      ],
+      "id": "instgrd0",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "alignItems": {
+          "desktop": "center"
+        },
+        "columns": {
+          "desktop": ".86fr 1.14fr",
+          "mobile": "1fr",
+          "tablet": ".86fr 1.14fr"
+        },
+        "gap": {
+          "desktop": {
+            "column": {
+              "unit": "px",
+              "value": 70
+            },
+            "row": {
+              "unit": "px",
+              "value": 70
+            }
+          },
+          "mobile": {
+            "column": {
+              "unit": "px",
+              "value": 40
+            },
+            "row": {
+              "unit": "px",
+              "value": 40
+            }
+          },
+          "tablet": {
+            "column": {
+              "unit": "px",
+              "value": 40
+            },
+            "row": {
+              "unit": "px",
+              "value": 40
+            }
+          }
+        },
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "grid"
+    }
+  ],
+  "seo": {},
+  "version": 1
+}

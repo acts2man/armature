@@ -573,10 +573,14 @@ advanced value may be `{ desktop, tablet?, mobile? }` (tablet inherits desktop, 
 inherits tablet); sizes are `{ value, unit }`; colours, fonts, typography and button values
 may be literals or kit references such as `kit:color.primary`, `kit:font.heading`,
 `kit:type.h2`, `kit:button.primary`. The full model is in `kit/types.ts`, the validation
-rules in `shared/builder/schema.ts` (zod), and the design notes in
-[BUILDER_SPEC.md](BUILDER_SPEC.md). Limits: a layout file under 1 MB, nesting at most 12
-deep, at most 2000 elements per page; a file that breaks a rule is reported by name and
-skipped, never silently.
+rules in `kit/validate.ts` (the same code runs in the site, the dashboard and the publish
+function), and the design notes in [BUILDER_SPEC.md](BUILDER_SPEC.md). Limits: a layout
+file under 2 MB, nesting at most 20 deep, at most 5000 elements per page. One bad value
+never takes a page down: a setting the validator cannot read is ignored and reported
+(page, element, setting, value found, what is allowed); an element it cannot read is
+shown as "Unsupported element" in the editor and skipped on the site; the page and the
+site kit always load. Unread values stay in the file exactly as they were until someone
+changes that setting.
 
 ### How the kit renders
 
@@ -645,7 +649,8 @@ draft: `content/pages.json` for fields, `content/layouts/<slug>.json` for each c
 new page (a deleted builder page's file is removed), `content/site-kit.json`,
 `content/media.json`, and each new picture under `public/assets/uploads/<page>-<hash>.<ext>`
 with its data URL in the layout replaced by that path. Before writing it validates every
-file with the same zod schemas the kit uses, refuses a page address that another page
+file with the same validator the kit uses (unread values already in the file are kept
+verbatim; new ones are refused), refuses a page address that another page
 already uses, and enforces the person's editing level, locked elements and agency-only
 widgets against the committed files. If the branch moved since the editor loaded, layouts
 merge element by element: separate edits are both kept, the same value changed on both

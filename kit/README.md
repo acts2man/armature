@@ -184,6 +184,81 @@ function ArmatureCatchAll() {
 Register the router for the editor's page switcher from the root component in an effect
 (`registerArmatureNavigate((path) => router.navigate({ href: path }))`).
 
+## Validation: one set of rules for the site and the dashboard
+
+`validate.ts` holds every rule for layout files and the site kit, with no dependencies. The
+same file runs in four places, so a site can never pass its own checks while Armature
+rejects its files:
+
+- the kit itself, when it loads `content/layouts/*.json` and `content/site-kit.json`;
+- the site's own content check (below);
+- the dashboard, when it reads a site;
+- the publish function, before it commits.
+
+It is tolerant on purpose. **One bad value never takes a page down:**
+
+- a setting the validator cannot read is ignored (the element keeps its other settings)
+  and reported;
+- an element it cannot read (no id, no type, content of the wrong shape) is skipped on
+  the site and shown as "Unsupported element" in the editor;
+- the site kit fills anything unreadable from the default kit;
+- only a file that is not a layout at all (no `root`, no `pageSlug`, `version` not 1)
+  fails to load.
+
+Every problem says, in plain English, the page, the element, the setting, the value found
+and what is allowed, and carries the raw value: **a publish never erases or rewrites a
+value the editor could not read.** It goes back into the file exactly as it was unless
+someone changes that very setting.
+
+The rules are as wide as CSS wherever that is safe: font weights are any whole number 1–1000
+(`650`) or `normal`/`bold`/`lighter`/`bolder`; sizes take decimals, negative values, a bare
+`0`, unitless numbers (line-height `1.4`) and `px`, `%`, `em`, `rem`, `vw`, `vh`, `vmin`,
+`vmax`, `ch`, `ex`, `svh`, `dvh`, `lvh`, `pt`; colours are 3/4/6/8-digit hex, every colour
+function (`rgb()`, `rgba()`, `hsl()`, `hwb()`, `oklch()`, `color-mix()`…), the 148 named
+colours, `transparent`, `currentColor` and `var(--name)`. They stay strict only where a value
+could reach the page as code: links (`https:`, `http:`, `mailto:`, `tel:`, `/`, `#`), media
+addresses (the site itself or `https:`), attribute names (never `on*`, `href`, `src`,
+`style`, `class`, `id`…), and anything emitted into a stylesheet (no quotes, semicolons or
+braces; no `url()` or `expression()`).
+
+### Your site's content check must call it
+
+Whatever script your site runs before a commit or a build (`bun run check:content`,
+`npm run check`, a CI step) must validate the builder files with the kit's validator, so the
+check fails, or warns, on exactly what the dashboard will report:
+
+```ts
+// scripts/check-content.ts (add to the checks you already run)
+import { readdirSync, readFileSync } from "node:fs";
+import { checkLayout, checkSiteKit, describeProblem } from "../src/lib/armature-kit/validate";
+
+let failed = false;
+for (const name of readdirSync("content/layouts").filter((file) => file.endsWith(".json"))) {
+  const report = checkLayout(JSON.parse(readFileSync(`content/layouts/${name}`, "utf8")));
+  for (const problem of report.problems) {
+    // "ignored" problems still render; treat them as errors so they get fixed at the source.
+    console.error(`error    ${describeProblem(problem, `content/layouts/${name}`)}`);
+    failed = true;
+  }
+}
+const kit = checkSiteKit(JSON.parse(readFileSync("content/site-kit.json", "utf8")));
+for (const problem of kit.problems) {
+  console.error(`error    ${describeProblem(problem, "content/site-kit.json")}`);
+  failed = true;
+}
+if (failed) process.exit(1);
+```
+
+`checkLayout(raw)` returns `{ value, problems }`: `value` is the cleaned layout (`null` only
+when the file is not a layout at all) and `problems` lists every value it could not read
+(`path`, `effect`, `setting`, `found`, `allowed`, `value`, and for a setting inside an
+element its `elementId`). `checkSiteKit(raw)` always returns a usable kit. `describeProblem`
+turns one problem into a sentence. The strict form the dashboard uses for values made in the
+editor is simply "no problems at all".
+
+The validator is pure TypeScript with no imports outside this folder, so it runs under `bun`,
+`tsx`, Vite or Deno without a bundler.
+
 ## Files the editor writes
 
 ```
@@ -194,7 +269,7 @@ public/assets/uploads/             pictures added in the editor
 ```
 
 A layout is `{ version: 1, pageSlug, path, label?, seo?, pageSettings?, root: Element[] }`.
-The full model is in `kit/types.ts`; the validation rules are in `shared/builder/schema.ts`.
+The full model is in `kit/types.ts`; the validation rules are in `kit/validate.ts`.
 
 ## Versioning
 

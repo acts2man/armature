@@ -1,7 +1,4 @@
 {
-  "imports": {
-    "zod": "npm:zod@^4.6.5"
-  },
   "compilerOptions": {
     "lib": ["deno.window"],
     "strict": true,

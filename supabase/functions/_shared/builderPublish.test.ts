@@ -75,7 +75,7 @@ Deno.test("invalid layouts, clashing addresses and slugs are refused before anyt
   await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": { ...about, root: [heading("BAD", "x")] } } }), userEmail: "x", permissions: staff }), ArmatureError, "element id");
   await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": { ...about, path: "/" } } }), userEmail: "x", permissions: staff }), ArmatureError, "already uses");
   await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "../x": about } }), userEmail: "x", permissions: staff }), ArmatureError, "not a valid page name");
-  await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": { ...about, root: [{ ...heading("cccccccc", "x"), props: { text: "x", link: { href: "javascript:alert(1)" } } }] } } }), userEmail: "x", permissions: staff }), ArmatureError, "must start with");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": { ...about, root: [{ ...heading("cccccccc", "x"), props: { text: "x", link: { href: "javascript:alert(1)" } } }] } } }), userEmail: "x", permissions: staff }), ArmatureError, "a link starting with https://");
   assertEquals(commits.length, 0);
 });
 
@@ -148,5 +148,27 @@ Deno.test("a style-level client may restyle a coded page's sections, giving it i
   await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { home: added } }), userEmail: "c", permissions: style }), ArmatureError, "not add, move or remove");
   // A builder-only page is still creation, which the style level cannot do.
   await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": about } }), userEmail: "c", permissions: style }), ArmatureError, "cannot create or delete pages");
+  assertEquals(commits.length, 1);
+});
+
+Deno.test("values the validator cannot read are kept exactly as committed, and only new ones are refused", async () => {
+  // The committed page holds a colour the validator cannot read and an element with a broken id.
+  const rawCommitted = {
+    ...about,
+    root: [{ ...heading("aaaaaaaa", "About"), style: { color: "navy-ish", typography: { fontWeight: 650 } } }, { id: "BROKEN", type: "heading", props: { text: "Old" } }, heading("bbbbbbbb", "Team")],
+  };
+  const { repo, commits } = fakeRepo({ [BASE]: file(rawCommitted as unknown as LayoutDoc) }, BASE);
+  // The editor works on the cleaned page (no colour, a placeholder) and changes the second heading only.
+  const cleaned = { ...about, root: [{ ...heading("aaaaaaaa", "About"), style: { typography: { fontWeight: 650 } } }, { id: "placehld", type: "unsupported", props: { originalType: "heading", reason: "x" }, style: {}, advanced: {}, meta }, heading("bbbbbbbb", "Our team")] };
+  // The dashboard puts the raw values back before sending (shared/builder/preserve.ts); so does the function.
+  await runBuilderPublish({ repo, input: input({ layouts: { "about-us": { ...cleaned, root: [{ ...cleaned.root[0]!, style: { color: "navy-ish", typography: { fontWeight: 650 } } }, { id: "BROKEN", type: "heading", props: { text: "Old" } }, cleaned.root[2]!] } } }), userEmail: "x", permissions: staff });
+  const written = committed(commits[0], layoutPath("about-us")) as LayoutDoc;
+  assertEquals(written.root[0]?.style, { color: "navy-ish", typography: { fontWeight: 650 } });
+  assertEquals(written.root[1] as unknown, { id: "BROKEN", type: "heading", props: { text: "Old" } });
+  assertEquals(written.root[2]?.props["text"], "Our team");
+
+  // A new unreadable value is refused, and the message says what, where and what is allowed.
+  const fresh = { ...cleaned, root: [{ ...cleaned.root[0]!, style: { color: "greenish" } }] };
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ layouts: { "about-us": fresh } }), userEmail: "x", permissions: staff }), ArmatureError, 'Style › Color is "greenish"');
   assertEquals(commits.length, 1);
 });

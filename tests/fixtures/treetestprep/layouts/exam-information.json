@@ -1,0 +1,821 @@
+{
+  "pageSlug": "exam-information",
+  "path": "/exam-information/",
+  "root": [
+    {
+      "advanced": {
+        "cssClasses": "inner-hero exam-hero",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 0
+            },
+            "left": {
+              "unit": "px",
+              "value": 0
+            },
+            "right": {
+              "unit": "px",
+              "value": 0
+            },
+            "top": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "wrap inner-hero-copy",
+            "padding": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "advanced": {
+                "attributes": [
+                  {
+                    "name": "data-armature-page-title",
+                    "value": ""
+                  }
+                ]
+              },
+              "id": "exheroh1",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h1",
+                "text": "Exam Information"
+              },
+              "style": {
+                "color": {
+                  "desktop": "#ffffff"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 31
+                    }
+                  },
+                  "fontWeight": 700,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.1
+                  },
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "heading"
+            }
+          ],
+          "id": "exherwr0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "contentWidth": {
+              "desktop": {
+                "unit": "px",
+                "value": 1140
+              }
+            },
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "boxed",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "container"
+        }
+      ],
+      "id": "exhero00",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "justify": {
+          "desktop": "center"
+        },
+        "layout": "full",
+        "minHeight": {
+          "desktop": {
+            "unit": "px",
+            "value": 192
+          },
+          "mobile": {
+            "unit": "px",
+            "value": 190
+          }
+        },
+        "tag": "section"
+      },
+      "style": {
+        "background": {
+          "desktop": {
+            "kind": "image",
+            "position": "center",
+            "size": "cover",
+            "src": "/assets/exam-tree.webp"
+          }
+        },
+        "backgroundOverlay": {
+          "desktop": {
+            "background": {
+              "color": "rgba(0,0,0,0.48)",
+              "kind": "color"
+            },
+            "opacity": 1
+          }
+        }
+      },
+      "type": "container"
+    },
+    {
+      "advanced": {
+        "cssClasses": "wrap prose-page exam-content",
+        "customCss": "selector > .ae-con-inner { display: block; } selector li p { margin: 0; }",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 68
+            },
+            "left": {
+              "unit": "px",
+              "value": 20
+            },
+            "right": {
+              "unit": "px",
+              "value": 20
+            },
+            "top": {
+              "unit": "px",
+              "value": 58
+            }
+          },
+          "mobile": {
+            "bottom": {
+              "unit": "px",
+              "value": 45
+            },
+            "left": {
+              "unit": "px",
+              "value": 14
+            },
+            "right": {
+              "unit": "px",
+              "value": 14
+            },
+            "top": {
+              "unit": "px",
+              "value": 40
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 2
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            }
+          },
+          "id": "exh2proc",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "tag": "h2",
+            "text": "The ISA Certification Process"
+          },
+          "style": {},
+          "type": "heading"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 2
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 17
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 2
+                }
+              }
+            }
+          },
+          "id": "exolproc",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Apply to sit for the exam.",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    },
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Once your application is approved, you may register for the exam.",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    }
+                  ],
+                  "type": "orderedList"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 22
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 7
+                }
+              }
+            }
+          },
+          "id": "exptproc",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "text": "This process must be completed directly through the ISA. Please note: this course does not qualify you to take the exam. It is designed only to help you prepare and increase your chances of passing.",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 2
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 34
+                }
+              }
+            }
+          },
+          "id": "exh2elig",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "tag": "h2",
+            "text": "Course Eligibility"
+          },
+          "style": {},
+          "type": "heading"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 22
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 7
+                }
+              }
+            }
+          },
+          "id": "expelint",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "text": "To qualify for the ISA Certified Arborist Exam, you must be able to document one of the following:",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 20
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 17
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 17
+                }
+              }
+            }
+          },
+          "id": "exulelig",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Three years of full-time experience in arboriculture",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    },
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "Two years of full-time experience plus a two-year degree in a related field, including at least two courses directly related to arboriculture",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    },
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "One year of full-time experience plus a four-year degree in a related field, including at least four courses directly related to arboriculture",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    },
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "900 hours in an assessment-based certificate program with a minimum of 90 hours directly related to arboriculture, plus two years of full-time practical experience",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    },
+                    {
+                      "content": [
+                        {
+                          "content": [
+                            {
+                              "text": "1,800 hours in an assessment-based certificate program with a minimum of 180 hours directly related to arboriculture, plus one year of full-time practical experience",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
+                      ],
+                      "type": "listItem"
+                    }
+                  ],
+                  "type": "bulletList"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 22
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 7
+                }
+              }
+            }
+          },
+          "id": "expnote0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "marks": [
+                        {
+                          "type": "bold"
+                        }
+                      ],
+                      "text": "Important:",
+                      "type": "text"
+                    },
+                    {
+                      "text": " Exam registration is separate from course registration. The cost of this course does not include the ISA’s exam fee. Students must register and pay for the exam directly through the ISA.",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 2
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 34
+                }
+              }
+            }
+          },
+          "id": "exh2appl",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "tag": "h2",
+            "text": "How to Apply"
+          },
+          "style": {},
+          "type": "heading"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 22
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 7
+                }
+              }
+            }
+          },
+          "id": "expaint0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "text": "Submit your application to the ISA here: ",
+                      "type": "text"
+                    },
+                    {
+                      "marks": [
+                        {
+                          "attrs": {
+                            "href": "https://www.isa-arbor.com/Credentials/Apply-Now/Apply-for-Eligibility",
+                            "target": null
+                          },
+                          "type": "link"
+                        },
+                        {
+                          "type": "bold"
+                        },
+                        {
+                          "type": "underline"
+                        }
+                      ],
+                      "text": "Apply for Eligibility",
+                      "type": "text"
+                    },
+                    {
+                      "text": ".",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 22
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 7
+                }
+              }
+            }
+          },
+          "id": "expabody",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "doc": {
+              "content": [
+                {
+                  "content": [
+                    {
+                      "text": "Once your application is approved, you will be able to register for the exam.",
+                      "type": "text"
+                    }
+                  ],
+                  "type": "paragraph"
+                }
+              ],
+              "type": "doc"
+            }
+          },
+          "style": {},
+          "type": "text"
+        },
+        {
+          "advanced": {
+            "customCss": "selector .ae-btn { min-height: 48px; }",
+            "customWidth": {
+              "desktop": {
+                "unit": "px",
+                "value": 285
+              }
+            },
+            "margin": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 41
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "width": {
+              "desktop": "custom",
+              "mobile": "full"
+            }
+          },
+          "id": "exbtnreg",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "align": {
+              "desktop": "justify"
+            },
+            "link": {
+              "href": "/class-registration-page/"
+            },
+            "preset": "kit:button.primary",
+            "size": "md",
+            "text": "Register for the course"
+          },
+          "style": {
+            "typography": {
+              "fontSize": {
+                "desktop": {
+                  "unit": "px",
+                  "value": 20
+                }
+              }
+            }
+          },
+          "type": "button"
+        }
+      ],
+      "id": "excont00",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {},
+      "type": "container"
+    }
+  ],
+  "seo": {},
+  "version": 1
+}

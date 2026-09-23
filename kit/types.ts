@@ -18,8 +18,12 @@ export type MaybeResponsive<T> = T | Responsive<T>;
 
 // --- sizes, colours, references ----------------------------------------------------------
 
-export type Unit = "px" | "%" | "em" | "rem" | "vw" | "vh" | "auto" | "";
-/** Every size control stores a value and a unit. With "auto" the value is ignored; "" is unitless. */
+export type Unit = "px" | "%" | "em" | "rem" | "vw" | "vh" | "vmin" | "vmax" | "ch" | "ex" | "svh" | "dvh" | "lvh" | "svw" | "dvw" | "lvw" | "pt" | "auto" | "";
+/**
+ * Every size control stores a value and a unit. With "auto" the value is ignored; "" is
+ * unitless (line-height 1.4, or a bare 0). Decimals and negative values are fine wherever
+ * CSS allows them (letter-spacing -0.02em, margin -20px).
+ */
 export type Size = { value: number; unit: Unit };
 export type Sides<T> = { top?: T; right?: T; bottom?: T; left?: T };
 export type Corners<T> = { topLeft?: T; topRight?: T; bottomRight?: T; bottomLeft?: T };
@@ -36,11 +40,12 @@ export type Gap = { column?: Size; row?: Size };
 
 // --- style (the Style tab) -----------------------------------------------------------------
 
-export type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | "normal" | "bold";
+/** Any whole number from 1 to 1000 (variable fonts use 650, 450…), or a CSS keyword. */
+export type FontWeight = number | "normal" | "bold" | "lighter" | "bolder";
 export type TextTransform = "none" | "uppercase" | "lowercase" | "capitalize";
 export type FontStyle = "normal" | "italic" | "oblique";
 export type TextDecoration = "none" | "underline" | "line-through" | "overline";
-export type TextAlign = "left" | "center" | "right" | "justify";
+export type TextAlign = "left" | "center" | "right" | "justify" | "start" | "end";
 
 export type Typography = {
   /** A kit typography preset, e.g. "kit:type.h2". Explicit values below override it. */
@@ -59,7 +64,7 @@ export type Typography = {
 
 export type Shadow = { x: number; y: number; blur: number; spread?: number; color: Color; inset?: boolean };
 
-export type BorderStyle = "none" | "solid" | "dashed" | "dotted" | "double";
+export type BorderStyle = "none" | "solid" | "dashed" | "dotted" | "double" | "groove" | "ridge" | "inset" | "outset" | "hidden";
 export type Border = {
   style?: MaybeResponsive<BorderStyle>;
   width?: MaybeResponsive<Sides<Size>>;
@@ -78,7 +83,8 @@ export type Background =
       position?: string;
       attachment?: "scroll" | "fixed";
       repeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
-      size?: "auto" | "cover" | "contain";
+      /** A keyword, or any CSS background-size such as "100% auto" or "480px". */
+      size?: "auto" | "cover" | "contain" | (string & {});
       /** Focal point as percentages, used when size is cover. */
       focal?: { x: number; y: number };
     }
@@ -114,7 +120,7 @@ export type Style = StyleBase & { hover?: StyleBase };
 
 export type WidthMode = "full" | "inline" | "custom";
 export type AlignSelf = "auto" | "flex-start" | "center" | "flex-end" | "stretch";
-export type PositionType = "default" | "absolute" | "fixed";
+export type PositionType = "default" | "absolute" | "fixed" | "relative" | "sticky";
 export type AnimationType =
   | "none"
   | "fadeIn"
@@ -198,6 +204,14 @@ export type LinkValue = { href: string; newTab?: boolean; rel?: string };
 
 export type ElementMeta = { createdBy: string; updatedAt: string };
 
+/**
+ * What the validator puts in place of an element it could not read (kit/validate.ts).
+ * The site skips it, the editor shows "Unsupported element", and a publish writes the
+ * original element back exactly as it was.
+ */
+export const UNSUPPORTED_TYPE = "unsupported";
+export type UnsupportedProps = { originalType: string; reason: string };
+
 export type Element = {
   /** Eight characters, [a-z0-9]. Stable for the element's life; its CSS class is .ae-<id>. */
   id: string;
@@ -227,10 +241,10 @@ export type LayoutDoc = {
 
 // --- widget props (the Content tab) -----------------------------------------------------------
 
-export type ContainerTag = "div" | "section" | "header" | "footer" | "article" | "aside" | "nav";
+export type ContainerTag = "div" | "section" | "header" | "footer" | "article" | "aside" | "nav" | "main";
 export type FlexDirection = "row" | "column" | "row-reverse" | "column-reverse";
-export type Justify = "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
-export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline";
+export type Justify = "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly" | "start" | "end";
+export type AlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "baseline" | "start" | "end";
 
 export type ContainerProps = {
   tag?: ContainerTag;
@@ -268,7 +282,7 @@ export type HeadingProps = { text: string; tag?: HeadingTag; link?: LinkValue };
 
 export type TextProps = { doc: RichDoc };
 
-export type ImageFit = "cover" | "contain" | "fill" | "none";
+export type ImageFit = "cover" | "contain" | "fill" | "none" | "scale-down";
 export type ImageLink = { kind: "none" } | { kind: "lightbox" } | { kind: "url"; href: string; newTab?: boolean };
 export type ImageProps = {
   src: string;

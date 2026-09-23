@@ -1,0 +1,284 @@
+{
+  "pageSlug": "instructors",
+  "path": "/meet-your-instructors/",
+  "root": [
+    {
+      "advanced": {
+        "cssClasses": "inner-hero instructors-hero",
+        "padding": {
+          "desktop": {
+            "bottom": {
+              "unit": "px",
+              "value": 0
+            },
+            "left": {
+              "unit": "px",
+              "value": 0
+            },
+            "right": {
+              "unit": "px",
+              "value": 0
+            },
+            "top": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        }
+      },
+      "children": [
+        {
+          "advanced": {
+            "cssClasses": "wrap",
+            "padding": {
+              "desktop": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 20
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              },
+              "mobile": {
+                "bottom": {
+                  "unit": "px",
+                  "value": 0
+                },
+                "left": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "right": {
+                  "unit": "px",
+                  "value": 14
+                },
+                "top": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            }
+          },
+          "children": [
+            {
+              "advanced": {
+                "attributes": [
+                  {
+                    "name": "data-armature-page-title",
+                    "value": ""
+                  }
+                ]
+              },
+              "id": "inheroh1",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "tag": "h1",
+                "text": "Meet The Instructors"
+              },
+              "style": {
+                "color": {
+                  "desktop": "#ffffff"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 44
+                    },
+                    "mobile": {
+                      "unit": "px",
+                      "value": 34
+                    },
+                    "tablet": {
+                      "unit": "px",
+                      "value": 34
+                    }
+                  },
+                  "fontWeight": 700,
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.1
+                  },
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "heading"
+            },
+            {
+              "advanced": {
+                "alignSelf": {
+                  "desktop": "center"
+                },
+                "margin": {
+                  "desktop": {
+                    "top": {
+                      "unit": "px",
+                      "value": 22
+                    }
+                  }
+                },
+                "maxWidth": {
+                  "desktop": {
+                    "unit": "px",
+                    "value": 1120
+                  }
+                }
+              },
+              "id": "inherotx",
+              "meta": {
+                "createdBy": "armature-conversion",
+                "updatedAt": "2026-09-23T00:00:00.000Z"
+              },
+              "props": {
+                "doc": {
+                  "content": [
+                    {
+                      "content": [
+                        {
+                          "text": "We are a group of enthusiastic arborists and urban foresters who are raising the bar in the tree care industry.",
+                          "type": "text"
+                        }
+                      ],
+                      "type": "paragraph"
+                    }
+                  ],
+                  "type": "doc"
+                }
+              },
+              "style": {
+                "color": {
+                  "desktop": "#ffffff"
+                },
+                "typography": {
+                  "fontSize": {
+                    "desktop": {
+                      "unit": "px",
+                      "value": 20
+                    },
+                    "mobile": {
+                      "unit": "px",
+                      "value": 17
+                    }
+                  },
+                  "lineHeight": {
+                    "unit": "",
+                    "value": 1.4
+                  },
+                  "textAlign": {
+                    "desktop": "center"
+                  }
+                }
+              },
+              "type": "text"
+            }
+          ],
+          "id": "inherwr0",
+          "meta": {
+            "createdBy": "armature-conversion",
+            "updatedAt": "2026-09-23T00:00:00.000Z"
+          },
+          "props": {
+            "contentWidth": {
+              "desktop": {
+                "unit": "px",
+                "value": 1140
+              }
+            },
+            "gap": {
+              "desktop": {
+                "row": {
+                  "unit": "px",
+                  "value": 0
+                }
+              }
+            },
+            "layout": "boxed",
+            "tag": "div"
+          },
+          "style": {},
+          "type": "container"
+        }
+      ],
+      "id": "inhero00",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "gap": {
+          "desktop": {
+            "row": {
+              "unit": "px",
+              "value": 0
+            }
+          }
+        },
+        "justify": {
+          "desktop": "center"
+        },
+        "layout": "full",
+        "minHeight": {
+          "desktop": {
+            "unit": "px",
+            "value": 410
+          },
+          "mobile": {
+            "unit": "px",
+            "value": 380
+          }
+        },
+        "tag": "section"
+      },
+      "style": {
+        "background": {
+          "desktop": {
+            "kind": "image",
+            "position": "center 46%",
+            "size": "cover",
+            "src": "/assets/instructors-tree.webp"
+          }
+        },
+        "backgroundOverlay": {
+          "desktop": {
+            "background": {
+              "color": "rgba(0,0,0,0.58)",
+              "kind": "color"
+            },
+            "opacity": 1
+          }
+        }
+      },
+      "type": "container"
+    },
+    {
+      "advanced": {},
+      "id": "instsec0",
+      "meta": {
+        "createdBy": "armature-conversion",
+        "updatedAt": "2026-09-23T00:00:00.000Z"
+      },
+      "props": {
+        "key": "instructors"
+      },
+      "style": {},
+      "type": "site-section"
+    }
+  ],
+  "seo": {},
+  "version": 1
+}

@@ -3,7 +3,7 @@
  * content changes plus only the pages whose layout differs from what is published (a
  * null layout means "deleted in the draft") and the kit when it changed. Pure module.
  */
-import { validateLayout, validateSiteKit, type LayoutDoc, type SiteKit } from "@shared/builder/index.ts";
+import { checkLayout, checkSiteKit, type LayoutDoc, type SiteKit } from "@shared/builder/index.ts";
 import { deepEqual } from "@shared/contentFile.ts";
 import type { SiteSchema } from "@shared/schema.ts";
 import { emptyDraft, isEmptyDraft, parseStoredDraft, reconcile, type Draft } from "@/visual/draftStore.ts";
@@ -82,12 +82,12 @@ export function parseEditorDraft(raw: string | null): StoredEditorDraft | null {
       for (const [slug, value] of Object.entries(parsed.layouts)) {
         if (value === null) layouts[slug] = null;
         else {
-          const report = validateLayout(value, slug);
+          const report = checkLayout(value);
           if (report.value) layouts[slug] = report.value;
         }
       }
     }
-    const kit = parsed.kit ? validateSiteKit(parsed.kit).value : undefined;
+    const kit = parsed.kit ? checkSiteKit(parsed.kit).value : undefined;
     const media = parseMedia(parsed.media);
     if (isEmptyDraft(content) && Object.keys(layouts).length === 0 && !kit && !media) return null;
     return { version: DRAFT_VERSION, savedAt: parsed.savedAt, content, layouts, ...(kit ? { kit } : {}), ...(media ? { media } : {}) };
