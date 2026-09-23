@@ -371,9 +371,9 @@ test.describe("the single left panel", () => {
 });
 
 test.describe("editing levels", () => {
-  test("agency staff set what clients may do from the site overview", async ({ page }) => {
+  test("agency staff set what clients may do under Site settings › Client editing", async ({ page }) => {
     const state = await installMocks(page);
-    await page.goto(`/sites/${SITE_ID}`);
+    await page.goto(`/sites/${SITE_ID}/settings/editing`);
     const panel = page.getByTestId("editing-level");
     await expect(panel.getByLabel("Words and pictures", { exact: true })).toBeChecked();
     await panel.getByLabel("Words, pictures and styling").click();

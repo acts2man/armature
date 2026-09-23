@@ -434,6 +434,110 @@ site, and screenshots at 1440x900 in `docs/screenshots/` (drag in progress, rich
 toolbar, image resize, spacing handles, Style tab, Navigator, Site settings, publish
 dialog) compared against the design.
 
+## 9. Posts and Stats: the plan (not built yet)
+
+The site menu (`src/components/siteNav.ts`) is laid out WordPress-style: Dashboard, Stats,
+Posts, Media, Pages, Contact, Appearance, Users, Site settings. Stats and Posts are marked
+`BUILT: false` there and stay out of the menu until each plan below is delivered; nothing in
+the dashboard links to them before then.
+
+### 9.1 Posts (news, articles, a blog)
+
+**What it is for.** A client writes a post the way they edit a page, and the site shows a list
+of posts and a page per post without any code change, because the kit renders both.
+
+**Where posts live.** In the site's repository like everything else, so a publish is one
+commit and the site is still a static React site:
+
+- `content/posts/<slug>.json`: a layout file (section 1) with `kind: "post"` and post
+  fields in its `settings`: `title`, `excerpt`, `coverImage` (a media path), `author`
+  (a profile id, copied into `authorName` on publish so the site needs no lookup),
+  `publishedAt` (ISO date; empty means draft), `categories` and `tags` (arrays of slugs),
+  `seo` (title, description, noindex). The body is the layout's element tree, so every
+  widget, style and revision works unchanged.
+- `content/posts/index.json`: generated on every post publish by the publish function
+  (never edited by hand): every post's slug, title, excerpt, cover, author name, date,
+  categories and tags, sorted newest first. The site reads this one file for its lists,
+  so it never has to walk the folder.
+- `content/taxonomies.json`: categories and tags with their names, slugs and
+  descriptions, edited from the Posts screen ("Categories" and "Tags" tabs).
+
+**Site side (kit, contract v3).** `createArmatureKit` gains `posts: import.meta.glob(
+"../content/posts/*.json")` and `postIndex`. New kit pieces: `<ArmaturePostList>`
+(paged, filter by category or tag, renders cards from the index) and `<ArmaturePost slug>`
+(renders one post's layout inside the site's chrome); `useBuilderPosts()` for the site's
+router, mirroring `useBuilderPages()`, so `/blog` and `/blog/<slug>` are one route each.
+Two new widgets for pages: **Post List** (latest N, by category, card style from the kit's
+presets) and **Post Meta** (date, author, categories) for use inside a post template.
+
+**Dashboard.** Posts screen = the Pages table (part 3 of the dashboard job) with the extra
+columns Date, Categories and Status (Draft, Scheduled, Published) and the same row actions;
+Quick Edit for title, slug, date and categories; "Add New Post" opens the visual editor on
+a fresh post created from the site's post template (`content/templates/post.json`, saved
+from the editor like any template). Scheduling is a date in the future: the publish
+function commits the file; the site shows the post only once `publishedAt` has passed
+(the kit filters by date at render, so a scheduled post needs no second commit). Comments
+are out of scope: the Contact inbox is the place readers reach the client.
+
+**Function side.** `builder-publish` accepts `posts` next to `layouts`, validates them with
+`checkLayout` plus a `postSettings` check (`kit/validate.ts`), writes the file and the
+regenerated index in the same commit. `content-get` returns `posts` and `postIndex` with
+the same per-file `problems`. RLS: posts follow the site's editing level; the `content`
+level can write words and pictures in an existing post, `style` can restyle, `builder` can
+create and delete.
+
+**Tests.** Deno: index regeneration, scheduling by date, taxonomy validation. Vitest: post
+settings validator, index sorting. Playwright: add a post, publish, it appears in the demo
+site's list and at its own address; a scheduled post does not appear until its date; Quick
+Edit; categories tab. Screenshots of Posts, Add New Post and the site's post list.
+
+### 9.2 Stats (who visits, what they read)
+
+**What it is for.** A client sees, without leaving the dashboard, how many people visit,
+which pages they read, where they came from and what the forms brought in, in plain words
+and without a third-party dashboard.
+
+**Where the numbers come from.** Armature does not run its own analytics collector: the
+site keeps its static hosting and the numbers come from one of two sources the agency
+chooses under Site settings › Stats:
+
+1. **Hosting analytics** already paid for (Vercel Web Analytics, Cloudflare Web Analytics,
+   Netlify Analytics, Plausible, Fathom, Umami). Each has a read API with a token; the
+   agency pastes the token into Site settings, it is stored in a new `site_analytics`
+   table (`provider`, `site_ref`, `token` encrypted with the project's key, `updated_by`,
+   RLS agency staff only) and read only by a new `stats-get` edge function, so the token
+   never reaches the browser.
+2. **Google Analytics 4** through a service-account JSON pasted the same way, for clients
+   who already have it.
+
+`stats-get(site_id, range)` normalises every provider into one shape: visitors, page
+views and sessions per day; top pages; referrers; countries; devices; and, from Armature's
+own tables, form submissions per day and publishes per day. Results are cached for ten
+minutes in a `site_stats_cache` row so a client refreshing the screen never burns the
+provider's quota.
+
+**Dashboard.** Stats screen with a range picker (7 / 30 / 90 days), four stat cards
+(Visitors, Page views, Messages received, Publishes) with change against the previous
+range, a visitors-per-day chart (an inline SVG, no chart library), and tables for Top
+pages (with an "Edit" link into the visual editor), Referrers, Countries and Devices. Every
+number carries a one-line explanation in plain words ("Visitors are people; page views are
+pages opened"). The site Dashboard's welcome line quotes the 7-day visitor count once Stats
+is connected. A site without a provider shows the screen with an explanation and, for
+agency staff, a "Connect" button to Site settings; clients read "Ask your agency to switch
+on statistics".
+
+**Privacy.** Nothing is collected by Armature; the providers above are chosen because
+they are cookie-less by default (GA4 is the exception and says so on the settings tab).
+No individual visitor is ever shown.
+
+**Migration.** `site_analytics` and `site_stats_cache` tables in a new migration file,
+listed in the job's summary and never applied from a session.
+
+**Tests.** Deno: each provider's adapter against recorded responses, the cache, the token
+never appearing in a response. Playwright: the Stats screen with a mocked `stats-get`, the
+empty state for both roles, the range picker, the "Edit" link from Top pages. Screenshots
+at both widths.
+
 ## Milestones (build in order; tick when verified, changelogged, committed and pushed)
 
 - [x] **M1 Foundation.** Data model, the validator, `site-kit.json`, `kit/` with the renderer

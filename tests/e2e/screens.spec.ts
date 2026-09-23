@@ -7,8 +7,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { SITE_ID, installMocks } from "./mocks.ts";
 
 const shots = process.env["AUDIT_SHOTS"];
-const STAFF_ROUTES = ["/", "/fleet", "/sites/new", "/agency/requests", "/agency/settings", "/agency/team", "/account", "/github/setup", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/pages/shared`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, "/nothing-here"];
-const CLIENT_ROUTES = ["/", "/account", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, "/fleet"];
+const STAFF_ROUTES = ["/", "/fleet", "/sites/new", "/agency/requests", "/agency/settings", "/agency/team", "/account", "/github/setup", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/pages/shared`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/users`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, `/sites/${SITE_ID}/settings`, `/sites/${SITE_ID}/settings/services`, `/sites/${SITE_ID}/settings/editing`, `/sites/${SITE_ID}/settings/history`, `/sites/${SITE_ID}/nothing-here`, "/nothing-here"];
+const CLIENT_ROUTES = ["/", "/account", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/users`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, `/sites/${SITE_ID}/settings`, "/fleet"];
 const WIDTHS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "phone", width: 390, height: 844 },

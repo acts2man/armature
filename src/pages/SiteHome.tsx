@@ -5,24 +5,21 @@
  * repository line, "Check connection" and Team. Only real data is shown: a
  * section with nothing to show says so briefly instead of inventing numbers.
  */
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { CheckList } from "@/components/CheckList.tsx";
-import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconGithub, IconHistory, IconPage, IconPencil, IconSend, IconStethoscope, IconTeam } from "@/components/icons.tsx";
-import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
+import { IconAlert, IconBranch, IconCheck, IconEye, IconExternal, IconGithub, IconHistory, IconPage, IconPencil, IconSend, IconSettings } from "@/components/icons.tsx";
+import { useSite } from "@/components/SiteLayout.tsx";
+import { SidebarTour } from "@/components/SidebarTour.tsx";
+import { siteNavItems } from "@/components/siteNav.ts";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
-import { SiteServicesPanel } from "@/components/SiteServicesPanel.tsx";
-import { EditingLevelPanel } from "@/components/EditingLevelPanel.tsx";
-import { Button, EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
+import { EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
 import { formatDateTime, plural, relativeTime, shortSha } from "@/lib/format.ts";
-import { callFunction } from "@/lib/functions.ts";
 import { displayName, firstName, greeting } from "@/lib/people.ts";
 import { SITE_STATUS_TONES, isHostingOnly, siteStatusLabel } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { OPEN_CHANGE_REQUEST_STATUSES, PUBLISH_STATUS_LABELS, type ChangeRequest, type Publish, type PublishStatus, type Site } from "@/lib/types.ts";
-import type { DiagnoseResponse } from "@shared/publishTypes.ts";
 
 const PUBLISH_TONES: Record<PublishStatus, "green" | "amber" | "danger"> = { committed: "green", conflict: "amber", failed: "danger" };
 
@@ -77,22 +74,10 @@ function QuickAction({ to, icon, children, external }: { to: string; icon: React
 export function SiteHome() {
   const { site, isStaff } = useSite();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const root = `/sites/${site.id}`;
   const hostingOnly = isHostingOnly(site);
   const publishes = useRecentPublishes(site.id);
   const requests = useRecentRequests(site.id);
-
-  const diagnose = useMutation({
-    mutationFn: async () => {
-      const result = await callFunction<DiagnoseResponse>("site-diagnose", { site_id: site.id });
-      if (!result.ok) throw new Error(result.message);
-      return result;
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: siteQueryKey(site.id) });
-    },
-  });
 
   // --- what needs attention, from real data only ---
   const attention: { key: string; icon: ReactNode; title: string; detail: string; action: ReactNode }[] = [];
@@ -101,11 +86,11 @@ export function SiteHome() {
       key: "connection",
       icon: <IconAlert size={18} />,
       title: "The site's connection needs attention",
-      detail: isStaff ? "Run a check to see which step is failing and how to fix it." : "Publishing may not work until the agency fixes this.",
+      detail: isStaff ? "Run a check under Site settings to see which step is failing and how to fix it." : "Publishing may not work until the agency fixes this.",
       action: isStaff ? (
-        <Button variant="secondary" size="sm" onClick={() => diagnose.mutate()} loading={diagnose.isPending}>
+        <LinkButton variant="secondary" size="sm" to={`${root}/settings`}>
           Check connection
-        </Button>
+        </LinkButton>
       ) : (
         <LinkButton variant="secondary" size="sm" to={`${root}/requests/new`}>
           Tell the agency
@@ -204,6 +189,8 @@ export function SiteHome() {
         }
       />
 
+      <SidebarTour siteName={site.name} isStaff={isStaff} items={siteNavItems({ root, isStaff, hostingOnly })} />
+
       {hostingOnly && (
         <Notice kind="info" title={isStaff ? "Hosting-only site" : "This site is looked after by the agency"}>
           {isStaff
@@ -211,13 +198,6 @@ export function SiteHome() {
             : "Its pages are not edited here yet. Change requests still reach the agency."}
         </Notice>
       )}
-
-      {diagnose.isError && (
-        <Notice kind="danger" title="The connection check could not run">
-          {diagnose.error.message}
-        </Notice>
-      )}
-      {diagnose.data && <CheckList report={diagnose.data} onHide={() => diagnose.reset()} />}
 
       <div className="grid items-start gap-5 xl:grid-cols-[1.65fr_1fr]">
         <div className="flex min-w-0 flex-col gap-5">
@@ -312,8 +292,6 @@ export function SiteHome() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          {isStaff && <SiteServicesPanel siteId={site.id} siteName={site.name} />}
-          {isStaff && !hostingOnly && <EditingLevelPanel site={site} />}
           <Panel title="Site health" aside={<StatusPill site={site} />}>
             <div className="flex flex-col gap-2.5 p-5 text-[13px] text-text">
               <div className="flex items-center gap-2.5">
@@ -336,13 +314,8 @@ export function SiteHome() {
               </div>
               {isStaff && (
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {!hostingOnly && (
-                    <Button variant="secondary" size="sm" onClick={() => diagnose.mutate()} loading={diagnose.isPending}>
-                      <IconStethoscope size={16} /> Check connection
-                    </Button>
-                  )}
-                  <LinkButton variant="secondary" size="sm" to={`${root}/team`}>
-                    <IconTeam size={16} /> Team
+                  <LinkButton variant="secondary" size="sm" to={`${root}/settings`}>
+                    <IconSettings size={16} /> Site settings
                   </LinkButton>
                 </div>
               )}

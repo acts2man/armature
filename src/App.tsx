@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { Navigate, createBrowserRouter, RouterProvider } from "react-router";
 import { RequireAuth, RequirePasswordChosen, RequireStaff } from "@/auth/RequireAuth.tsx";
 import { CHOOSE_PASSWORD_PATH } from "@/auth/passwordGate.ts";
 import { AppShell } from "@/components/AppShell.tsx";
@@ -22,6 +22,7 @@ import { PublishHistory } from "@/pages/PublishHistory.tsx";
 import { SignIn } from "@/pages/SignIn.tsx";
 import { SiteHome } from "@/pages/SiteHome.tsx";
 import { SitePages } from "@/pages/SitePages.tsx";
+import { SiteConnection, SiteEditingSettings, SiteHistorySettings, SiteServicesSettings, SiteSettings } from "@/pages/SiteSettings.tsx";
 import { Team } from "@/pages/Team.tsx";
 import { VisualEditor } from "@/visual/VisualEditor.tsx";
 
@@ -65,8 +66,20 @@ const router = createBrowserRouter([
                   { path: "requests", element: <ChangeRequests /> },
                   { path: "requests/new", element: <NewChangeRequest /> },
                   { path: "requests/:requestId", element: <ChangeRequestDetail /> },
-                  { path: "team", element: <Team /> },
+                  { path: "users", element: <Team /> },
+                  { path: "team", element: <Navigate to="../users" replace /> },
                   { path: "history", element: <PublishHistory /> },
+                  {
+                    path: "settings",
+                    element: <SiteSettings />,
+                    children: [
+                      { index: true, element: <SiteConnection /> },
+                      { path: "services", element: <SiteServicesSettings /> },
+                      { path: "editing", element: <SiteEditingSettings /> },
+                      { path: "history", element: <SiteHistorySettings /> },
+                    ],
+                  },
+                  { path: "*", element: <NotFound /> },
                 ],
               },
               { path: "*", element: <NotFound /> },

@@ -8,7 +8,7 @@ import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { IconCopy, IconEye, IconEyeOff, IconKey, IconMail, IconSparkle, IconTeam } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
-import { Button, EmptyState, Field, Input, Modal, Monogram, Notice, PageHeader, Panel, PanelRow, Pill, Segmented, Select, SkeletonRows, SrOnly, useToast } from "@/components/ui.tsx";
+import { Button, EmptyState, Field, Input, LinkButton, Modal, Monogram, Notice, PageHeader, Panel, PanelRow, Pill, Segmented, Select, SkeletonRows, SrOnly, useToast } from "@/components/ui.tsx";
 import { formatDate } from "@/lib/format.ts";
 import { callFunction } from "@/lib/functions.ts";
 import { loginDetailsMessage } from "@/lib/loginMessage.ts";
@@ -534,12 +534,27 @@ export function Team() {
   const [adding, setAdding] = useState<"invite" | "login">("invite");
 
   if (!isStaff) {
-    return <Notice kind="warning">Only agency staff manage who has access to a site.</Notice>;
+    return (
+      <div className="flex flex-col gap-5">
+        <PageHeader title="Users" />
+        <Notice
+          kind="info"
+          title="Your agency manages who can sign in"
+          action={
+            <LinkButton to={`/sites/${site.id}`} variant="secondary" size="sm">
+              Back to your dashboard
+            </LinkButton>
+          }
+        >
+          {agency?.portal_name?.trim() || "The agency"} adds and removes the people who can edit {site.name}. Ask them to invite someone.
+        </Notice>
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Team" description={`Who can edit ${site.name}, and how new people get in.`} />
+      <PageHeader title="Users" description={`Who can edit ${site.name}, and how new people get in.`} />
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-5">
           <MembersPanel siteId={site.id} />

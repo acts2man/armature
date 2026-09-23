@@ -1,18 +1,16 @@
 /**
- * Wraps every /sites/:siteId/* screen: loads the site (under RLS), exposes it
- * through `useSite()`, and for agency staff draws the site strip (breadcrumb and
- * tabs) above the screen. Clients navigate with the sidebar instead, so they get
- * no strip. Not found and no access are both spelled out rather than left blank.
+ * Wraps every /sites/:siteId/* screen: loads the site (under RLS) and exposes it
+ * through `useSite()`. Navigation is the sidebar's job (src/components/AppShell.tsx),
+ * so there is no strip of tabs here. Not found and no access are both spelled out
+ * rather than left blank.
  */
 import { useQuery } from "@tanstack/react-query";
 import { createContext, useContext } from "react";
-import { NavLink, Outlet, useParams } from "react-router";
+import { Outlet, useParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { supabase } from "@/lib/supabase.ts";
 import type { Site } from "@/lib/types.ts";
-import { IconChevronRight, IconPencil } from "./icons.tsx";
-import { isHostingOnly } from "@/lib/services.ts";
-import { LinkButton, Monogram, Notice, Skeleton, TabBar, tabClass } from "./ui.tsx";
+import { LinkButton, Notice, Skeleton } from "./ui.tsx";
 
 export type SiteContextValue = {
   site: Site;
@@ -57,14 +55,15 @@ export function useIsStaffFor(site: Site | null | undefined): boolean {
 
 export function SiteLayout() {
   const { siteId = "" } = useParams();
+  const { isStaff: staffAnywhere } = useAuth();
   const query = useSiteQuery(siteId);
   const isStaff = useIsStaffFor(query.data);
 
   if (query.isPending) {
     return (
       <div className="space-y-5" role="status" aria-label="Loading site">
-        <Skeleton className="h-6 w-48" />
         <Skeleton className="h-9 w-72" />
+        <Skeleton className="h-5 w-48" />
         <Skeleton className="h-40 rounded-card" />
       </div>
     );
@@ -82,8 +81,8 @@ export function SiteLayout() {
         kind="warning"
         title="This site is not available to your account"
         action={
-          <LinkButton to="/" variant="secondary">
-            Go home
+          <LinkButton to={staffAnywhere ? "/fleet" : "/"} variant="secondary">
+            {staffAnywhere ? "Back to Fleet" : "Go home"}
           </LinkButton>
         }
       >
@@ -92,52 +91,9 @@ export function SiteLayout() {
     );
   }
 
-  const site = query.data;
-  const root = `/sites/${site.id}`;
-
   return (
-    <SiteContext.Provider value={{ site, isStaff, refetch: query.refetch }}>
-      <div className="flex flex-col gap-5">
-        {isStaff && (
-          <div className="-mb-1 flex flex-col gap-2 border-b border-line">
-            <div className="flex min-w-0 items-center gap-2 text-[13px] text-muted">
-              <NavLink to="/fleet" className="font-medium hover:text-text">
-                Fleet
-              </NavLink>
-              <IconChevronRight size={14} />
-              <span className="flex min-w-0 items-center gap-2">
-                <Monogram name={site.name} size="sm" />
-                <span className="truncate font-semibold text-text">{site.name}</span>
-              </span>
-            </div>
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <TabBar label="Site">
-              <NavLink to={root} end className={tabClass}>
-                Overview
-              </NavLink>
-              <NavLink to={`${root}/pages`} className={tabClass}>
-                Pages
-              </NavLink>
-              <NavLink to={`${root}/requests`} className={tabClass}>
-                Change requests
-              </NavLink>
-              <NavLink to={`${root}/history`} className={tabClass}>
-                Publish history
-              </NavLink>
-              <NavLink to={`${root}/team`} className={tabClass}>
-                Team
-              </NavLink>
-              </TabBar>
-              {!isHostingOnly(site) && (
-                <LinkButton to={`${root}/visual`} size="sm" className="mb-1.5">
-                  <IconPencil size={16} /> Edit site visually
-                </LinkButton>
-              )}
-            </div>
-          </div>
-        )}
-        <Outlet />
-      </div>
+    <SiteContext.Provider value={{ site: query.data, isStaff, refetch: query.refetch }}>
+      <Outlet />
     </SiteContext.Provider>
   );
 }

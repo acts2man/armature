@@ -5,6 +5,15 @@ All notable changes to Armature are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A WordPress-style site menu.** Opening a site (from the Fleet, or straight after sign-in for a client) switches the sidebar to that site's own menu: Dashboard, Pages, Users and Site settings today, with Media, Contact and Appearance to follow as they are built (Stats and Posts are planned in `docs/BUILDER_SPEC.md` and stay out of the menu until they exist; nothing unbuilt is ever a link). Agency staff get "Back to Fleet" and the site's name (a switcher when the agency looks after more than one site) at the top; clients get the agency's portal name and never see the Fleet or the agency menu. The menu collapses to icons on a desktop (remembered per browser) and slides out on a phone. A one-time note on the Dashboard names what the menu holds, built from the same list as the menu.
+- **Site settings (agency staff only)** gathers what a client never needs to see under one item at the bottom of the site menu: Connection (the repository, its status, the connection check and its report), Hosting & services, Client editing (what clients may do in the editor) and Publish history. The tab strip and the "Edit site visually" button above every site screen are gone; the sidebar does that job. The old `/team` address lands on Users.
+
+### Fixed
+
+- A client who opens an agency-only address (Users, Site settings) now sees a proper heading, a short explanation and a "Back to your dashboard" link instead of a bare warning; the not-found screen has a heading of its own. Both were noted in `docs/AUDIT.md`.
+
 ### Fixed
 
 - **A font weight of 650 no longer blanks a page.** The first real converted site (treetestprep) uses variable font weights (`font-weight: 650` on its hero headline and in its site kit). The old rules allowed only 100…900, so one number invalidated the whole home layout and the whole site kit: the Pages screen showed "Invalid input", the visual editor showed an empty Home page with only the footer, and the default kit silently replaced the site's colours and fonts. Font weight now takes any whole number from 1 to 1000 plus `normal`, `bold`, `lighter` and `bolder`; the Weight control keeps its list and adds a "Custom…" entry that takes any number.

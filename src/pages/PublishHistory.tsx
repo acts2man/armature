@@ -120,7 +120,7 @@ function HistoryRows({ publishes, people }: { publishes: Publish[]; people: Reco
   );
 }
 
-export function PublishHistory() {
+export function PublishHistory({ embedded = false }: { embedded?: boolean } = {}) {
   const { site } = useSite();
   const query = useQuery({ queryKey: ["site-publishes", site.id, "history"], queryFn: () => loadHistory(site.id) });
 
@@ -161,7 +161,7 @@ export function PublishHistory() {
   const count = query.data?.publishes.length;
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Publish history" description="Every publish attempt, newest first, with a link to the commit it made." />
+      {!embedded && <PageHeader title="Publish history" description="Every publish attempt, newest first, with a link to the commit it made." />}
       <Panel title="Publishes" aside={count !== undefined ? <span className="text-[12px] text-muted">{count >= 100 ? "The latest 100" : plural(count, "attempt")}</span> : undefined}>
         {body}
       </Panel>
