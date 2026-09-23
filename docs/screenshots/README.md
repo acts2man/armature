@@ -45,13 +45,17 @@ by page), `visual-editor-phone` (the 390px view), `visual-editor-connection-erro
 that sends `X-Frame-Options: DENY`, with the header to add).
 
 The page builder (same setup, captured by `npx tsx tests/e2e/builder-screenshots.ts` with
-both dev servers running), compared against `docs/BUILDER_SPEC.md` and the visual editor
-design: `builder-drag-in-progress` (a Heading dragged from the Elements panel, the drop
-line inside a column), `builder-rich-text-toolbar` (a text element edited in place with
-the floating toolbar), `builder-image-resize` (an image's width handle mid-drag with its
-live value), `builder-spacing-handles` (a section's top padding handle mid-drag),
-`builder-style-tab` (the Style tab for a heading), `builder-navigator` (the element tree
-with a button selected), `builder-site-settings` (global colours and fonts),
-`builder-pages` (the Pages tab and the New page dialog), `builder-media` (the media
-library with usage and alt text), `builder-history-versions` (an older publish previewed
-on the canvas), `builder-publish-dialog` (a layout and the site settings in one publish).
+both dev servers running), compared against `docs/BUILDER_SPEC.md` and Elementor's layout:
+`builder-elements` (the single left panel in Elements mode: Widgets/Globals tabs and the
+widget tiles), `builder-globals` (the Globals tab: global colours, fonts and typography),
+`builder-edit-heading-content` / `builder-edit-heading-style` / `builder-edit-heading-advanced`
+(the Edit panel's three tabs for a heading, "Edit Heading" with the grid icon back to
+Elements), `builder-edit-container-layout` (Edit Container, whose first tab is Layout),
+`builder-text-editor-panel` (a text element's Content tab), `builder-drag-in-progress`
+(a Heading dragged from the Elements panel, the insertion line inside a column),
+`builder-collapsed` (the panel collapsed so the canvas fills the window),
+`builder-page-settings` (page settings in the left panel), `builder-rich-text-toolbar`
+(a text element edited in place with the floating toolbar), `builder-image-resize` (an
+image's width handle mid-drag with its live value), `builder-spacing-handles` (a section's
+top padding handle mid-drag), `builder-history-versions` (an older publish previewed on the
+canvas), `builder-publish-dialog` (a layout and the site settings in one publish).

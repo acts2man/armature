@@ -1,6 +1,8 @@
 /**
  * Captures the page builder's documentation screenshots into docs/screenshots at
- * 1440x900, against the demo site with a mocked Supabase (tests/e2e/mocks.ts).
+ * 1440x900, against the demo site with a mocked Supabase (tests/e2e/mocks.ts). Reflects
+ * the Elementor-style layout: one left panel (Elements / Edit / Globals / Page settings),
+ * a full-width canvas, and the collapse tab.
  *
  *   npx tsx tests/e2e/builder-screenshots.ts     (both dev servers must be running: see playwright.config.ts)
  */
@@ -42,19 +44,73 @@ const center = async (locator: Locator) => {
   if (!box) throw new Error("no box");
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
-const scrollTo = async (page: Page, selector: string) => {
-  // Scroll the site's own window only (scrollIntoView would also scroll the editor around it).
-  await frame(page).locator(selector).evaluate((node) => {
-    const rect = node.getBoundingClientRect();
-    window.scrollBy({ top: rect.top - window.innerHeight / 2 + rect.height / 2, behavior: "instant" });
-  });
-  await page.waitForTimeout(700);
+/** Scroll the site's own window so the element sits near the top (a higher section's image
+ *  target can't overlap it), then select it by clicking. */
+const pick = async (page: Page, selector: string, position?: { x: number; y: number }) => {
+  await frame(page).locator(selector).evaluate((node) => node.scrollIntoView({ block: "start" }));
+  await page.waitForTimeout(500);
+  await frame(page).locator(selector).click(position ? { position } : {});
+  await page.waitForTimeout(300);
 };
+const openElements = async (page: Page) => {
+  await page.getByTestId("topbar-add").click();
+  await page.getByTestId("elements-panel").waitFor();
+};
+
+await shoot("builder-elements", async (page) => {
+  await open(page);
+  await openElements(page);
+});
+
+await shoot("builder-globals", async (page) => {
+  await open(page);
+  await openElements(page);
+  await page.getByTestId("tab-globals").click();
+  await page.waitForTimeout(300);
+});
+
+await shoot("builder-edit-heading-content", async (page) => {
+  await open(page);
+  await pick(page, ".ae-hdbuilds");
+  await page.getByTestId("edit-title").waitFor();
+});
+
+await shoot("builder-edit-heading-style", async (page) => {
+  await open(page);
+  await pick(page, ".ae-hdbuilds");
+  await page.getByTestId("inspector-tab-style").click();
+  await page.waitForTimeout(300);
+});
+
+await shoot("builder-edit-heading-advanced", async (page) => {
+  await open(page);
+  await pick(page, ".ae-hdbuilds");
+  await page.getByTestId("inspector-tab-advanced").click();
+  await page.waitForTimeout(300);
+});
+
+await shoot("builder-edit-container-layout", async (page) => {
+  await open(page);
+  // Select the image, then walk up to the row container (whose corner is filled by children).
+  await pick(page, ".ae-imgbuild img");
+  await page.keyboard.press("ArrowLeft"); // column
+  await page.waitForTimeout(150);
+  await page.keyboard.press("ArrowLeft"); // row (a container: first tab is Layout)
+  await page.getByTestId("edit-title").waitFor();
+  await page.waitForTimeout(300);
+});
+
+await shoot("builder-text-editor-panel", async (page) => {
+  await open(page);
+  await pick(page, ".ae-txtbuild");
+  await page.getByTestId("edit-title").waitFor();
+});
 
 await shoot("builder-drag-in-progress", async (page) => {
   await open(page);
-  await page.getByTestId("tab-elements").click();
-  await scrollTo(page, ".ae-txtbuild");
+  await openElements(page);
+  await frame(page).locator(".ae-txtbuild").evaluate((node) => node.scrollIntoView({ block: "start" }));
+  await page.waitForTimeout(500);
   const from = await center(page.getByTestId("element-heading"));
   const target = await frame(page).locator(".ae-txtbuild").boundingBox();
   await page.mouse.move(from.x, from.y);
@@ -64,9 +120,23 @@ await shoot("builder-drag-in-progress", async (page) => {
   await page.getByTestId("drop-line").waitFor();
 });
 
+await shoot("builder-collapsed", async (page) => {
+  await open(page);
+  await page.getByTestId("panel-collapse").click();
+  await page.waitForTimeout(400);
+});
+
+await shoot("builder-page-settings", async (page) => {
+  await open(page);
+  await page.getByTestId("topbar-page-settings").click();
+  await page.getByTestId("page-settings-panel").waitFor();
+  await page.waitForTimeout(300);
+});
+
 await shoot("builder-rich-text-toolbar", async (page) => {
   await open(page);
-  await scrollTo(page, ".ae-txtbuild");
+  await frame(page).locator(".ae-txtbuild").evaluate((node) => node.scrollIntoView({ block: "start" }));
+  await page.waitForTimeout(500);
   const text = frame(page).locator(".ae-txtbuild");
   await text.dblclick();
   await page.getByTestId("richtext-toolbar").waitFor();
@@ -85,8 +155,7 @@ await shoot("builder-rich-text-toolbar", async (page) => {
 
 await shoot("builder-image-resize", async (page) => {
   await open(page);
-  await scrollTo(page, ".ae-imgbuild");
-  await frame(page).locator(".ae-imgbuild img").click();
+  await pick(page, ".ae-imgbuild img");
   const handle = page.getByTestId("handle-image-width");
   await handle.waitFor();
   await page.waitForTimeout(400);
@@ -99,9 +168,7 @@ await shoot("builder-image-resize", async (page) => {
 
 await shoot("builder-spacing-handles", async (page) => {
   await open(page);
-  await page.getByTestId("tab-navigator").click();
-  await page.getByTestId("nav-secbuild").click();
-  await scrollTo(page, ".ae-secbuild");
+  await pick(page, ".ae-secbuild", { x: 5, y: 5 });
   const handle = page.getByTestId("handle-padding-top");
   await handle.waitFor();
   await page.waitForTimeout(400);
@@ -110,38 +177,6 @@ await shoot("builder-spacing-handles", async (page) => {
   await page.mouse.down();
   await page.mouse.move(start.x, start.y + 24, { steps: 6 });
   await page.getByTestId("handle-value").waitFor();
-});
-
-await shoot("builder-style-tab", async (page) => {
-  await open(page);
-  await scrollTo(page, ".ae-hdbuilds");
-  await frame(page).locator(".ae-hdbuilds").click();
-  await page.getByTestId("inspector-tab-style").click();
-});
-
-await shoot("builder-navigator", async (page) => {
-  await open(page);
-  await scrollTo(page, ".ae-btnbuild");
-  await frame(page).locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
-  await page.getByTestId("tab-navigator").click();
-});
-
-await shoot("builder-site-settings", async (page) => {
-  await open(page);
-  await page.getByTestId("tab-site").click();
-});
-
-await shoot("builder-pages", async (page) => {
-  await open(page);
-  await page.getByTestId("tab-pages").click();
-  await page.getByTestId("new-page").click();
-  await page.getByLabel("Title", { exact: true }).fill("Our services");
-  await page.getByLabel("Landing page").check();
-});
-
-await shoot("builder-media", async (page) => {
-  await open(page);
-  await page.getByTestId("tab-media").click();
 });
 
 await shoot(
@@ -164,12 +199,14 @@ await shoot(
 
 await shoot("builder-publish-dialog", async (page) => {
   await open(page);
-  await scrollTo(page, ".ae-hdbuilds");
+  await frame(page).locator(".ae-hdbuilds").evaluate((node) => node.scrollIntoView({ block: "start" }));
+  await page.waitForTimeout(500);
   await frame(page).locator(".ae-hdbuilds").dblclick();
   await page.keyboard.press("End");
   await page.keyboard.type(" this year");
   await page.keyboard.press("Enter");
-  await page.getByTestId("tab-site").click();
+  await openElements(page);
+  await page.getByTestId("tab-globals").click();
   await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#1f5c4a");
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await page.getByTestId("publish-builder").waitFor();
