@@ -9,7 +9,7 @@ import { SITE_ID, installMocks } from "./mocks.ts";
 
 /** The items a connected site shows today, in order. Later parts add Media, Contact and Appearance. */
 const STAFF_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Appearance", "Users", "Site settings"];
-const CLIENT_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Appearance"];
+const CLIENT_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Appearance", "Users"];
 const HIDDEN = ["nav-stats", "nav-posts"];
 
 const sidebar = (page: Page) => page.getByTestId("sidebar");
@@ -95,7 +95,6 @@ test.describe("clients", () => {
     expect(await site.getByTestId("back-to-fleet").count()).toBe(0);
     expect(await sidebar(page).getByTestId("nav-fleet").count()).toBe(0);
     expect(await site.getByTestId("nav-settings").count()).toBe(0);
-    expect(await site.getByTestId("nav-users").count()).toBe(0);
     expect(await itemLabels(page)).toEqual(CLIENT_ITEMS);
     await expect(site).toContainText("Reputation Guardians");
     await expect(site).not.toContainText("Armature");
@@ -114,7 +113,7 @@ test.describe("clients", () => {
     await expect(page.getByRole("link", { name: "Back to your dashboard" })).toBeVisible();
     await page.goto(`/sites/${SITE_ID}/users`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Users");
-    await expect(page.getByRole("link", { name: "Back to your dashboard" })).toBeVisible();
+    await expect(page.getByText("adds and removes people")).toBeVisible();
   });
 
   test("on a phone the menu slides out and closes when a page is chosen", async ({ page }) => {

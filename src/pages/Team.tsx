@@ -6,10 +6,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useState, type FormEvent, type ReactNode } from "react";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { IconCopy, IconEye, IconEyeOff, IconKey, IconMail, IconSparkle, IconTeam } from "@/components/icons.tsx";
+import { IconCopy, IconEye, IconEyeOff, IconKey, IconMail, IconPlus, IconSparkle } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
-import { Button, EmptyState, Field, Input, LinkButton, Modal, Monogram, Notice, PageHeader, Panel, PanelRow, Pill, Segmented, Select, SkeletonRows, SrOnly, useToast } from "@/components/ui.tsx";
-import { formatDate } from "@/lib/format.ts";
+import { Button, Cell, DataRow, DataTable, Field, Input, Modal, Monogram, Notice, PageHeader, Pill, Segmented, Select, SkeletonRows, SrOnly, useToast } from "@/components/ui.tsx";
+import { formatDate, relativeTime } from "@/lib/format.ts";
 import { callFunction } from "@/lib/functions.ts";
 import { loginDetailsMessage } from "@/lib/loginMessage.ts";
 import { supabase } from "@/lib/supabase.ts";
@@ -18,7 +18,7 @@ import { MIN_PASSWORD_LENGTH, generateTemporaryPassword, passwordProblem } from 
 import type { ClientCreateResponse, InviteCreateResponse } from "@shared/publishTypes.ts";
 import { InviteLinkNotice } from "./AgencyTeam.tsx";
 
-type ProfileLite = Pick<Profile, "id" | "email" | "full_name">;
+type ProfileLite = Pick<Profile, "id" | "email" | "full_name" | "last_sign_in_at">;
 type Person = { user_id: string; profile: ProfileLite | null; created_at: string };
 type MemberRow = Person & { role: SiteRole };
 type StaffRow = Person & { role: AgencyMember["role"] };
@@ -30,7 +30,7 @@ type SiteOption = { id: string; name: string };
 async function loadProfiles(userIds: string[]): Promise<Map<string, ProfileLite>> {
   const map = new Map<string, ProfileLite>();
   if (userIds.length === 0) return map;
-  const { data, error } = await supabase.from("profiles").select("id, email, full_name").in("id", userIds);
+  const { data, error } = await supabase.from("profiles").select("*").in("id", userIds);
   if (error) throw new Error(`Could not load people's names: ${error.message}`);
   for (const profile of (data ?? []) as ProfileLite[]) map.set(profile.id, profile);
   return map;
@@ -71,161 +71,6 @@ const personEmail = (person: Person): string | undefined => {
   return email && email !== personName(person) ? email : undefined;
 };
 
-function MembersPanel({ siteId }: { siteId: string }) {
-  const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["site-members", siteId], queryFn: () => loadMembers(siteId) });
-  const [removing, setRemoving] = useState<MemberRow | null>(null);
-
-  const remove = useMutation({
-    mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("site_members").delete().eq("site_id", siteId).eq("user_id", userId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: () => {
-      setRemoving(null);
-      return queryClient.invalidateQueries({ queryKey: ["site-members", siteId] });
-    },
-  });
-
-  let body: ReactNode;
-  if (query.isPending) {
-    body = <SkeletonRows rows={2} label="Loading members" />;
-  } else if (query.isError) {
-    body = (
-      <div className="p-4">
-        <Notice kind="danger" title="Members could not be loaded">
-          {query.error.message}
-        </Notice>
-      </div>
-    );
-  } else if (query.data.length === 0) {
-    body = (
-      <div className="p-5">
-        <EmptyState title="No client members yet" icon={<IconTeam size={18} />}>
-          Invite a client below, or create their login, and they will appear here.
-        </EmptyState>
-      </div>
-    );
-  } else {
-    body = query.data.map((row) => (
-      <PanelRow
-        key={row.user_id}
-        icon={<Monogram name={personName(row)} />}
-        title={personName(row)}
-        detail={
-          <span className="flex flex-wrap items-center gap-x-2">
-            {personEmail(row) && <span className="break-all">{personEmail(row)}</span>}
-            <span>Joined {formatDate(row.created_at)}</span>
-          </span>
-        }
-        action={
-          <>
-            <Pill tone="grey">{SITE_ROLE_LABELS[row.role]}</Pill>
-            <Button variant="danger" size="sm" onClick={() => setRemoving(row)}>
-              Remove
-              <SrOnly> {personName(row)}</SrOnly>
-            </Button>
-          </>
-        }
-      />
-    ));
-  }
-
-  return (
-    <Panel title="Members" aside={query.data ? <span className="text-[12px] text-muted">{query.data.length} {query.data.length === 1 ? "person" : "people"}</span> : undefined}>
-      {remove.isError && (
-        <div className="p-4">
-          <Notice kind="danger" title="The member could not be removed">
-            {remove.error.message}
-          </Notice>
-        </div>
-      )}
-      {body}
-      <Modal
-        open={removing !== null}
-        onClose={() => setRemoving(null)}
-        title="Remove this person?"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setRemoving(null)} disabled={remove.isPending}>
-              Keep them
-            </Button>
-            <Button variant="danger" loading={remove.isPending} onClick={() => removing && remove.mutate(removing.user_id)}>
-              Remove
-            </Button>
-          </>
-        }
-      >
-        <p className="text-[14px] leading-relaxed text-text">
-          {removing ? personName(removing) : "This person"} will no longer be able to edit this site. Their account stays; you can add them back later.
-        </p>
-      </Modal>
-    </Panel>
-  );
-}
-
-function InvitesPanel({ siteId }: { siteId: string }) {
-  const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ["site-invites", siteId], queryFn: () => loadInvites(siteId) });
-
-  const remove = useMutation({
-    mutationFn: async (inviteId: string) => {
-      const { error } = await supabase.from("invites").delete().eq("id", inviteId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["site-invites", siteId] }),
-  });
-
-  let body: ReactNode;
-  if (query.isPending) {
-    body = <SkeletonRows rows={1} label="Loading invitations" />;
-  } else if (query.isError) {
-    body = (
-      <div className="p-4">
-        <Notice kind="danger" title="Invitations could not be loaded">
-          {query.error.message}
-        </Notice>
-      </div>
-    );
-  } else if (query.data.length === 0) {
-    body = <p className="px-5 py-4 text-[13px] text-muted">No pending invitations.</p>;
-  } else {
-    body = query.data.map((invite) => (
-      <PanelRow
-        key={invite.id}
-        icon={<IconMail size={18} />}
-        title={<span className="break-all">{invite.email}</span>}
-        detail={
-          <span className="flex flex-wrap items-center gap-2">
-            <span>{SITE_ROLE_LABELS[invite.role as SiteRole] ?? invite.role}</span>
-            <span>· Expires {formatDate(invite.expires_at)}</span>
-            {invite.expired && <Pill tone="danger">Expired</Pill>}
-          </span>
-        }
-        action={
-          <Button variant="danger" size="sm" onClick={() => remove.mutate(invite.id)} loading={remove.isPending && remove.variables === invite.id}>
-            Delete
-            <SrOnly> invite for {invite.email}</SrOnly>
-          </Button>
-        }
-      />
-    ));
-  }
-
-  return (
-    <Panel title="Pending invitations">
-      {remove.isError && (
-        <div className="p-4">
-          <Notice kind="danger" title="The invitation could not be deleted">
-            {remove.error.message}
-          </Notice>
-        </div>
-      )}
-      {body}
-    </Panel>
-  );
-}
-
 function InviteForm({ siteId, agencyId }: { siteId: string; agencyId: string }) {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
@@ -241,7 +86,7 @@ function InviteForm({ siteId, agencyId }: { siteId: string; agencyId: string }) 
     onSuccess: async (result) => {
       setCreated({ url: result.invite_url, email: result.email, expires_at: result.expires_at, emailed: result.emailed });
       setEmail("");
-      await queryClient.invalidateQueries({ queryKey: ["site-invites", siteId] });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["site-invites", siteId] }), queryClient.invalidateQueries({ queryKey: ["site-users", siteId] })]);
     },
   });
 
@@ -499,89 +344,245 @@ function CreateClientLoginForm({ siteId, agencyId, portalName }: { siteId: strin
   );
 }
 
-function StaffPanel({ agencyId }: { agencyId: string }) {
-  const query = useQuery({ queryKey: ["agency-staff", agencyId], queryFn: () => loadStaff(agencyId) });
+type UserRow =
+  | { kind: "member"; key: string; name: string; email: string | undefined; role: SiteRole; lastSignIn: string | null | undefined; userId: string; created_at: string }
+  | { kind: "staff"; key: string; name: string; email: string | undefined; role: AgencyMember["role"]; lastSignIn: string | null | undefined }
+  | { kind: "invite"; key: string; email: string; role: SiteRole; invite: PendingInvite };
 
-  let body: ReactNode;
-  if (query.isPending) {
-    body = <SkeletonRows rows={2} label="Loading agency staff" />;
-  } else if (query.isError) {
-    body = (
-      <div className="p-4">
-        <Notice kind="danger" title="Agency staff could not be loaded">
-          {query.error.message}
-        </Notice>
-      </div>
-    );
-  } else if (query.data.length === 0) {
-    body = <p className="px-5 py-4 text-[13px] text-muted">No agency staff found.</p>;
-  } else {
-    body = query.data.map((row, index) => (
-      <PanelRow key={row.user_id || `staff-${index}`} icon={<Monogram name={personName(row)} />} title={personName(row)} detail={personEmail(row)} action={<Pill tone="grey">{AGENCY_ROLE_LABELS[row.role]}</Pill>} />
-    ));
-  }
+const ROLE_WORDS: Record<SiteRole, string> = { client_owner: "Owner: edits, publishes and manages the site's people", client_editor: "Editor: edits and publishes" };
 
-  return (
-    <Panel title="Agency staff" aside={<span className="text-[12px] text-muted">Always have access</span>}>
-      {body}
-    </Panel>
-  );
+async function loadUsers(siteId: string, agencyId: string): Promise<UserRow[]> {
+  const [members, invites, staff] = await Promise.all([loadMembers(siteId), loadInvites(siteId), loadStaff(agencyId)]);
+  return [
+    ...members.map((row): UserRow => ({ kind: "member", key: `m-${row.user_id}`, name: personName(row), email: personEmail(row) ?? row.profile?.email ?? undefined, role: row.role, lastSignIn: row.profile?.last_sign_in_at, userId: row.user_id, created_at: row.created_at })),
+    ...invites.map((invite): UserRow => ({ kind: "invite", key: `i-${invite.id}`, email: invite.email, role: invite.role as SiteRole, invite })),
+    ...staff.map((row, index): UserRow => ({ kind: "staff", key: `s-${row.user_id || index}`, name: personName(row), email: personEmail(row) ?? row.profile?.email ?? undefined, role: row.role, lastSignIn: row.profile?.last_sign_in_at })),
+  ];
 }
+
+const rowAction = "inline-flex min-h-8 items-center rounded-sm px-1 text-[12px] font-semibold text-accent underline-offset-2 hover:underline focus-visible:underline disabled:opacity-50";
+const rowDanger = "inline-flex min-h-8 items-center rounded-sm px-1 text-[12px] font-semibold text-red underline-offset-2 hover:underline focus-visible:underline disabled:opacity-50";
+const Sep = () => (
+  <span aria-hidden="true" className="text-line">
+    |
+  </span>
+);
 
 export function Team() {
   const { site, isStaff } = useSite();
   const { agency } = useAuth();
-  const [adding, setAdding] = useState<"invite" | "login">("invite");
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const [adding, setAdding] = useState<"invite" | "login" | null>(null);
+  const [removing, setRemoving] = useState<Extract<UserRow, { kind: "member" }> | null>(null);
+  const [resent, setResent] = useState<CreatedInvite | null>(null);
+  const query = useQuery({ queryKey: ["site-users", site.id], queryFn: () => loadUsers(site.id, site.agency_id) });
+  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ["site-users", site.id] }), queryClient.invalidateQueries({ queryKey: ["site-invites", site.id] }), queryClient.invalidateQueries({ queryKey: ["site-members", site.id] })]);
 
-  if (!isStaff) {
-    return (
-      <div className="flex flex-col gap-5">
-        <PageHeader title="Users" />
-        <Notice
-          kind="info"
-          title="Your agency manages who can sign in"
-          action={
-            <LinkButton to={`/sites/${site.id}`} variant="secondary" size="sm">
-              Back to your dashboard
-            </LinkButton>
-          }
-        >
-          {agency?.portal_name?.trim() || "The agency"} adds and removes the people who can edit {site.name}. Ask them to invite someone.
+  const changeRole = useMutation({
+    mutationFn: async ({ userId, role }: { userId: string; role: SiteRole }) => {
+      const { error } = await supabase.from("site_members").update({ role }).eq("site_id", site.id).eq("user_id", userId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: async () => {
+      toast.show("Role changed.");
+      await refresh();
+    },
+    onError: (error) => toast.show(error.message, "danger"),
+  });
+  const remove = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.from("site_members").delete().eq("site_id", site.id).eq("user_id", userId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: async () => {
+      toast.show("Access removed.");
+      await refresh();
+    },
+    onError: (error) => toast.show(error.message, "danger"),
+  });
+  const cancelInvite = useMutation({
+    mutationFn: async (inviteId: string) => {
+      const { error } = await supabase.from("invites").delete().eq("id", inviteId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: async () => {
+      toast.show("Invite cancelled.");
+      await refresh();
+    },
+    onError: (error) => toast.show(error.message, "danger"),
+  });
+  const resend = useMutation({
+    mutationFn: async (invite: PendingInvite) => {
+      const result = await callFunction<InviteCreateResponse>("invite-create", { agency_id: site.agency_id, site_id: site.id, email: invite.email, role: invite.role });
+      if (!result.ok) throw new Error(result.message);
+      return { url: result.invite_url, email: invite.email, expires_at: result.expires_at, emailed: result.emailed };
+    },
+    onSuccess: async (created) => {
+      setResent(created);
+      await refresh();
+    },
+    onError: (error) => toast.show(error.message, "danger"),
+  });
+
+  const busy = changeRole.isPending || remove.isPending || cancelInvite.isPending || resend.isPending;
+  const columns = "minmax(160px,1.6fr) minmax(180px,1.6fr) minmax(120px,1fr) 130px 130px";
+  const rows = query.data ?? [];
+  const people = rows.filter((row) => row.kind !== "invite").length;
+
+  let body: ReactNode;
+  if (query.isPending) body = <SkeletonRows rows={3} label="Loading users" />;
+  else if (query.isError)
+    body = (
+      <div className="p-4">
+        <Notice kind="danger" title="Users could not be loaded">
+          {query.error.message}
         </Notice>
       </div>
     );
-  }
+  else
+    body = (
+      <DataTable columns={columns} head={["Name", "Email", "Role", "Last login", "Status"]} label="Users" minWidth={760}>
+        {rows.map((row) => {
+          if (row.kind === "invite") {
+            const expired = row.invite.expired;
+            return (
+              <DataRow key={row.key} columns={columns} className="group" data-testid={`user-${row.email}`}>
+                <Cell>
+                  <span className="flex items-center gap-2.5">
+                    <Monogram name={row.email} />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[14px] font-semibold text-muted">Not signed up yet</span>
+                      {isStaff && (
+                        <span className="-ml-1 flex flex-wrap gap-x-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                          <button type="button" className={rowAction} disabled={busy} onClick={() => resend.mutate(row.invite)} data-testid={`resend-${row.email}`}>
+                            Resend invite
+                          </button>
+                          <Sep />
+                          <button type="button" className={rowDanger} disabled={busy} onClick={() => cancelInvite.mutate(row.invite.id)} data-testid={`cancel-${row.email}`}>
+                            Cancel invite
+                          </button>
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                </Cell>
+                <Cell>
+                  <span className="break-all">{row.email}</span>
+                </Cell>
+                <Cell muted>{SITE_ROLE_LABELS[row.role] ?? row.role}</Cell>
+                <Cell muted>—</Cell>
+                <Cell>
+                  <Pill tone={expired ? "danger" : "amber"}>{expired ? "Invite expired" : `Invited, expires ${formatDate(row.invite.expires_at)}`}</Pill>
+                </Cell>
+              </DataRow>
+            );
+          }
+          const staffRow = row.kind === "staff";
+          return (
+            <DataRow key={row.key} columns={columns} className="group" data-testid={`user-${row.email ?? row.key}`}>
+              <Cell>
+                <span className="flex items-center gap-2.5">
+                  <Monogram name={row.name} />
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold text-text">{row.name}</span>
+                    {isStaff && row.kind === "member" && (
+                      <span className="-ml-1 flex flex-wrap items-center gap-x-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+                        <label className="inline-flex items-center gap-1 text-[12px] font-semibold text-accent">
+                          <span>Change role</span>
+                          <Select value={row.role} onChange={(event) => changeRole.mutate({ userId: row.userId, role: event.target.value as SiteRole })} disabled={busy} className="h-8 w-36 text-[12px]" aria-label={`Role for ${row.name}`} data-testid={`role-${row.email ?? row.userId}`}>
+                            <option value="client_owner">{SITE_ROLE_LABELS.client_owner}</option>
+                            <option value="client_editor">{SITE_ROLE_LABELS.client_editor}</option>
+                          </Select>
+                        </label>
+                        <Sep />
+                        <button type="button" className={rowDanger} disabled={busy} onClick={() => setRemoving(row)} data-testid={`remove-${row.email ?? row.userId}`}>
+                          Remove
+                          <SrOnly> {row.name}</SrOnly>
+                        </button>
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </Cell>
+              <Cell>
+                <span className="break-all">{row.email ?? "—"}</span>
+              </Cell>
+              <Cell muted>
+                <span title={staffRow ? "Agency staff always have access" : ROLE_WORDS[row.role as SiteRole]}>{staffRow ? AGENCY_ROLE_LABELS[row.role as AgencyMember["role"]] : SITE_ROLE_LABELS[row.role as SiteRole]}</span>
+              </Cell>
+              <Cell muted>{row.lastSignIn ? <span title={formatDate(row.lastSignIn)}>{relativeTime(row.lastSignIn)}</span> : "—"}</Cell>
+              <Cell>
+                <Pill tone="green">Active</Pill>
+              </Cell>
+            </DataRow>
+          );
+        })}
+      </DataTable>
+    );
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Users" description={`Who can edit ${site.name}, and how new people get in.`} />
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-5">
-          <MembersPanel siteId={site.id} />
-          <InvitesPanel siteId={site.id} />
-          <StaffPanel agencyId={site.agency_id} />
-        </div>
-        <Panel
-          title="Add a client"
-          aside={
+      <PageHeader
+        title="Users"
+        description={isStaff ? `Who can sign in to edit ${site.name}, and how new people get in.` : `Who can sign in to edit ${site.name}. ${agency?.portal_name?.trim() || "The agency"} adds and removes people; ask them to invite someone.`}
+        meta={query.data ? <span>{people} {people === 1 ? "person" : "people"}{rows.length - people > 0 ? `, ${rows.length - people} invited` : ""}</span> : undefined}
+        action={
+          isStaff ? (
+            <Button onClick={() => setAdding("invite")} data-testid="add-user">
+              <IconPlus size={16} /> Add User
+            </Button>
+          ) : undefined
+        }
+      />
+      {resent && <InviteLinkNotice invite={resent} onDismiss={() => setResent(null)} />}
+      <div className="rounded-card border border-line bg-panel">{body}</div>
+      {isStaff && (
+        <p className="text-[13px] text-muted">
+          Roles in plain words: an <strong>owner</strong> edits, publishes and manages the site's people; an <strong>editor</strong> edits and publishes. Agency staff always have access. Last login shows once the site's database has migration 20260923000200.
+        </p>
+      )}
+
+      {isStaff && (
+        <Modal
+          open={adding !== null}
+          onClose={() => setAdding(null)}
+          title="Add a user"
+        >
+          <div className="flex flex-col gap-4">
             <Segmented
               label="How to add them"
-              value={adding}
-              onChange={setAdding}
+              value={adding ?? "invite"}
+              onChange={(value) => setAdding(value)}
               options={[
-                { value: "invite", label: "Invite by link" },
-                { value: "login", label: "Create client login" },
+                { value: "invite", label: "Send an invite" },
+                { value: "login", label: "Create a login" },
               ]}
             />
-          }
-        >
-          {adding === "invite" ? (
-            <InviteForm siteId={site.id} agencyId={site.agency_id} />
-          ) : (
-            <CreateClientLoginForm siteId={site.id} agencyId={site.agency_id} portalName={agency?.portal_name?.trim() || "your editing dashboard"} />
-          )}
-        </Panel>
-      </div>
+            <div className="-mx-5 border-t border-line">
+              {adding === "login" ? <CreateClientLoginForm siteId={site.id} agencyId={site.agency_id} portalName={agency?.portal_name?.trim() || "the client portal"} /> : <InviteForm siteId={site.id} agencyId={site.agency_id} />}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <Modal
+        open={removing !== null}
+        onClose={() => setRemoving(null)}
+        title="Remove this person?"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setRemoving(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" loading={remove.isPending} data-testid="remove-confirm" onClick={() => removing && remove.mutate(removing.userId, { onSettled: () => setRemoving(null) })}>
+              Remove access
+            </Button>
+          </>
+        }
+      >
+        <p className="text-[14px] leading-relaxed text-text">{removing?.name} will no longer be able to sign in to {site.name}. Their account itself is kept; invite them again at any time.</p>
+      </Modal>
     </div>
   );
 }

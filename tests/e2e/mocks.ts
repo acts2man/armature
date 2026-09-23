@@ -182,13 +182,37 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
       const countOf = (n: number) => json(route, [], 200, { "content-range": `0-${Math.max(0, n - 1)}/${n}` });
       switch (table) {
         case "agency_members":
+          if (url.searchParams.has("agency_id")) return json(route, [{ agency_id: AGENCY_ID, user_id: STAFF_ID, role: "owner", created_at: "2026-09-01T00:00:00Z" }]);
           return json(route, role === "staff" ? [{ role: "owner", agency }] : []);
-        case "site_members":
-          return json(route, role === "client" ? [{ role: "client_owner", site }] : []);
+        case "site_members": {
+          // Auth's membership read (no site_id filter) versus the Users screen's table.
+          if (!url.searchParams.has("site_id")) return json(route, role === "client" ? [{ role: "client_owner", site }] : []);
+          const rows = (state.rows["site_members"] ??= [{ site_id: SITE_ID, user_id: CLIENT_ID, role: "client_owner", created_at: "2026-09-02T09:00:00Z" }]);
+          const matches = (row: Record<string, unknown>) => [...url.searchParams].every(([column, filter]) => !filter.startsWith("eq.") || String(row[column]) === filter.slice(3));
+          if (request.method() === "PATCH") {
+            const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+            for (const row of rows) if (matches(row)) Object.assign(row, patch);
+            return json(route, rows.filter(matches));
+          }
+          if (request.method() === "DELETE") {
+            state.rows["site_members"] = rows.filter((row) => !matches(row));
+            return json(route, []);
+          }
+          return json(route, rows.filter(matches));
+        }
+        case "invites": {
+          const rows = (state.rows["invites"] ??= []);
+          const matches = (row: Record<string, unknown>) => [...url.searchParams].every(([column, filter]) => (filter.startsWith("eq.") ? String(row[column]) === filter.slice(3) : filter === "is.null" ? row[column] === null || row[column] === undefined : true));
+          if (request.method() === "DELETE") {
+            state.rows["invites"] = rows.filter((row) => !matches(row));
+            return json(route, []);
+          }
+          return json(route, rows.filter(matches));
+        }
         case "agencies":
           return json(route, [agency]);
         case "profiles":
-          return json(route, [{ id: STAFF_ID, email: "dana@agency.example", full_name: "Dana Whitfield" }, { id: CLIENT_ID, email: "sam@alderstone.example", full_name: "Sam Alder" }]);
+          return json(route, [{ id: STAFF_ID, email: "dana@agency.example", full_name: "Dana Whitfield", created_at: "2026-09-01T00:00:00Z", last_sign_in_at: new Date(Date.now() - 3600_000).toISOString() }, { id: CLIENT_ID, email: "sam@alderstone.example", full_name: "Sam Alder", created_at: "2026-09-02T00:00:00Z", last_sign_in_at: "2026-09-20T15:00:00Z" }]);
         case "sites":
           if (wantsCount) return countOf(1);
           if (request.method() === "PATCH") {
@@ -381,6 +405,14 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             images: [],
             slugs: (body["pages"] as { slug: string }[]).map((page) => page.slug),
           });
+        case "invite-create": {
+          const email = String(body["email"] ?? "").toLowerCase();
+          const rows = (state.rows["invites"] ??= []);
+          const id = `inv-${rows.length + 1}`;
+          const expires = new Date(Date.now() + 7 * 86_400_000).toISOString();
+          rows.unshift({ id, agency_id: AGENCY_ID, site_id: body["site_id"] ?? null, email, role: body["role"], expires_at: expires, accepted_at: null, created_by: STAFF_ID, created_at: new Date().toISOString() });
+          return json(route, { ok: true, invite_id: id, invite_url: `http://localhost:5173/invite/token-${id}`, expires_at: expires, emailed: false });
+        }
         case "site-embed-check":
           return json(route, { ok: true, url: site.live_url, ...(options.embed ?? { reachable: true, status: 200, xFrameOptions: null, frameAncestors: null }) });
         default:

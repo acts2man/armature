@@ -52,7 +52,7 @@ export function siteNavItems({ root, isStaff, hostingOnly }: SiteNavContext): Si
     { key: "pages", to: `${root}/pages`, label: "Pages", icon: IconPage, blurb: "every page, ready to edit", show: !hostingOnly },
     { key: "contact", to: `${root}/contact`, label: "Contact", icon: IconInbox, blurb: "messages from the site's forms", show: true },
     { key: "appearance", to: `${root}/appearance`, label: "Appearance", icon: IconPalette, blurb: "colours, fonts, header and footer", show: !hostingOnly },
-    { key: "users", to: `${root}/users`, label: "Users", icon: IconTeam, blurb: "who can sign in", show: isStaff },
+    { key: "users", to: `${root}/users`, label: "Users", icon: IconTeam, blurb: "who can sign in", show: true },
     { key: "settings", to: `${root}/settings`, label: "Site settings", icon: IconSettings, blurb: "the connection, hosting and what the client may edit", show: isStaff },
   ];
   return all.filter((item) => item.show && BUILT[item.key]).map(({ show: _show, ...item }) => item);
