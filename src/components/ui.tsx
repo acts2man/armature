@@ -552,7 +552,7 @@ export function Segmented<T extends string>({
 /** Route tabs with an accent underline. */
 export function TabBar({ children, label }: { children: ReactNode; label: string }) {
   return (
-    <nav aria-label={label} className="-mb-px flex gap-1 overflow-x-auto">
+    <nav aria-label={label} className="-mb-px flex flex-wrap gap-1 sm:flex-nowrap sm:overflow-x-auto">
       {children}
     </nav>
   );

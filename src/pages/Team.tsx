@@ -516,8 +516,8 @@ function StaffPanel({ agencyId }: { agencyId: string }) {
   } else if (query.data.length === 0) {
     body = <p className="px-5 py-4 text-[13px] text-muted">No agency staff found.</p>;
   } else {
-    body = query.data.map((row) => (
-      <PanelRow key={row.user_id} icon={<Monogram name={personName(row)} />} title={personName(row)} detail={personEmail(row)} action={<Pill tone="grey">{AGENCY_ROLE_LABELS[row.role]}</Pill>} />
+    body = query.data.map((row, index) => (
+      <PanelRow key={row.user_id || `staff-${index}`} icon={<Monogram name={personName(row)} />} title={personName(row)} detail={personEmail(row)} action={<Pill tone="grey">{AGENCY_ROLE_LABELS[row.role]}</Pill>} />
     ));
   }
 

@@ -1001,7 +1001,7 @@ function Editor({ slug }: { slug: string }) {
       )}
 
       {page && section ? (
-        <div className="grid items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]">
           <aside className="rounded-card border border-line bg-panel p-2 lg:sticky lg:top-[68px]">
             <div className="mb-1 hidden px-2.5 pt-1 text-[12px] font-semibold text-muted lg:block">Sections</div>
             {sectionList}
@@ -1037,7 +1037,7 @@ function Editor({ slug }: { slug: string }) {
       ) : page ? (
         <Notice title="Nothing to edit on this page">This page has no editable sections.</Notice>
       ) : connection.kind === "connecting" ? (
-        <div className="grid items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]" role="status" aria-label="Loading content">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-4 lg:grid-cols-[264px_minmax(0,1fr)]" role="status" aria-label="Loading content">
           <div className="space-y-2 rounded-card border border-line bg-panel p-3">
             <Skeleton className="w-24" />
             <Skeleton className="w-32" />

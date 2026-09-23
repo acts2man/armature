@@ -7,6 +7,15 @@ const executablePath = existsSync(localChromium) ? localChromium : undefined;
 
 const DASHBOARD = "http://localhost:5173";
 const DEMO_SITE = "http://localhost:5174";
+/**
+ * The first real converted site (acts2man/treetestprep, branch armature/git-content),
+ * cloned next to this repository and run with its own dev server. Set REAL_SITE_DIR to
+ * its folder to run tests/e2e/real-site.spec.ts against it; without it those tests skip
+ * (CI has no clone). The site's own copy must allow http://localhost:5173 in
+ * ARMATURE_EDITOR_ORIGINS (src/lib/armature.ts) — a local-only edit, never committed.
+ */
+const REAL_SITE_DIR = process.env["REAL_SITE_DIR"];
+const REAL_SITE = process.env["REAL_SITE_URL"] ?? "http://localhost:5175";
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -44,5 +53,16 @@ export default defineConfig({
       reuseExistingServer: !process.env["CI"],
       timeout: 60_000,
     },
+    ...(REAL_SITE_DIR
+      ? [
+          {
+            command: "bun run dev -- --port 5175 --host",
+            cwd: REAL_SITE_DIR,
+            url: REAL_SITE,
+            reuseExistingServer: true,
+            timeout: 120_000,
+          },
+        ]
+      : []),
   ],
 });

@@ -13,7 +13,7 @@ import { plural, shortSha } from "@/lib/format.ts";
 import { isHostingOnly } from "@/lib/services.ts";
 import { describeProblem } from "@shared/builder/index.ts";
 import type { FileProblem } from "@shared/publishTypes.ts";
-import type { PageDefinition } from "@shared/schema.ts";
+import { SHARED_SLUG, type PageDefinition } from "@shared/schema.ts";
 
 /** The page's address on the live site, or null when the site has no live URL yet. */
 function liveHref(liveUrl: string | null, path: string): string | null {
@@ -21,10 +21,12 @@ function liveHref(liveUrl: string | null, path: string): string | null {
   return `${liveUrl.replace(/\/+$/, "")}${path}`;
 }
 
-function PageCard({ siteId, liveUrl, page }: { siteId: string; liveUrl: string | null; page: PageDefinition }) {
+function PageCard({ siteId, liveUrl, page, builder = false }: { siteId: string; liveUrl: string | null; page: PageDefinition; /** A page built in the visual editor: no form fields, only the canvas. */ builder?: boolean }) {
   const fieldCount = page.sections.reduce((total, section) => total + section.fields.length, 0);
   const href = liveHref(liveUrl, page.path);
   const editTo = `/sites/${siteId}/pages/${page.slug}`;
+  // The shared header & footer is not a page of its own: its words edit here or on any page in the visual editor.
+  const chrome = page.slug === SHARED_SLUG;
 
   return (
     <Card as="article" className="flex flex-col justify-between gap-3">
@@ -50,21 +52,24 @@ function PageCard({ siteId, liveUrl, page }: { siteId: string; liveUrl: string |
               <span className="break-all font-mono">{page.path}</span>
             )}
             <span>·</span>
-            <span>
-              {plural(page.sections.length, "section")}, {plural(fieldCount, "field")}
-            </span>
+            <span>{builder ? "Built in the visual editor" : `${plural(page.sections.length, "section")}, ${plural(fieldCount, "field")}`}</span>
           </p>
+          {chrome && <p className="mt-1.5 text-[12px] leading-relaxed text-muted">Shown on every page. Its words and pictures also edit by clicking them on any page in the visual editor.</p>}
         </div>
       </div>
       <div className="flex justify-end gap-2">
-        <Link to={editTo} className="inline-flex h-9 items-center gap-2 rounded-control border border-line bg-panel px-4 text-[14px] font-semibold text-text hover:bg-ground">
-          Edit fields
-          <SrOnly> of {page.label}</SrOnly>
-        </Link>
-        <Link to={`/sites/${siteId}/visual?page=${encodeURIComponent(page.slug)}`} className="inline-flex h-9 items-center gap-2 rounded-control bg-accent px-4 text-[14px] font-semibold text-accent-fg hover:opacity-90" data-testid={`edit-visually-${page.slug}`}>
-          <IconPencil size={16} /> Edit visually
-          <SrOnly> {page.label}</SrOnly>
-        </Link>
+        {!builder && (
+          <Link to={editTo} className="inline-flex h-9 items-center gap-2 rounded-control border border-line bg-panel px-4 text-[14px] font-semibold text-text hover:bg-ground">
+            Edit fields
+            <SrOnly> of {page.label}</SrOnly>
+          </Link>
+        )}
+        {!chrome && (
+          <Link to={`/sites/${siteId}/visual?page=${encodeURIComponent(page.slug)}`} className="inline-flex h-9 items-center gap-2 rounded-control bg-accent px-4 text-[14px] font-semibold text-accent-fg hover:opacity-90" data-testid={`edit-visually-${page.slug}`}>
+            <IconPencil size={16} /> Edit visually
+            <SrOnly> {page.label}</SrOnly>
+          </Link>
+        )}
       </div>
     </Card>
   );
@@ -205,6 +210,13 @@ function ConnectedPages() {
             {loaded.schema.pages.map((page) => (
               <PageCard key={page.slug} siteId={site.id} liveUrl={site.live_url} page={page} />
             ))}
+            {/* Pages created in the visual editor live only as layouts; they are pages too. */}
+            {Object.values(loaded.layouts ?? {})
+              .filter((layout) => !loaded.schema.pages.some((page) => page.slug === layout.pageSlug))
+              .sort((a, b) => (a.label ?? a.pageSlug).localeCompare(b.label ?? b.pageSlug))
+              .map((layout) => (
+                <PageCard key={layout.pageSlug} siteId={site.id} liveUrl={site.live_url} page={{ slug: layout.pageSlug, label: layout.label ?? layout.pageSlug, path: layout.path, sections: [] }} builder />
+              ))}
           </div>
         )}
       </div>

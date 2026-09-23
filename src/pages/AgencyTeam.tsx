@@ -245,12 +245,12 @@ function StaffPanel({ agencyId }: { agencyId: string }) {
       </div>
     );
   } else {
-    body = query.data.map((row) => {
+    body = query.data.map((row, index) => {
       const name = row.profile?.full_name?.trim() || row.profile?.email?.trim() || "Unknown";
       const email = row.profile?.email?.trim();
       return (
         <PanelRow
-          key={row.user_id}
+          key={row.user_id || `staff-${index}`}
           icon={<Monogram name={name} size="md" />}
           title={name}
           detail={email && email !== name ? email : undefined}
