@@ -1,5 +1,13 @@
 /** Addresses for pages built in the editor: a slug from a title, and why a path cannot be used. */
+import type { PageDefinition } from "@shared/schema.ts";
 import { normalizePath } from "@/visual/pages.ts";
+
+/** Every page's normalized address except the given slug, for address validation. */
+export function takenAddresses(pages: PageDefinition[], exceptSlug?: string): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const page of pages) if (page.slug !== exceptSlug) map.set(normalizePath(page.path), page.label);
+  return map;
+}
 
 export const slugFromTitle = (title: string): string =>
   title

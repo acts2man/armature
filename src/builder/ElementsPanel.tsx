@@ -1,7 +1,8 @@
 /**
- * The Elements panel: every widget, grouped and searchable, plus the site's registered
- * sections and (later) saved templates. Drag an item onto the page, or click it to
- * insert after the selection.
+ * The Elements mode of the left panel (Elementor-style): a header, a Widgets / Globals
+ * tab pair, a search box and the widget tiles in a two-column grid. Drag a tile onto the
+ * page, or click it to insert after the selection. The Globals tab holds the site's
+ * global colours, fonts and typography presets.
  */
 import { clsx } from "clsx";
 import { useMemo, useState, type ReactNode } from "react";
@@ -30,6 +31,9 @@ export function ElementsPanel({
   onStructure,
   templates = [],
   onOpenLibrary,
+  globals,
+  showGlobals = false,
+  canAdd = true,
 }: {
   isStaff: boolean;
   sections: SiteSectionInfo[];
@@ -41,7 +45,13 @@ export function ElementsPanel({
   /** Saved section templates (this site's and the agency's). */
   templates?: { id: string; name: string; create: () => Element; count: number }[];
   onOpenLibrary?: () => void;
+  /** The Globals tab body: global colours, fonts and typography (the site kit). */
+  globals?: ReactNode;
+  showGlobals?: boolean;
+  /** The style level cannot add widgets: hide the widget tiles, keep Globals. */
+  canAdd?: boolean;
 }) {
+  const [tab, setTab] = useState<"widgets" | "globals">(canAdd ? "widgets" : "globals");
   const [query, setQuery] = useState("");
   const groups = useMemo(() => {
     const definitions = widgetDefinitions().filter((definition) => isStaff || !definition.agencyOnly);
@@ -81,9 +91,32 @@ export function ElementsPanel({
     .map((group) => ({ ...group, items: needle ? group.items.filter((item) => item.keywords.some((keyword) => keyword.toLowerCase().includes(needle))) : group.items }))
     .filter((group) => group.items.length > 0);
 
+  const showWidgets = tab === "widgets" && canAdd;
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="elements-panel">
-      <div className="px-3 pb-2">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-4 pb-2.5 pt-3.5">
+        <h2 className="font-display text-[16px] font-semibold text-text">Elements</h2>
+      </div>
+      {showGlobals && (
+        <div className="px-3 pb-2 pt-2">
+          <div role="tablist" aria-label="Elements or globals" className="flex gap-0.5 rounded-control bg-ground p-0.5">
+            {(canAdd ? (["widgets", "globals"] as const) : (["globals"] as const)).map((item) => (
+              <button key={item} type="button" role="tab" aria-selected={tab === item} data-testid={`tab-${item}`} onClick={() => setTab(item)} className={clsx("h-8 flex-1 rounded-sm text-[12px] font-semibold capitalize", tab === item ? "bg-panel text-text shadow-segment" : "text-muted hover:text-text")}>
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {tab === "globals" && showGlobals ? (
+        <div className="min-h-0 flex-1 overflow-y-auto" data-testid="globals-panel">
+          {globals}
+        </div>
+      ) : !showWidgets ? (
+        <p className="px-4 py-6 text-[13px] leading-relaxed text-muted">Your account can restyle this page and its global colours and fonts, but not add elements. Use the Globals tab.</p>
+      ) : (
+      <>
+      <div className="px-3 pb-2 pt-2">
         <label htmlFor="elements-search" className="sr-only">
           Search elements
         </label>
@@ -164,6 +197,8 @@ export function ElementsPanel({
           </section>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }

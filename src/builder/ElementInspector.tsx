@@ -5,8 +5,8 @@
  * Hover states. Every change is one named undo step; typing and scrubbing merge.
  */
 import { clsx } from "clsx";
-import { useMemo, useState } from "react";
-import { IconChevronRight, IconLock } from "@/components/icons.tsx";
+import { useMemo, useState, type ReactNode } from "react";
+import { IconChevronRight, IconGauge, IconGrid, IconLayout, IconLock, IconPencil, IconSettings } from "@/components/icons.tsx";
 import { Button } from "@/components/ui.tsx";
 import type { Device, SiteKit } from "@shared/builder/index.ts";
 import { ControlRenderer, type ControlTarget } from "./controls/ControlRenderer.tsx";
@@ -22,6 +22,8 @@ export type ElementInspectorActions = {
   onSetPath: (id: string, path: string[], value: unknown, label: string, group?: string) => void;
   onEditOnPage: (id: string) => void;
   onRename: (id: string, label: string) => void;
+  /** The grid icon in the header: leave Edit mode and go back to Elements. */
+  onBackToElements: () => void;
   /** Opens the media library; the chosen picture comes back through onPick. */
   onPickImage?: (onPick: (src: string, alt: string) => void) => void;
 };
@@ -109,7 +111,24 @@ export function ElementInspector({
 
   let body;
   if (tab === "content") {
-    body = content ? <ControlRenderer inset target={target} specs={content} /> : <p className="px-5 py-4 text-[13px] leading-relaxed text-muted">This element type is not supported by this editor version.</p>;
+    const siteSectionNote =
+      element.type === "site-section" ? (
+        <div className="mx-5 mt-3 rounded-control border border-line bg-ground/60 p-3 text-[12px] leading-relaxed text-muted" data-testid="site-section-note">
+          {isStaff ? "This section is coded in the site's repository. To make its layout fully editable here, convert it to builder elements in the site's repo." : "This section is looked after by your agency. To change its layout, ask your agency to make this section fully editable."}
+          <span className="mt-1.5 block text-text">Its text and pictures are still editable — click them on the page.</span>
+        </div>
+      ) : null;
+    body = content ? (
+      <>
+        {siteSectionNote}
+        <ControlRenderer inset target={target} specs={content} />
+      </>
+    ) : (
+      <>
+        {siteSectionNote}
+        {element.type !== "site-section" && <p className="px-5 py-4 text-[13px] leading-relaxed text-muted">This element type is not supported by this editor version.</p>}
+      </>
+    );
   } else if (restyleBlocked) {
     body = (
       <p className="flex items-start gap-1.5 px-5 py-4 text-[13px] leading-relaxed text-muted">
@@ -135,31 +154,45 @@ export function ElementInspector({
     body = <ControlRenderer inset target={target} specs={advancedSpecs(flexParent)} />;
   }
 
+  const isContainer = element.type === "container" || element.type === "grid";
+  const tabs: { key: InspectorTab; label: string; icon: ReactNode }[] = [
+    { key: "content", label: isContainer ? "Layout" : "Content", icon: isContainer ? <IconLayout size={16} /> : <IconPencil size={16} /> },
+    { key: "style", label: "Style", icon: <IconGauge size={16} /> },
+    { key: "advanced", label: "Advanced", icon: <IconSettings size={16} /> },
+  ];
+
   return (
     <>
-      <div className="flex flex-col gap-2.5 border-b border-line px-5 pb-3 pt-4">
-        <Crumbs state={state} slug={slug} id={id} onSelect={actions.onSelect} />
-        <div className="flex items-center justify-between gap-2">
-          <input
-            aria-label="Element name"
-            value={element.label ?? ""}
-            placeholder={widgetLabel(element.type)}
-            onChange={(event) => actions.onRename(element.id, event.target.value)}
-            className="h-8 min-w-0 flex-1 rounded-sm border border-transparent bg-transparent px-1 font-display text-[18px] font-semibold text-text hover:border-line focus:border-accent"
-          />
+      <div className="flex flex-col gap-2.5 border-b border-line px-4 pb-3 pt-3">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={actions.onBackToElements} aria-label="Back to Elements" title="Back to Elements" data-testid="edit-back" className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-control text-muted hover:bg-ground hover:text-text">
+            <IconGrid size={18} />
+          </button>
+          <h2 className="min-w-0 flex-1 truncate font-display text-[16px] font-semibold text-text" data-testid="edit-title">
+            Edit {widgetLabel(element.type)}
+          </h2>
           <span className="rounded-sm bg-ground px-2 py-1 font-mono text-[11px] text-muted" title={element.id}>
             {element.type}
           </span>
         </div>
+        <Crumbs state={state} slug={slug} id={id} onSelect={actions.onSelect} />
+        <input
+          aria-label="Element name"
+          value={element.label ?? ""}
+          placeholder={widgetLabel(element.type)}
+          onChange={(event) => actions.onRename(element.id, event.target.value)}
+          className="h-8 w-full rounded-sm border border-transparent bg-ground px-2 text-[13px] font-medium text-text hover:border-line focus:border-accent focus:bg-panel"
+        />
         {locked && (
           <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted">
             <IconLock size={13} /> Locked by {agencyName}: it cannot be moved, deleted or restyled.
           </p>
         )}
         <div role="tablist" aria-label="Inspector tabs" className="flex gap-0.5 rounded-control bg-ground p-0.5">
-          {(["content", "style", "advanced"] as InspectorTab[]).map((item) => (
-            <button key={item} type="button" role="tab" aria-selected={tab === item} data-testid={`inspector-tab-${item}`} onClick={() => setTab(item)} className={clsx("h-8 flex-1 rounded-sm text-[12px] font-semibold capitalize", tab === item ? "bg-panel text-text shadow-segment" : "text-muted hover:text-text")}>
-              {item}
+          {tabs.map((item) => (
+            <button key={item.key} type="button" role="tab" aria-selected={tab === item.key} title={item.label} data-testid={`inspector-tab-${item.key}`} onClick={() => setTab(item.key)} className={clsx("flex h-8 flex-1 items-center justify-center gap-1.5 rounded-sm text-[12px] font-semibold", tab === item.key ? "bg-panel text-text shadow-segment" : "text-muted hover:text-text")}>
+              {item.icon}
+              <span>{item.label}</span>
             </button>
           ))}
         </div>

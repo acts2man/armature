@@ -108,11 +108,30 @@ const center = (box: { x: number; y: number; width: number; height: number } | n
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 };
 
+/** Open the Elements mode of the single left panel (the top bar's + button). */
+async function openElements(page: Page) {
+  await page.getByTestId("topbar-add").click();
+  await expect(page.getByTestId("elements-panel")).toBeVisible();
+}
+
+/** Open the Globals tab (global colours and fonts) inside the Elements panel. */
+async function openGlobals(page: Page) {
+  await page.getByTestId("topbar-add").click();
+  await page.getByTestId("tab-globals").click();
+}
+
+/** Select a container/element by clicking its top-left corner (its padding, not a child). */
+async function selectByCorner(frame: FrameLocator, selector: string) {
+  await frame.locator(selector).scrollIntoViewIfNeeded();
+  await frame.locator(selector).page().waitForTimeout(150);
+  await frame.locator(selector).click({ position: { x: 5, y: 5 } });
+}
+
 test.describe("the page builder canvas", () => {
   test("drags a widget from the Elements panel into a container, then undoes it", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     const item = page.getByTestId("element-heading");
     await frame.locator(".ae-txtbuild").scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
@@ -138,15 +157,18 @@ test.describe("the page builder canvas", () => {
   test("refuses an invalid drop and cancels with Escape", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-navigator").click();
-    await page.getByTestId("nav-rowbuild").click();
+    // Select the row that holds the text: click the text, then walk up to its row.
+    await frame.locator(".ae-txtbuild").scrollIntoViewIfNeeded();
+    await frame.locator(".ae-txtbuild").click();
+    await page.keyboard.press("ArrowLeft"); // the column
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "colrigh1");
+    await page.keyboard.press("ArrowLeft"); // the row
     await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "rowbuild");
     const move = page.getByTestId("element-move");
-    await frame.locator(".ae-txtbuild").scrollIntoViewIfNeeded();
     await page.waitForTimeout(200);
     const inside = await frame.locator(".ae-txtbuild").boundingBox();
     await dragTo(page, center(await move.boundingBox()), center(inside));
-    // A container cannot be dropped inside itself: no indicator, a "Not here" ghost.
+    // A container cannot be dropped inside one of its own descendants: no indicator, a "Not here" ghost.
     await expect(page.getByTestId("drop-line")).toHaveCount(0);
     await expect(page.getByTestId("drag-ghost")).toContainText("Not here");
     await page.keyboard.press("Escape");
@@ -169,28 +191,21 @@ test.describe("the page builder canvas", () => {
     await expect(page.getByTestId("history-steps")).toHaveText("1");
   });
 
-  test("reorders and re-nests through the Navigator", async ({ page }) => {
+  test("renames an element in the panel and hides it on a device from the context menu", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-navigator").click();
-    await expect(page.getByTestId("nav-secbuild")).toBeVisible();
-    const dataTransfer = await page.evaluateHandle(() => new DataTransfer());
-    // Drop the FAQ section before the builder section (top half of the row = before).
-    const target = page.getByTestId("nav-secbuild");
-    await page.getByTestId("nav-secfaq01").dispatchEvent("dragstart", { dataTransfer });
-    const box = await target.boundingBox();
-    await target.dispatchEvent("dragover", { dataTransfer, clientX: (box?.x ?? 0) + 10, clientY: (box?.y ?? 0) + 3 });
-    await target.dispatchEvent("drop", { dataTransfer, clientX: (box?.x ?? 0) + 10, clientY: (box?.y ?? 0) + 3 });
-    const order = await frame.locator(".ae-root > [data-ae-id]").evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-ae-id")));
-    expect(order).toEqual(["sechero1", "secfaq01", "secbuild", "secservi"]);
-    // Rename through the Navigator and see it in the inspector.
-    await page.getByTestId("nav-hdbuilds").dblclick();
-    await page.getByTestId("navigator").getByLabel("Element name").fill("Builds title");
-    await page.keyboard.press("Enter");
-    await expect(page.getByTestId("nav-hdbuilds")).toContainText("Builds title");
-    // Hide on phone: the badge shows, the element stays visible at 40%.
-    await page.getByTestId("nav-hdbuilds").hover();
-    await page.getByRole("button", { name: "Hide on mobile" }).click();
+    await frame.locator(".ae-hdbuilds").click();
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Heading");
+    // Rename in the Edit panel's name field; re-selecting keeps it.
+    await page.getByLabel("Element name").fill("Builds title");
+    await frame.locator(".ae-btnbuild").scrollIntoViewIfNeeded();
+    await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await frame.locator(".ae-hdbuilds").click();
+    await expect(page.getByLabel("Element name")).toHaveValue("Builds title");
+    await expect(page.getByTestId("breadcrumbs")).toContainText("Builds title");
+    // Hide on phone from the context menu: the badge shows, the element stays visible at 40%.
+    await frame.locator(".ae-hdbuilds").click({ button: "right" });
+    await page.getByRole("menuitem", { name: "Hide on mobile" }).click();
     await expect(page.getByTestId("element-overlays").getByText("Hidden on mobile")).toBeVisible();
     await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("opacity", "0.4");
   });
@@ -198,7 +213,7 @@ test.describe("the page builder canvas", () => {
   test("adds a section from the structure picker and fills its empty column", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await page.getByTestId("add-section").click();
     await page.getByTestId("pick-structure-50-50").click();
     const section = frame.locator(".ae-root > .ae-container").last();
@@ -208,6 +223,7 @@ test.describe("the page builder canvas", () => {
     // Click-insert goes into the empty column once it is selected.
     const column = section.locator(".ae-con-inner > .ae-container > .ae-con-inner > .ae-container").first();
     await column.click({ position: { x: 10, y: 10 } });
+    await openElements(page);
     await page.getByTestId("element-button").click();
     await expect(column.locator(".ae-button")).toHaveCount(1);
   });
@@ -282,14 +298,66 @@ test.describe("the page builder canvas", () => {
     await openEditor(page, { role: "client", editingLevel: "builder", layouts: lockedLayouts() });
     await waitForReady(page);
     await expect(page.getByTestId("visual-editor")).toHaveAttribute("data-builder", "on");
+    await page.getByRole("button", { name: /Phone view/ }).click();
     const frame = siteFrame(page);
     await frame.locator(".ae-hdbuilds").click();
     await expect(page.getByText("Locked by the agency")).toBeVisible();
     await expect(page.getByTestId("element-toolbar")).toHaveCount(0);
     await page.keyboard.press("Delete");
     await expect(frame.locator(".ae-hdbuilds")).toHaveCount(1);
+    await frame.locator(".ae-btnbuild").scrollIntoViewIfNeeded();
     await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
     await expect(page.getByTestId("element-toolbar")).toBeVisible();
+  });
+});
+
+test.describe("the single left panel", () => {
+  test("swaps between Elements and Edit for each element type; Esc and the grid icon return to Elements", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    // Scroll a target to the top of the frame (so a higher section's image target cannot
+    // overlap it) and select it.
+    const pick = async (selector: string, opts?: { position: { x: number; y: number } }) => {
+      await frame.locator(selector).evaluate((node) => node.scrollIntoView({ block: "start" }));
+      await page.waitForTimeout(150);
+      await frame.locator(selector).click(opts);
+    };
+    // Default and after deselect: Elements mode.
+    await expect(page.getByTestId("elements-panel")).toBeVisible();
+    // A heading opens Edit Heading and hides Elements.
+    await pick(".ae-hdbuilds");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Heading");
+    await expect(page.getByTestId("elements-panel")).toHaveCount(0);
+    // Selecting another element swaps the panel instantly.
+    await pick(".ae-txtbuild");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Text");
+    await pick(".ae-imgbuild img");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Image");
+    await pick(".ae-btnbuild", { position: { x: 4, y: 4 } });
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Button");
+    // A container's first tab is Layout.
+    await pick(".ae-secbuild", { position: { x: 5, y: 5 } });
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Container");
+    await expect(page.getByTestId("inspector-tab-content")).toContainText("Layout");
+    // The grid icon in the Edit header returns to Elements.
+    await page.getByTestId("edit-back").click();
+    await expect(page.getByTestId("elements-panel")).toBeVisible();
+    // Esc returns to Elements and clears the selection.
+    await pick(".ae-hdbuilds");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Heading");
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("elements-panel")).toBeVisible();
+    await expect(page.getByTestId("element-selection")).toHaveCount(0);
+  });
+
+  test("collapses to give the canvas the window, and restores", async ({ page }) => {
+    await openBuilder(page);
+    await expect(page.getByTestId("elements-panel")).toBeVisible();
+    await page.getByTestId("panel-collapse").click();
+    await expect(page.getByTestId("elements-panel")).toHaveCount(0);
+    await expect(page.getByTestId("builder-panel")).toHaveAttribute("data-collapsed", "1");
+    await page.getByTestId("panel-collapse").click();
+    await expect(page.getByTestId("elements-panel")).toBeVisible();
   });
 });
 
@@ -309,9 +377,10 @@ test.describe("editing levels", () => {
     await openEditor(page, { role: "client", editingLevel: "style" });
     await waitForReady(page);
     await expect(page.getByTestId("visual-editor")).toHaveAttribute("data-builder", "on");
-    await expect(page.getByTestId("tab-elements")).toHaveCount(0);
-    await expect(page.getByTestId("tab-media")).toHaveCount(0);
-    await expect(page.getByTestId("new-page")).toHaveCount(0);
+    // The style level cannot add elements: the panel offers only Globals, no Widgets tab.
+    await page.getByTestId("topbar-add").click();
+    await expect(page.getByTestId("tab-widgets")).toHaveCount(0);
+    await expect(page.getByTestId("tab-globals")).toBeVisible();
     const frame = siteFrame(page);
     await frame.locator(".ae-hdbuilds").click();
     await page.keyboard.press("Delete");
@@ -321,7 +390,7 @@ test.describe("editing levels", () => {
     await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeDisabled();
     await page.keyboard.press("Escape");
     // Restyling is allowed: a site colour, and the page's own layout.
-    await page.getByTestId("tab-site").click();
+    await openGlobals(page);
     await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#aa0000");
     await expect(page.getByTestId("draft-status")).toContainText("1 unpublished change");
   });
@@ -378,6 +447,7 @@ test.describe("the inspector", () => {
   test("hover styles, spacing on the Advanced tab, and the agency-only groups", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
+    await frame.locator(".ae-btnbuild").scrollIntoViewIfNeeded();
     await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
     await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "btnbuild");
     await page.getByTestId("inspector-tab-style").click();
@@ -408,6 +478,8 @@ test.describe("the inspector", () => {
   test("a client does not see the agency-only groups", async ({ page }) => {
     await openEditor(page, { role: "client", editingLevel: "builder" });
     await waitForReady(page);
+    await page.getByRole("button", { name: /Phone view/ }).click();
+    await siteFrame(page).locator(".ae-btnbuild").scrollIntoViewIfNeeded();
     await siteFrame(page).locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
     await page.getByTestId("inspector-tab-advanced").click();
     await expect(page.getByTestId("group-layout")).toBeVisible();
@@ -420,7 +492,7 @@ test.describe("the inspector", () => {
     const frame = siteFrame(page);
     const button = frame.locator(".ae-btnbuild .ae-btn");
     await expect(button).toHaveCSS("background-color", "rgb(31, 58, 46)");
-    await page.getByTestId("tab-site").click();
+    await openGlobals(page);
     const colours = page.getByTestId("group-global-colours");
     await colours.getByTestId("color-text").first().fill("#aa0000");
     await expect(button).toHaveCSS("background-color", "rgb(170, 0, 0)");
@@ -435,6 +507,7 @@ test.describe("the inspector", () => {
   test("the icon picker loads the icon set on demand and saves the icon into the button", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
+    await frame.locator(".ae-btnbuild").scrollIntoViewIfNeeded();
     await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
     await page.getByTestId("group-icon").getByRole("button", { name: "Icon" }).click();
     await page.getByRole("button", { name: "Choose an icon" }).click();
@@ -454,7 +527,7 @@ test.describe("the inspector", () => {
     await page.getByRole("option", { name: /Fraunces/ }).click();
     await expect(frame.locator(".ae-hdbuilds")).toHaveCSS("font-family", /Fraunces/);
     await expect(frame.locator("link[data-armature-fonts]")).toHaveAttribute("href", /family=Fraunces/);
-    await page.getByTestId("tab-site").click();
+    await openGlobals(page);
     await expect(page.getByTestId("custom-fonts")).toContainText("Fraunces");
   });
 });
@@ -523,8 +596,7 @@ test.describe("canvas handles", () => {
   test("a padding handle drags live, is one undo step, and Esc puts it back", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-navigator").click();
-    await page.getByTestId("nav-secbuild").click();
+    await selectByCorner(frame, ".ae-secbuild");
     await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "secbuild");
     const section = frame.locator(".ae-secbuild");
     const before = px(await section.evaluate((node) => getComputedStyle(node).paddingTop));
@@ -564,8 +636,13 @@ test.describe("canvas handles", () => {
     await openBuilder(page);
     const frame = siteFrame(page);
     await page.getByRole("button", { name: /Tablet view/ }).click();
-    await page.getByTestId("tab-navigator").click();
-    await page.getByTestId("nav-colleft1").click();
+    // Select the image, then walk up to its column with the left arrow (a column's corner
+    // is filled by its child).
+    await frame.locator(".ae-imgbuild img").scrollIntoViewIfNeeded();
+    await frame.locator(".ae-imgbuild img").click();
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "imgbuild");
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "colleft1");
     const left = frame.locator(".ae-colleft1");
     const right = frame.locator(".ae-colrigh1");
     const widthOf = async (locator: typeof left) => px(await locator.evaluate((node) => getComputedStyle(node).width));
@@ -606,7 +683,7 @@ test.describe("canvas handles", () => {
     await expect.poll(async () => Math.round((await img.boundingBox())?.height ?? 0)).toBe(Math.round(h0) + 20);
 
     // A spacer inserted after the image: drag its bottom edge.
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await page.getByTestId("element-spacer").click();
     const spacer = frame.locator(".ae-spacer");
     await expect(spacer).toHaveCount(1);
@@ -683,10 +760,10 @@ test.describe("the widget library in the editor", () => {
   test("every group is in the Elements panel; a Tabs widget inserts, and its rows edit live", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     for (const type of ["icon", "video", "icon-box", "accordion", "tabs", "gallery", "carousel", "countdown", "price-table", "form", "html"]) await expect(page.getByTestId(`element-${type}`)).toBeVisible();
     await frame.locator(".ae-txtbuild").click();
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await page.getByTestId("element-tabs").click();
     const tabs = frame.locator(".ae-tabs");
     await expect(tabs).toHaveCount(1);
@@ -714,7 +791,7 @@ test.describe("the widget library in the editor", () => {
     await openBuilder(page);
     const frame = siteFrame(page);
     await frame.locator(".ae-txtbuild").click();
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await page.getByTestId("element-video").click();
     await page.getByLabel("Address").fill("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     const facade = frame.locator(".ae-video-facade");
@@ -734,7 +811,7 @@ test.describe("the widget library in the editor", () => {
     await openBuilder(page);
     const frame = siteFrame(page);
     await frame.locator(".ae-txtbuild").click();
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await page.getByTestId("element-video").click();
     await page.getByLabel("Source").selectOption("wistia");
     await page.getByLabel("Address").fill("https://home.wistia.com/medias/abc12345xy");
@@ -750,7 +827,7 @@ test.describe("the widget library in the editor", () => {
   test("clients never see the HTML embed", async ({ page }) => {
     await openEditor(page, { role: "client", editingLevel: "builder" });
     await waitForReady(page);
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await expect(page.getByTestId("element-accordion")).toBeVisible();
     await expect(page.getByTestId("element-html")).toHaveCount(0);
   });
@@ -766,7 +843,7 @@ test.describe("the builder publish", () => {
     await page.keyboard.press("End");
     await page.keyboard.type(" this year");
     await page.keyboard.press("Enter");
-    await page.getByTestId("tab-site").click();
+    await openGlobals(page);
     await page.getByTestId("group-global-colours").getByTestId("color-text").first().fill("#aa0000");
     await expect(page.getByTestId("draft-status")).toContainText("2 unpublished changes");
     await page.getByRole("button", { name: "Publish", exact: true }).click();
@@ -810,11 +887,9 @@ test.describe("pages and templates", () => {
   test("a new page: its address is checked, it starts from a starter page, and its settings publish with it", async ({ page }) => {
     const state = await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-pages").click();
-    const panel = page.getByTestId("pages-panel");
-    await expect(panel).toContainText("Pages in the site's code");
-    await expect(page.getByTestId("page-contact")).toBeVisible();
-    await page.getByTestId("new-page").click();
+    // New page from the editor menu (the Pages tab is gone; the dashboard lists pages).
+    await page.getByTestId("editor-menu").click();
+    await page.getByTestId("menu-new-page").click();
     await page.getByLabel("Title", { exact: true }).fill("About");
     await expect(page.getByText('The page "About" already uses this address.')).toBeVisible();
     await expect(page.getByTestId("new-page-create")).toBeDisabled();
@@ -823,10 +898,10 @@ test.describe("pages and templates", () => {
     await page.getByLabel("Landing page").check();
     await page.getByTestId("new-page-create").click();
     await expect(frame.locator("h1")).toHaveText("A clear promise in one line");
-    await expect(page.getByTestId("page-our-services")).toBeVisible();
+    await expect(page.getByTestId("page-name")).toContainText("Our services");
 
-    // Page settings: a search title and a full-canvas layout that hides the site's header.
-    await page.getByTestId("page-settings-our-services").click();
+    // Page settings for the current page: a search title and a full-canvas layout.
+    await page.getByTestId("topbar-page-settings").click();
     await page.getByLabel("Title in search results").fill("Services | Alder & Stone");
     await page.getByLabel("Page background").fill("not a colour");
     await expect(page.getByTestId("page-settings-save")).toBeDisabled();
@@ -836,12 +911,13 @@ test.describe("pages and templates", () => {
     await expect(frame.locator("html")).toHaveAttribute("data-armature-canvas", "full");
     await expect(frame.locator(".site-header")).toBeHidden();
 
-    // Duplicate, then delete the copy.
-    await page.getByRole("button", { name: "Duplicate Our services" }).click();
-    await expect(page.getByTestId("page-our-services-copy")).toBeVisible();
-    await page.getByRole("button", { name: "Delete Our services (copy)" }).click();
-    await page.getByTestId("page-delete-confirm").click();
-    await expect(page.getByTestId("page-our-services-copy")).toHaveCount(0);
+    // Duplicate this page from its settings, then delete the copy.
+    await page.getByTestId("topbar-page-settings").click();
+    await page.getByTestId("page-duplicate").click();
+    await expect(page.getByTestId("page-name")).toContainText("Our services (copy)");
+    await page.getByTestId("topbar-page-settings").click();
+    await page.getByTestId("page-delete").click();
+    await expect(page.getByTestId("page-name")).not.toContainText("(copy)");
 
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await expect(page.getByTestId("publish-builder")).toContainText("Our services");
@@ -869,7 +945,7 @@ test.describe("pages and templates", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ name: "Builds showcase", kind: "section", element_count: 8, first_heading: "Recent builds" });
 
-    await page.getByTestId("tab-elements").click();
+    await openElements(page);
     await expect(page.getByRole("region", { name: "Saved templates" })).toContainText("Builds showcase");
     await page.getByTestId("open-template-library").click();
     const library = page.getByTestId("template-library");
@@ -882,6 +958,7 @@ test.describe("pages and templates", () => {
     // The copy has new ids: only the original keeps the hdbuilds class.
     await expect(frame.locator(".ae-hdbuilds")).toHaveCount(1);
 
+    await openElements(page);
     await page.getByTestId("open-template-library").click();
     await page.getByRole("button", { name: "Delete Builds showcase" }).click();
     await expect(page.getByText('Deleted "Builds showcase".')).toBeVisible();
@@ -892,42 +969,39 @@ test.describe("pages and templates", () => {
 test.describe("the media library", () => {
   const PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-  test("shows where pictures are used, edits alt text, inserts, uploads and picks for an image", async ({ page }) => {
+  test("the modal shows usage, edits alt text, reuses a picture and uploads for an image element", async ({ page }) => {
     const state = await openBuilder(page);
     const frame = siteFrame(page);
-    await page.getByTestId("tab-media").click();
-    const item = (src: string) => page.getByTestId("media-panel").locator(`[data-testid="media-item"][data-src="${src}"]`);
+    // Open the media library from the selected image element's Content tab (no Media tab).
+    await frame.locator(".ae-imgbuild img").scrollIntoViewIfNeeded();
+    await frame.locator(".ae-imgbuild img").click();
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Image");
+    await page.getByRole("button", { name: "Media library" }).click();
+    const picker = page.getByTestId("media-picker");
+    const item = (src: string) => picker.locator(`[data-testid="media-item"][data-src="${src}"]`);
     await expect(item("/assets/hero.svg").getByTestId("media-used")).toHaveText("Used on Home");
     await expect(item("/assets/team.svg").getByTestId("media-used")).toHaveText("Used on About");
     await page.getByLabel("Search media").fill("team");
-    await expect(page.getByTestId("media-panel").getByTestId("media-item")).toHaveCount(1);
+    await expect(picker.getByTestId("media-item")).toHaveCount(1);
     await page.getByLabel("Search media").fill("");
-
+    // Alt text is editable in the modal.
     await item("/assets/team.svg").getByLabel("Alt text for team.svg").fill("The Alder & Stone crew");
-    await frame.locator(".ae-hdbuilds").click();
-    await item("/assets/team.svg").getByRole("button", { name: "Insert on the page" }).click();
-    await expect(frame.locator('img[alt="The Alder & Stone crew"]')).toBeVisible();
-    await expect(item("/assets/team.svg").getByTestId("media-used")).toHaveText("Used on About, Home");
+    // Reuse the hero picture for this image element.
+    await item("/assets/hero.svg").getByRole("button", { name: "Use this picture" }).click();
+    await expect(picker).toBeHidden();
+    await expect(frame.locator(".ae-imgbuild img")).toHaveAttribute("src", /hero\.svg/);
 
-    // An upload is resized to WebP in the browser and travels in the draft.
-    await page.getByTestId("media-panel").getByTestId("media-upload").setInputFiles({ name: "porch.png", mimeType: "image/png", buffer: Buffer.from(PNG, "base64") });
-    await expect(item("draft")).toHaveCount(1);
-    await expect(item("draft")).toContainText("publishes with your changes");
-    await expect(frame.locator('img[src^="data:image/webp"]')).toHaveCount(1);
-
-    // The new image is selected: the inspector's picker swaps in a library picture and its alt text.
+    // Upload a picture from the modal: resized to WebP in the browser and applied at once.
     await page.getByRole("button", { name: "Media library" }).click();
-    await page.getByTestId("media-picker").locator('[data-src="/assets/hero.svg"]').getByRole("button", { name: "Use this picture" }).click();
-    await expect(page.getByTestId("media-picker")).toBeHidden();
-    await expect(frame.locator('img[src^="data:image/webp"]')).toHaveCount(0);
-    // The site's own hero uses the same picture and alt text, so there are two now.
-    await expect(frame.locator('img[alt="A timber-framed house at dusk"]')).toHaveCount(2);
-    await expect(item("draft")).toHaveCount(0);
+    await picker.getByTestId("media-upload").setInputFiles({ name: "porch.png", mimeType: "image/png", buffer: Buffer.from(PNG, "base64") });
+    await expect(picker).toBeHidden();
+    await expect(frame.locator('.ae-imgbuild img[src^="data:image/webp"]')).toBeVisible();
 
     await page.getByRole("button", { name: "Publish", exact: true }).click();
     await page.getByTestId("publish-confirm").click();
     await expect(page.getByTestId("publish-done")).toBeVisible();
     const request = state.builderPublishRequests[0] as { media: Record<string, { alt: string }> };
+    // The published media map carries the site's existing alt text plus the one edited here.
     expect(request.media).toEqual({ "/assets/hero.svg": { alt: "A timber-framed house at dusk" }, "/assets/team.svg": { alt: "The Alder & Stone crew" } });
   });
 });
@@ -998,7 +1072,7 @@ test.describe("the builder tour", () => {
     const tour = page.getByTestId("tour");
     await expect(tour).toHaveAttribute("aria-label", "Tip 1 of 5");
     await expect(tour).toContainText("Drag in what you need");
-    for (const title of ["Click to select, twice to type", "Fine-tune on the right", "Drag the handles", "Publish when you're ready"]) {
+    for (const title of ["Click to select, twice to type", "Fine-tune in the panel", "Drag the handles", "Publish when you're ready"]) {
       await tour.getByRole("button", { name: "Next" }).click();
       await expect(tour).toContainText(title);
     }

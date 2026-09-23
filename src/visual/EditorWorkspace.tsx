@@ -13,7 +13,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useBlocker, useNavigate } from "react-router";
-import { BuilderPanel, type BuilderTab } from "@/builder/BuilderPanel.tsx";
+import { BuilderPanel } from "@/builder/BuilderPanel.tsx";
+import { readPanelCollapsed, writePanelCollapsed } from "@/builder/panelState.ts";
+import { PageSettingsPanel } from "@/builder/PageSettingsPanel.tsx";
+import { takenAddresses } from "@/builder/pageAddress.ts";
 import { pastedElement, readClipboard, writeClipboard } from "@/builder/clipboard.ts";
 import { ContextMenu, type MenuItem } from "@/builder/ContextMenu.tsx";
 import type { DropTarget } from "@/builder/dnd.ts";
@@ -24,7 +27,6 @@ import { readAt } from "@/builder/controls/path.ts";
 import type { HandleActions } from "@/builder/Handles.tsx";
 import { apply, breakGroup, canRedo, canUndo, createHistory, dropGroup, jumpTo, redo, reset, undo, type Command, type EditorHistory, type EditorState } from "@/builder/history.ts";
 import { HistoryPanel } from "@/builder/HistoryPanel.tsx";
-import { Navigator } from "@/builder/Navigator.tsx";
 import { draftChangeCount, draftKey, isEmptyEditorDraft, legacyDraftKey, parseEditorDraft, restoreEditorDraft, serializeEditorDraft, type StoredEditorDraft } from "@/builder/persistence.ts";
 import {
   changedElementIds,
@@ -48,19 +50,19 @@ import {
   type BuilderState,
 } from "@/builder/store.ts";
 import { SiteSettingsPanel } from "@/builder/SiteSettingsPanel.tsx";
-import { PagesPanel, type PagesPanelActions } from "@/builder/PagesPanel.tsx";
+import { NewPageDialog, type PagesPanelActions } from "@/builder/PagesPanel.tsx";
 import { describeTree, useTemplateActions, useTemplates, type TemplateKind, type TemplateRow } from "@/builder/templates.ts";
 import { SaveTemplateDialog, TemplateLibrary } from "@/builder/TemplatesUI.tsx";
 import { StructurePicker } from "@/builder/StructurePicker.tsx";
 import { withKitFont } from "@/builder/fonts.ts";
 import { useDrag, type DragSource } from "@/builder/useDrag.ts";
-import { createStructure, widgetDefinition, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
+import { createStructure, widgetLabel, type Structure } from "@/builder/widgets/registry.ts";
 import { mediaEntries, mediaUsage } from "@/builder/media.ts";
 import { restoreRevision, useRevisions, type Revision, type RevisionSnapshot } from "@/builder/revisions.ts";
 import { deleteServerDraft, fetchServerDraft, newerDraft, saveServerDraft, SERVER_AUTOSAVE_MS, type DraftSource } from "@/builder/serverDrafts.ts";
-import { MediaPanel, MediaPicker } from "@/builder/MediaPanel.tsx";
+import { MediaPicker } from "@/builder/MediaPanel.tsx";
 import "@/builder/widgets/library.ts";
-import { IconCopy, IconEraser, IconEye, IconEyeOff, IconLock, IconPaste, IconPencil, IconTemplate, IconTrash, IconTree, IconUnlock } from "@/components/icons.tsx";
+import { IconCopy, IconEraser, IconEye, IconEyeOff, IconLock, IconPaste, IconPencil, IconTemplate, IconTrash, IconUnlock } from "@/components/icons.tsx";
 import { siteQueryKey } from "@/components/SiteLayout.tsx";
 import { Button, Modal, useToast } from "@/components/ui.tsx";
 import { relativeTime } from "@/lib/format.ts";
@@ -72,8 +74,8 @@ import { layoutPermissionErrors } from "@shared/builder/permissions.ts";
 import type { ContentValue } from "@shared/contentFile.ts";
 import type { BuilderPublishRequest, BuilderPublishResponse, ContentGetResponse, PublishBatchResponse } from "@shared/publishTypes.ts";
 import type { Resolution } from "@shared/builder/merge.ts";
-import type { PageDefinition, PageSection, SiteSchema } from "@shared/schema.ts";
-import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type MappedField, type RichTextState, type ShortcutKey } from "@shared/visualProtocol.ts";
+import type { PageDefinition, SiteSchema } from "@shared/schema.ts";
+import { fieldPath, fieldRoot, parseFieldPath, type BridgeToEditor, type FieldPath, type RichTextState, type ShortcutKey } from "@shared/visualProtocol.ts";
 import { Canvas } from "./Canvas.tsx";
 import {
   addListItem,
@@ -103,7 +105,7 @@ import {
 } from "./draftStore.ts";
 import { createGeometryStore } from "./geometry.ts";
 import { IconRail } from "./IconRail.tsx";
-import { Inspector } from "./Inspector.tsx";
+import { FieldEditor, Inspector, type InspectorActions } from "./Inspector.tsx";
 import { LeftPanel, type LeftTab } from "./LeftPanel.tsx";
 import { defaultPage, deviceWidthFor, editablePages, modKey, modelDevice, normalizePath, pageForRoute, tourSeen, type Device } from "./pages.ts";
 import { PublishDialog, type PublishState } from "./PublishDialog.tsx";
@@ -383,7 +385,15 @@ export function EditorWorkspace({
   const [device, setDevice] = useState<Device>("desktop");
   const [preview, setPreview] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>("layers");
-  const [builderTab, setBuilderTab] = useState<BuilderTab>("navigator");
+  // The single left panel's mode. "auto" follows the selection (Edit when something is
+  // selected, Elements when not); "elements" forces Elements (the + and "add inside");
+  // "history" and "page-settings" are opened from the top bar.
+  const [panelView, setPanelView] = useState<"auto" | "elements" | "history" | "page-settings">("auto");
+  const [panelCollapsed, setPanelCollapsed] = useState<boolean>(() => readPanelCollapsed());
+  const togglePanel = useCallback((collapsed: boolean) => {
+    setPanelCollapsed(collapsed);
+    writePanelCollapsed(collapsed);
+  }, []);
   const [selection, setSelection] = useState<Selection>(null);
   const selectedPath = selection?.kind === "field" ? selection.path : null;
   const selectedId = selection?.kind === "element" ? selection.id : null;
@@ -480,6 +490,8 @@ export function EditorWorkspace({
   const select = useCallback(
     (next: Selection, scroll = true) => {
       setSelection(next);
+      // A selection returns the panel to Edit (auto); deselecting elsewhere shows Elements.
+      if (next) setPanelView("auto");
       if (!ready) return;
       if (next?.kind === "field") {
         send({ type: "armature:select", path: next.path, scroll });
@@ -544,6 +556,10 @@ export function EditorWorkspace({
       onEditOnPage: (id: string) => send({ type: "armature:element:edit:start", id }),
       onPickImage: (onPick: (src: string, alt: string) => void) => setPicker({ onPick }),
       onRename: (id: string, label: string) => builderCommand("Renamed element", pageSlug, (current) => setElementPath(current, id, pageSlug, ["label"], label || undefined), `rename:${id}`),
+      onBackToElements: () => {
+        selectElement(null);
+        setPanelView("elements");
+      },
     }),
     [builderCommand, isLockedForMe, pageSlug, selectElement, send],
   );
@@ -608,6 +624,7 @@ export function EditorWorkspace({
     (element: Element, target: { parentId: string | null; index: number }, label: string) => {
       builderCommand(`Added ${label}`, pageSlug, (current) => insertElement(current, element, { slug: pageSlug, ...target }, userName));
       setSelection({ kind: "element", id: element.id, slug: pageSlug });
+      setPanelView("auto");
       window.setTimeout(() => send({ type: "armature:element:select", id: element.id, scroll: true }), 120);
     },
     [builderCommand, pageSlug, send, userName],
@@ -871,6 +888,7 @@ export function EditorWorkspace({
       } else if (event.key === "Escape") {
         if (shortcutsOpen || publishOpen || menu || structureAt) return; // the sheets close themselves
         if (selection) select(null);
+        else if (panelView !== "auto") setPanelView("auto");
       } else if (event.key === "Tab" && !meta && !event.altKey && (event.target === document.body || (event.target as HTMLElement | null)?.dataset?.["testid"] === "canvas")) {
         event.preventDefault();
         shortcut("next");
@@ -878,7 +896,7 @@ export function EditorWorkspace({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [shortcut, selection, select, selectedId, builder, shortcutsOpen, publishOpen, menu, structureAt]);
+  }, [shortcut, selection, select, selectedId, builder, shortcutsOpen, publishOpen, menu, structureAt, panelView]);
 
   // --- messages from the bridge -------------------------------------------------------------------------------
   const onBridgeMessage = (message: BridgeToEditor) => {
@@ -910,8 +928,10 @@ export function EditorWorkspace({
       case "armature:select":
         geometry.patch({ selected: message.field });
         if (message.source === "canvas") {
-          if (message.field) setSelection({ kind: "field", path: message.field.path });
-          else if (selection?.kind === "field") setSelection(null);
+          if (message.field) {
+            setSelection({ kind: "field", path: message.field.path });
+            setPanelView("auto"); // a click on a content field opens its editor in the panel
+          } else if (selection?.kind === "field") setSelection(null);
           if (message.field?.kind === "link" && message.field.href) setHint(`Hold ${mod} and click to follow this link`);
         }
         return;
@@ -920,7 +940,11 @@ export function EditorWorkspace({
           // Committed at once: a shortcut pressed right after the click arrives as the next
           // message and must already see this selection.
           const id = message.id;
-          if (id) flushSync(() => setSelection({ kind: "element", id, slug: pageSlug }));
+          if (id)
+            flushSync(() => {
+              setSelection({ kind: "element", id, slug: pageSlug });
+              setPanelView("auto"); // a click on the page opens that element's Edit panel
+            });
           else if (selection?.kind === "element") flushSync(() => setSelection(null));
         }
         return;
@@ -1113,22 +1137,18 @@ export function EditorWorkspace({
     return out;
   }, [changed, layoutChanges]);
   const [canvasRoots, setCanvasRoots] = useState<Set<FieldPath>>(() => new Set());
-  const [canvasFields, setCanvasFields] = useState<MappedField[]>([]);
   useEffect(() => {
     return geometry.subscribe(() => {
       const fields = geometry.get().fields;
       const roots = new Set<FieldPath>();
       for (const field of fields) roots.add(fieldRoot(field.path));
       setCanvasRoots((current) => (current.size === roots.size && [...roots].every((root) => current.has(root)) ? current : roots));
-      setCanvasFields((current) => (current.length === fields.length && current.every((field, index) => field.path === fields[index]?.path && field.owner === fields[index]?.owner) ? current : fields));
     });
   }, [geometry]);
   const selectedOnCanvas = selectedPath !== null && canvasRoots.has(fieldRoot(selectedPath));
   const currentLayout = builderView.layouts[pageSlug];
   const changedIds = useMemo(() => changedElementIds(builderView.layouts[pageSlug], baseline.layouts[pageSlug]), [builderView.layouts, baseline.layouts, pageSlug]);
   const sectionsInUse = useMemo(() => new Set((currentLayout?.root ?? []).flatMap((element) => (element.type === "site-section" ? [String(element.props["key"])] : []))), [currentLayout]);
-  const sharedPage = schema.pages.find((item) => item.slug === "shared" && item.slug !== page?.slug);
-  const fieldLabel = (path: FieldPath): string => fieldMeta(schema, path)?.label ?? path;
 
   // --- pages and templates ------------------------------------------------------------------------------
   const templatesQuery = useTemplates(site.id, site.agency_id);
@@ -1136,6 +1156,7 @@ export function EditorWorkspace({
   const templates = useMemo(() => (builder ? (templatesQuery.data ?? []) : []), [builder, templatesQuery.data]);
   const [saveTemplate, setSaveTemplate] = useState<{ kind: TemplateKind; name: string; content: TemplateRow["content"] } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const canStructure = isStaff || editingLevel === "builder";
 
   const pageActions: PagesPanelActions = {
@@ -1206,14 +1227,8 @@ export function EditorWorkspace({
     },
     [toast],
   );
-  const insertPicture = (src: string, alt: string) => {
-    const base = widgetDefinition("image")?.create();
-    if (!base) return;
-    insertAt({ ...base, props: { ...base.props, src, alt } }, insertionPoint(), "Image");
-  };
-
   // --- published versions ----------------------------------------------------------------------------------------------
-  const revisionsQuery = useRevisions(site.id, builder && builderTab === "history");
+  const revisionsQuery = useRevisions(site.id, builder && panelView === "history");
   const previewRevision = async (item: Revision) => {
     if (revision?.sha === item.sha) return setRevision(null);
     const result = await callFunction<ContentGetResponse>("content-get", { site_id: site.id, ref: item.sha });
@@ -1252,12 +1267,32 @@ export function EditorWorkspace({
         disabled: !entry || !isContainerType(entry.element.type),
         onSelect: () => entry && setSaveTemplate({ kind: "section", name: entry.element.label || describeTree([entry.element]).heading || widgetLabel(entry.element.type), content: { root: [entry.element] } }),
       },
-      { key: "navigator", label: "Show in Navigator", icon: <IconTree size={14} />, onSelect: () => setBuilderTab("navigator") },
       ...(isStaff ? [{ key: "lock", label: entry?.element.locked ? "Unlock for clients" : "Lock for clients", icon: entry?.element.locked ? <IconUnlock size={14} /> : <IconLock size={14} />, onSelect: () => toggleLock(id) } satisfies MenuItem] : []),
       { key: "hide", label: hidden ? `Show on ${which}` : `Hide on ${which}`, icon: hidden ? <IconEye size={14} /> : <IconEyeOff size={14} />, disabled: locked, onSelect: () => toggleHidden(id) },
       { key: "s2", separator: true },
       { key: "delete", label: "Delete", icon: <IconTrash size={14} />, shortcut: "Delete", danger: true, disabled: locked || styleOnly, onSelect: () => deleteElement(id) },
     ];
+  };
+
+  // Stage-1 content field editing, shared by the right inspector (content-only sites) and
+  // the builder's left panel (a field inside a coded site section).
+  const fieldActions: InspectorActions = {
+    onText: (path, text) => contentCommand("Edited text", (current) => setText(current, published, path, text), `typing:${path}`),
+    onHref: (root, href) => contentCommand("Edited link", (current) => setLinkHref(current, published, root, href), `typing:${root}.href`),
+    onValue: (root, value) => contentCommand("Edited field", (current) => setFieldValue(current, published, root, value), `typing:${root}`),
+    onImageFile: (path, file) => void attachImage(path, file),
+    onClearImage: (path) => contentCommand("Kept current picture", (current) => clearImage(current, path)),
+    onRevert: (root) => contentCommand("Reverted to published", (current) => revertField(current, root)),
+    onEditInline: (path) => send({ type: "armature:edit:start", path }),
+    onListAdd: (root, item) => contentCommand("Added item", (current) => addListItem(current, published, root, item)),
+    onListDuplicate: (root, index) => contentCommand("Duplicated item", (current) => duplicateListItem(current, published, root, index)),
+    onListRemove: (root, index) => {
+      contentCommand("Deleted item", (current) => removeListItem(current, published, root, index));
+      toast.show(`Item ${index + 1} deleted. ${mod}+Z to undo.`, "info");
+    },
+    onListMove: (root, from, to) => contentCommand("Moved item", (current) => moveListItem(current, published, root, from, to)),
+    onShowOnPage: (path) => selectPath(path),
+    onRequestChange: (path) => requestChange(path),
   };
 
   return (
@@ -1287,68 +1322,34 @@ export function EditorWorkspace({
         }}
         canPublish={dirty && !publish.isPending}
         onPublish={openPublish}
-        builder={builder ? { onHistory: () => setBuilderTab((current) => (current === "history" ? "navigator" : "history")), onNavigator: () => setBuilderTab("navigator"), historyOpen: builderTab === "history", navigatorOpen: builderTab === "navigator" } : undefined}
+        builder={
+          builder
+            ? {
+                onHistory: () => setPanelView((current) => (current === "history" ? "auto" : "history")),
+                historyOpen: panelView === "history",
+                onOpenElements: () => {
+                  setPanelView("elements");
+                  if (panelCollapsed) togglePanel(false);
+                },
+                onPageSettings: () => {
+                  setPanelView("page-settings");
+                  if (panelCollapsed) togglePanel(false);
+                },
+                pageSettingsOpen: panelView === "page-settings",
+                onShortcuts: () => setShortcutsOpen(true),
+                onNewPage: canStructure ? () => setCreating(true) : undefined,
+                onSaveTemplate: page && builderPages.some((item) => item.slug === pageSlug) ? () => pageActions.onSaveTemplate?.(pageSlug) : undefined,
+                onSaveDraft: () => toast.show(saveState === "saved" ? "Draft saved." : "Saving your draft…", "info"),
+                viewPageHref: page && site.live_url ? `${site.live_url.replace(/\/+$/, "")}${page.path}` : null,
+              }
+            : undefined
+        }
       />
       <div className="flex min-h-0 flex-1">
-        <IconRail siteId={site.id} isStaff={isStaff} />
+        {!builder && <IconRail siteId={site.id} isStaff={isStaff} />}
         {builder ? (
-          <BuilderPanel tab={builderTab} tabs={styleOnly ? ["navigator", "pages", "site"] : ["elements", "navigator", "pages", "media", "site"]} onTab={setBuilderTab}>
-            {builderTab === "elements" && (
-              <ElementsPanel
-                isStaff={isStaff}
-                sections={sections}
-                sectionsInUse={sectionsInUse}
-                onBeginDrag={beginDrag}
-                onInsert={(element, label) => insertAt(element, insertionPoint(), label)}
-                onStructure={() => setStructureAt({ index: -1 })}
-                templates={sectionTemplates}
-                onOpenLibrary={() => setLibraryOpen(true)}
-              />
-            )}
-            {builderTab === "navigator" && (
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                <Navigator
-                  layout={currentLayout}
-                  page={page}
-                  sharedPage={sharedPage}
-                  fields={canvasFields}
-                  changedIds={changedIds}
-                  changedFields={changed}
-                  selectedId={selectedId}
-                  selectedPath={selectedPath}
-                  device={modelDevice(device)}
-                  isStaff={isStaff}
-                  fieldLabel={fieldLabel}
-                  onSelect={(id) => selectElement(id)}
-                  onSelectField={(path) => selectPath(path)}
-                  onRename={(id, label) => builderCommand("Renamed element", pageSlug, (current) => setElementPath(current, id, pageSlug, ["label"], label || undefined))}
-                  onToggleHidden={toggleHidden}
-                  onToggleLock={toggleLock}
-                  onMove={(id, drop) => moveTo(id, drop)}
-                />
-                <OffPageFields page={page} sharedPage={sharedPage} canvasFields={canvasFields} connected={ready} changed={changed} selectedPath={selectedPath} onSelect={(path) => selectPath(path)} />
-              </div>
-            )}
-            {builderTab === "pages" && (
-              <div className="flex min-h-0 flex-1 flex-col">
-                <PagesPanel coded={schema.pages} builderPages={builderPages} layouts={builderView.layouts} activeSlug={pageSlug} changedByPage={changedByPage} pageTemplates={templates.filter((row) => row.kind === "page")} canCreate={canStructure} actions={pageActions} />
-              </div>
-            )}
-            {builderTab === "media" && (
-              <MediaPanel
-                entries={mediaList}
-                usage={mediaUses}
-                alts={builderView.media ?? {}}
-                siteUrl={site.live_url}
-                onAlt={(src, alt) => builderCommand("Changed alt text", pageSlug, (current) => setMediaAlt(current, src, alt), `alt:${src}`)}
-                onChoose={(entry) => insertPicture(entry.src, builderView.media?.[entry.src]?.alt ?? "")}
-                onUpload={async (file) => {
-                  const src = await uploadPicture(file);
-                  if (src) insertPicture(src, "");
-                }}
-              />
-            )}
-            {builderTab === "history" && (
+          <BuilderPanel collapsed={panelCollapsed} onToggle={togglePanel}>
+            {panelView === "history" ? (
               <HistoryPanel
                 history={history}
                 onJump={(steps) => setHistory((current) => jumpTo(current, steps))}
@@ -1361,8 +1362,63 @@ export function EditorWorkspace({
                   onPreview: (item) => void previewRevision(item),
                 }}
               />
+            ) : panelView === "page-settings" && page ? (
+              <PageSettingsPanel
+                page={page}
+                layout={builderView.layouts[pageSlug]}
+                isBuilderPage={builderPages.some((item) => item.slug === pageSlug)}
+                taken={takenAddresses(allPages, pageSlug)}
+                onClose={() => setPanelView("auto")}
+                onSave={(patch) => {
+                  pageActions.onSettings(pageSlug, patch);
+                  setPanelView("auto");
+                }}
+                onDuplicate={canStructure ? () => pageActions.onDuplicate(pageSlug) : undefined}
+                onDelete={
+                  canStructure
+                    ? () => {
+                        pageActions.onDelete(pageSlug);
+                        setPanelView("auto");
+                      }
+                    : undefined
+                }
+              />
+            ) : panelView === "auto" && selectedId && currentLayout ? (
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                <ElementInspector
+                  state={builderView}
+                  slug={pageSlug}
+                  id={selectedId}
+                  locked={lockedIn(builderView, selectedId)}
+                  agencyName={agencyName}
+                  siteUrl={site.live_url}
+                  requestChange={() => requestChange("")}
+                  device={modelDevice(device)}
+                  onDevice={onModelDevice}
+                  kit={builderView.kit}
+                  isStaff={isStaff}
+                  actions={inspectorActions}
+                />
+              </div>
+            ) : panelView === "auto" && selectedPath ? (
+              <div className="min-h-0 flex-1 overflow-y-auto" data-testid="field-editor">
+                <FieldEditor schema={schema} baseline={published} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={site.live_url} actions={fieldActions} replaceRequest={replaceRequest} />
+              </div>
+            ) : (
+              <ElementsPanel
+                isStaff={isStaff}
+                sections={sections}
+                sectionsInUse={sectionsInUse}
+                onBeginDrag={beginDrag}
+                onInsert={(element, label) => insertAt(element, insertionPoint(), label)}
+                onStructure={() => setStructureAt({ index: -1 })}
+                templates={sectionTemplates}
+                onOpenLibrary={() => setLibraryOpen(true)}
+                showGlobals={isStaff || editingLevel !== "content"}
+                canAdd={!styleOnly}
+                globals={<SiteSettingsPanel kit={builderView.kit} write={writeKit} device={modelDevice(device)} onDevice={onModelDevice} isStaff={isStaff} />}
+              />
             )}
-            {builderTab === "site" && <SiteSettingsPanel kit={builderView.kit} write={writeKit} device={modelDevice(device)} onDevice={onModelDevice} isStaff={isStaff} />}
           </BuilderPanel>
         ) : (
           <LeftPanel
@@ -1461,7 +1517,7 @@ export function EditorWorkspace({
                     onDelete: deleteElement,
                     onAddInside: (id) => {
                       selectElement(id, false);
-                      setBuilderTab("elements");
+                      setPanelView("elements");
                     },
                     onAddSection: (index) => setStructureAt({ index }),
                     onBeginMove: (event, id) => {
@@ -1486,53 +1542,20 @@ export function EditorWorkspace({
           <RequestBar agencyName={agencyName} onSubmit={(text) => requestChange(selectedPath ?? "", text)} />
           <Tour active={tourOpen} kind={builder ? (styleOnly ? "style" : "builder") : "content"} onDone={() => setTourOpen(false)} />
         </div>
-        <Inspector
-          schema={schema}
-          baseline={published}
-          draft={draft}
-          selectedPath={selectedPath}
-          selectedOnCanvas={selectedOnCanvas}
-          liveUrl={site.live_url}
-          replaceRequest={replaceRequest}
-          agencyName={agencyName}
-          builder={builder}
-          elementPanel={
-            builder && selectedId && currentLayout ? (
-              <ElementInspector
-                state={builderView}
-                slug={pageSlug}
-                id={selectedId}
-                locked={lockedIn(builderView, selectedId)}
-                agencyName={agencyName}
-                siteUrl={site.live_url}
-                requestChange={() => requestChange("")}
-                device={modelDevice(device)}
-                onDevice={onModelDevice}
-                kit={builderView.kit}
-                isStaff={isStaff}
-                actions={inspectorActions}
-              />
-            ) : undefined
-          }
-          actions={{
-            onText: (path, text) => contentCommand("Edited text", (current) => setText(current, published, path, text), `typing:${path}`),
-            onHref: (root, href) => contentCommand("Edited link", (current) => setLinkHref(current, published, root, href), `typing:${root}.href`),
-            onValue: (root, value) => contentCommand("Edited field", (current) => setFieldValue(current, published, root, value), `typing:${root}`),
-            onImageFile: (path, file) => void attachImage(path, file),
-            onClearImage: (path) => contentCommand("Kept current picture", (current) => clearImage(current, path)),
-            onRevert: (root) => contentCommand("Reverted to published", (current) => revertField(current, root)),
-            onEditInline: (path) => send({ type: "armature:edit:start", path }),
-            onListAdd: (root, item) => contentCommand("Added item", (current) => addListItem(current, published, root, item)),
-            onListDuplicate: (root, index) => contentCommand("Duplicated item", (current) => duplicateListItem(current, published, root, index)),
-            onListRemove: (root, index) => {
-              contentCommand("Deleted item", (current) => removeListItem(current, published, root, index));
-              toast.show(`Item ${index + 1} deleted. ${mod}+Z to undo.`, "info");
-            },
-            onListMove: (root, from, to) => contentCommand("Moved item", (current) => moveListItem(current, published, root, from, to)),
-            onShowOnPage: (path) => selectPath(path),
-            onRequestChange: (path) => requestChange(path),
-          }}
-        />
+        {!builder && (
+          <Inspector
+            schema={schema}
+            baseline={published}
+            draft={draft}
+            selectedPath={selectedPath}
+            selectedOnCanvas={selectedOnCanvas}
+            liveUrl={site.live_url}
+            replaceRequest={replaceRequest}
+            agencyName={agencyName}
+            builder={builder}
+            actions={fieldActions}
+          />
+        )}
       </div>
 
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menuItems(menu.id)} onClose={() => setMenu(null)} />}
@@ -1568,6 +1591,7 @@ export function EditorWorkspace({
         usage={mediaUses}
         alts={builderView.media ?? {}}
         siteUrl={site.live_url}
+        onAlt={(src, alt) => builderCommand("Changed alt text", pageSlug, (current) => setMediaAlt(current, src, alt), `alt:${src}`)}
         onClose={() => setPicker(null)}
         onChoose={(entry) => {
           picker?.onPick(entry.src, builderView.media?.[entry.src]?.alt ?? "");
@@ -1580,6 +1604,19 @@ export function EditorWorkspace({
         }}
       />
       <StructurePicker open={structureAt !== null} onClose={() => setStructureAt(null)} onPick={(structure) => addStructure(structure, structureAt && structureAt.index >= 0 ? structureAt.index : null)} />
+      {builder && (
+        <NewPageDialog
+          open={creating}
+          taken={takenAddresses(allPages)}
+          existingSlugs={new Set(allPages.map((item) => item.slug))}
+          pageTemplates={templates.filter((row) => row.kind === "page")}
+          onClose={() => setCreating(false)}
+          onCreate={(layout) => {
+            setCreating(false);
+            pageActions.onCreate(layout);
+          }}
+        />
+      )}
 
       <PublishDialog
         open={publishOpen}
@@ -1657,59 +1694,6 @@ export function EditorWorkspace({
       <span className="sr-only" data-testid="history-steps">
         {history.past.length}
       </span>
-    </div>
-  );
-}
-
-/** Schema fields not shown by any builder element on this page (the header, the SEO fields), so nothing is unreachable. */
-function OffPageFields({
-  page,
-  sharedPage,
-  canvasFields,
-  connected,
-  changed,
-  selectedPath,
-  onSelect,
-}: {
-  page: PageDefinition | undefined;
-  sharedPage: PageDefinition | undefined;
-  canvasFields: MappedField[];
-  connected: boolean;
-  changed: Set<FieldPath>;
-  selectedPath: FieldPath | null;
-  onSelect: (path: FieldPath) => void;
-}) {
-  const owned = new Set(canvasFields.filter((field) => field.owner).map((field) => fieldRoot(field.path)));
-  const onCanvas = new Set(canvasFields.map((field) => fieldRoot(field.path)));
-  const groups: { label: string; slug: string; sections: PageSection[] }[] = [];
-  if (page) groups.push({ label: page.label, slug: page.slug, sections: page.sections });
-  if (sharedPage) groups.push({ label: sharedPage.label, slug: sharedPage.slug, sections: sharedPage.sections });
-  const rows = groups.flatMap((group) =>
-    group.sections.flatMap((section) =>
-      section.fields
-        .map((field) => ({ path: fieldPath(group.slug, section.key, field.key), label: field.label, section: section.label, group: group.label }))
-        .filter((row) => !owned.has(row.path)),
-    ),
-  );
-  if (rows.length === 0) return null;
-  return (
-    <div className="px-2 pb-3">
-      <div className="mt-2 px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Content fields</div>
-      {rows.map((row) => {
-        const visible = !connected || onCanvas.has(row.path);
-        const active = selectedPath !== null && fieldRoot(selectedPath) === row.path;
-        return (
-          <button key={row.path} type="button" data-testid={`layer-${row.path}`} aria-pressed={active} onClick={() => onSelect(row.path)} className={`flex h-8 w-full items-center justify-between gap-2 rounded-sm px-2 text-left text-[13px] ${active ? "bg-blue-soft font-semibold text-blue" : "text-text hover:bg-ground"}`}>
-            <span className="min-w-0 truncate">
-              {row.label} <span className="text-muted">· {row.section}</span>
-            </span>
-            <span className="flex shrink-0 items-center gap-1.5">
-              {!visible && <span className="text-[11px] text-muted">off page</span>}
-              {changed.has(row.path) && <span className="h-2 w-2 rounded-full bg-accent" aria-label="Unpublished change" />}
-            </span>
-          </button>
-        );
-      })}
     </div>
   );
 }

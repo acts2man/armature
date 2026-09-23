@@ -70,7 +70,7 @@ const STEPS: Step[] = [
 const BUILDER_STEPS: Step[] = [
   { title: "Drag in what you need", body: "The Elements panel holds every widget and saved template. Drag one onto the page, or click it to add it after what is selected.", anchor: "layers" },
   { title: "Click to select, twice to type", body: "Click anything on the page to select it; click text twice to type right there. A right-click shows everything you can do with it.", anchor: "canvas" },
-  { title: "Fine-tune on the right", body: "Content, Style and Advanced hold every setting. Switch to tablet or phone at the top to give those screens their own values.", anchor: "inspector" },
+  { title: "Fine-tune in the panel", body: "Selecting anything opens its Content, Style and Advanced settings in the left panel. The grid icon takes you back to Elements. Switch to tablet or phone at the top for per-screen values.", anchor: "layers" },
   { title: "Drag the handles", body: "A selected element shows handles for its spacing and size. Hold Alt to change both sides at once, Shift for all four.", anchor: "canvas" },
   { title: "Publish when you're ready", body: "Nothing goes live until you press Publish. Your draft is saved to your account as you work, so it waits for you on any device.", anchor: "publish" },
 ];

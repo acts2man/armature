@@ -165,7 +165,7 @@ export function PagesPanel({
   );
 }
 
-function NewPageDialog({ open, taken, existingSlugs, pageTemplates, onClose, onCreate }: { open: boolean; taken: Map<string, string>; existingSlugs: Set<string>; pageTemplates: TemplateRow[]; onClose: () => void; onCreate: (layout: LayoutDoc) => void }) {
+export function NewPageDialog({ open, taken, existingSlugs, pageTemplates, onClose, onCreate }: { open: boolean; taken: Map<string, string>; existingSlugs: Set<string>; pageTemplates: TemplateRow[]; onClose: () => void; onCreate: (layout: LayoutDoc) => void }) {
   const [title, setTitle] = useState("");
   const [path, setPath] = useState("");
   const [pathTouched, setPathTouched] = useState(false);

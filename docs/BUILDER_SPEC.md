@@ -210,18 +210,33 @@ Each widget has Content / Style / Advanced tabs. The editor-side definitions
 
 ## 4. Editing experience
 
-Layout evolves `docs/1-visual-editor.html` and keeps its look.
+Layout follows Elementor: one switching panel on the left, the website full-bleed to the
+right edge of the window (Stage 1 / content-only sites keep the older split of
+`docs/1-visual-editor.html`).
 
-- **Top bar:** site, page switcher (search, "New page"), device toggle Desktop / Tablet /
-  Phone (canvas width follows the kit breakpoints, plus a custom width slider), undo/redo,
-  History, Navigator toggle, draft status, Preview, Publish.
-- **Left panel tabs:** Elements (searchable, grouped: Layout, Basic, General, Site sections,
-  Saved templates; drag or click to insert), Navigator, Pages, Site settings (kit), Media.
-- **Centre:** the real site in the iframe. Every overlay is drawn in the PARENT above the
-  iframe from bridge-reported rects.
-- **Right:** Inspector with Content / Style / Advanced, breadcrumbs of the parent chain, a
-  device icon on every responsive control, a dot on controls with a tablet/mobile
-  override (one click resets it).
+- **Top bar:** on the left a menu button (Exit to dashboard, New page, Keyboard shortcuts),
+  "+" (opens Elements), History (opens in the panel), undo/redo and Page settings (opens
+  in the panel); in the centre the current page name with a chevron to Page settings, then
+  the device toggle Desktop / Tablet / Phone (canvas width follows the kit breakpoints); on
+  the right draft status, Preview and a Publish button with a dropdown (Save draft, Save as
+  template, View page). No page switching in the editor — pages are chosen from the
+  dashboard.
+- **Left panel (about 340px), one mode at a time:** *Elements* (default and after deselect):
+  header "Elements", a Widgets / Globals tab pair, a search box, and the widget tiles in a
+  two-column grid grouped Layout / Basic / General / (agency-only) / Site sections / Saved
+  templates; drag a tile onto the page or click to insert after the selection. The Globals
+  tab holds the global colours, fonts and typography presets (the old Site tab), shown to
+  agency staff and to clients at the style or builder level. *Edit* (anything selected):
+  header "Edit &lt;Type&gt;" with a grid icon back to Elements, breadcrumbs of the parent
+  chain, and the Content / Style / Advanced icon tabs (a container's first tab is Layout);
+  a device icon on every responsive control, a dot on overridden controls. Page settings and
+  History replace the panel body when opened from the top bar. A collapse tab on the panel's
+  right edge (`&lt;` / `&gt;`) hides the panel so the canvas fills the window, remembered per
+  user.
+- **Centre:** the real site in the iframe, running to the right edge. Every overlay is drawn
+  in the PARENT above the iframe from bridge-reported rects.
+- **Media:** no tab; the image control's "Media library" button opens the library as a modal
+  (reuse, upload, alt text).
 - **Canvas interactions:** hover outline and type label; container handle tab (add, move,
   duplicate, delete); widget handle (drag, edit, duplicate, delete); "armature wire"
   selection with a floating dark toolbar; up-arrow / Alt-click selects the parent.

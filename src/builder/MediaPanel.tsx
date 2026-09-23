@@ -111,7 +111,7 @@ export function MediaPanel(props: Omit<GridProps, "chooseLabel" | "imagesOnly">)
   );
 }
 
-export function MediaPicker({ open, onClose, ...props }: Omit<GridProps, "chooseLabel" | "imagesOnly" | "onAlt"> & { open: boolean; onClose: () => void }) {
+export function MediaPicker({ open, onClose, ...props }: Omit<GridProps, "chooseLabel" | "imagesOnly"> & { open: boolean; onClose: () => void }) {
   return (
     <Modal open={open} onClose={onClose} title="Media library">
       <div className="flex h-[60vh] flex-col" data-testid="media-picker">

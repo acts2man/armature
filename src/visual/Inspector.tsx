@@ -347,8 +347,6 @@ export function Inspector({
 }) {
   const meta = selectedPath ? fieldMeta(schema, selectedPath) : null;
   const root = selectedPath ? fieldRoot(selectedPath) : null;
-  const changed = root !== null && (root in draft.fields || Object.keys(draft.images).some((path) => fieldRoot(path) === root));
-  const value = root ? currentValue(draft, baseline, root) : undefined;
 
   let body: ReactNode;
   if (elementPanel) {
@@ -362,6 +360,53 @@ export function Inspector({
       </div>
     );
   } else {
+    body = <FieldEditor schema={schema} baseline={baseline} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={liveUrl} actions={actions} replaceRequest={replaceRequest} />;
+  }
+
+  return (
+    <aside aria-label="Inspector" className="flex w-80 shrink-0 flex-col border-l border-line bg-panel" data-testid="inspector">
+      <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
+      <div className="flex flex-col gap-2.5 border-t border-line px-5 py-4">
+        <div className="flex items-center gap-2 text-[13px] font-bold text-text">
+          <IconBranch size={15} /> Need something bigger?
+        </div>
+        <p className="text-[12px] leading-relaxed text-muted">New layouts, features and anything that changes how the site works go to {agencyName} as a request.</p>
+        <Button variant="secondary" size="bar" onClick={() => actions.onRequestChange(selectedPath ?? "")}>
+          Request a change
+        </Button>
+      </div>
+    </aside>
+  );
+}
+
+/** The editor for one Stage-1 content field (text, image, link, url, video, list), used
+ *  in the right inspector (content-only sites) and in the builder's left panel when a
+ *  field inside a coded site section is selected. */
+export function FieldEditor({
+  schema,
+  baseline,
+  draft,
+  selectedPath,
+  selectedOnCanvas,
+  liveUrl,
+  actions,
+  replaceRequest,
+}: {
+  schema: SiteSchema;
+  baseline: ContentTree;
+  draft: Draft;
+  selectedPath: FieldPath;
+  selectedOnCanvas: boolean;
+  liveUrl: string | null;
+  actions: InspectorActions;
+  replaceRequest: number;
+}) {
+  const meta = fieldMeta(schema, selectedPath);
+  const root = fieldRoot(selectedPath);
+  const changed = root in draft.fields || Object.keys(draft.images).some((path) => fieldRoot(path) === root);
+  const value = currentValue(draft, baseline, root);
+  if (!meta) return null;
+  {
     const { field, section, page } = meta;
     const control = (() => {
       switch (field.type) {
@@ -412,7 +457,7 @@ export function Inspector({
       }
     })();
 
-    body = (
+    return (
       <>
         <div className="flex flex-col gap-2.5 border-b border-line px-5 pb-3 pt-4">
           <div className="text-[12px] font-medium text-muted">
@@ -450,19 +495,4 @@ export function Inspector({
       </>
     );
   }
-
-  return (
-    <aside aria-label="Inspector" className="flex w-80 shrink-0 flex-col border-l border-line bg-panel" data-testid="inspector">
-      <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
-      <div className="flex flex-col gap-2.5 border-t border-line px-5 py-4">
-        <div className="flex items-center gap-2 text-[13px] font-bold text-text">
-          <IconBranch size={15} /> Need something bigger?
-        </div>
-        <p className="text-[12px] leading-relaxed text-muted">New layouts, features and anything that changes how the site works go to {agencyName} as a request.</p>
-        <Button variant="secondary" size="bar" onClick={() => actions.onRequestChange(selectedPath ?? "")}>
-          Request a change
-        </Button>
-      </div>
-    </aside>
-  );
 }

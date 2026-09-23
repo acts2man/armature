@@ -6,7 +6,9 @@ const ZERO_WIDTH = new RegExp(`[${[0x200b, 0x200c, 0x200d, 0xfeff].map((point) =
 const siteFrame = (page: Page): FrameLocator => page.frameLocator(`iframe[title$="live site"]`);
 
 async function openEditor(page: Page, options: Parameters<typeof installMocks>[1] = {}) {
-  const state = await installMocks(page, options);
+  // The Stage-1 content editor (left Layers panel + right inspector) is what a content-level
+  // client sees; staff on a v2 site get the page builder instead. These tests exercise Stage 1.
+  const state = await installMocks(page, { role: "client", editingLevel: "content", ...options });
   await page.addInitScript(() => { window.localStorage.setItem("armature:visual:tour:v1", "done"); window.localStorage.setItem("armature:builder:tour:v1", "done"); });
   await page.goto(editorUrl());
   await expect(page.getByTestId("visual-editor")).toBeVisible();

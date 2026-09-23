@@ -37,14 +37,24 @@ export function ContextMenu({ x, y, items, onClose, label = "Element menu" }: { 
         next?.focus();
       }
     };
+    // Close when the canvas scrolls (the menu is anchored to it), but not when the left
+    // editor panel re-renders and scrolls its own content, and not from the scroll the
+    // opening right-click itself triggers when it scrolls the selected element into view.
+    const openedAt = Date.now();
+    const onScroll = (event: Event) => {
+      if (Date.now() - openedAt < 350) return;
+      const target = event.target;
+      if (target instanceof Node && document.querySelector('[data-testid="builder-panel"]')?.contains(target)) return;
+      onClose();
+    };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onClose);
     return () => {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onClose);
     };
   }, [onClose]);
