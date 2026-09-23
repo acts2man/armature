@@ -38,7 +38,7 @@ test.describe("the kit on the public site", () => {
     expect(order).toEqual(["sechero1", "secbuild", "secservi", "secfaq01"]);
     // Generated CSS is scoped and responsive; the row stacks on phones.
     const css = await page.locator("style[data-armature-page='home']").textContent();
-    expect(css).toContain(".ae-root .ae-rowbuild > .ae-con-inner");
+    expect(css).toContain(".ae-root .ae-rowbuild.ae-rowbuild > .ae-con-inner");
     expect(css).toContain("@media (max-width: 767px)");
     // No bridge activity, no invisible characters, no edit attributes.
     expect(await page.locator("html").getAttribute("data-armature-mode")).toBeNull();
@@ -390,7 +390,7 @@ test.describe("the inspector", () => {
     await background.getByTestId("color-text").fill("#cc0000");
     await page.getByLabel("Transition (ms)").fill("0");
     await page.getByLabel("Transition (ms)").press("Tab");
-    await expect.poll(() => frame.locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain(".ae-btnbuild:hover .ae-btn { background-color: #cc0000");
+    await expect.poll(() => frame.locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain(".ae-btnbuild.ae-btnbuild:hover .ae-btn { background-color: #cc0000");
     await frame.locator(".ae-btnbuild .ae-btn").hover();
     await expect(frame.locator(".ae-btnbuild .ae-btn")).toHaveCSS("background-color", "rgb(204, 0, 0)");
 
@@ -720,6 +720,27 @@ test.describe("the widget library in the editor", () => {
     const facade = frame.locator(".ae-video-facade");
     await expect(facade).toBeVisible();
     await expect(facade).toContainText("Plays from YouTube");
+    await facade.click();
+    await facade.click();
+    await expect(frame.locator(".ae-video iframe")).toHaveCount(0);
+    expect(hosts).toEqual([]);
+  });
+
+  test("a Wistia video is a click-to-load facade like YouTube and Vimeo", async ({ page }) => {
+    const hosts: string[] = [];
+    page.on("request", (request) => {
+      if (/wistia/.test(request.url())) hosts.push(request.url());
+    });
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await frame.locator(".ae-txtbuild").click();
+    await page.getByTestId("tab-elements").click();
+    await page.getByTestId("element-video").click();
+    await page.getByLabel("Source").selectOption("wistia");
+    await page.getByLabel("Address").fill("https://home.wistia.com/medias/abc12345xy");
+    const facade = frame.locator(".ae-video-facade");
+    await expect(facade).toBeVisible();
+    await expect(facade).toContainText("Plays from Wistia");
     await facade.click();
     await facade.click();
     await expect(frame.locator(".ae-video iframe")).toHaveCount(0);

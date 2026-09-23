@@ -128,19 +128,19 @@ describe("the CSS generator", () => {
       advanced: { padding: { desktop: { top: { value: 10, unit: "px" } }, mobile: { top: { value: 4, unit: "px" } } } },
     });
     const css = elementsCss([heading], kit);
-    expect(css).toContain(".ae-root .ae-abcdefgh { font-size: 40px; color: var(--ae-color-primary); padding-top: 10px; }");
-    expect(css).toMatch(/@media \(max-width: 1024px\) \{\n\s+\.ae-root \.ae-abcdefgh \{ font-size: 32px; \}/);
-    expect(css).toMatch(/@media \(max-width: 767px\) \{\n\s+\.ae-root \.ae-abcdefgh \{ color: #ff0000; padding-top: 4px; \}/);
+    expect(css).toContain(".ae-root .ae-abcdefgh.ae-abcdefgh { font-size: 40px; color: var(--ae-color-primary); padding-top: 10px; }");
+    expect(css).toMatch(/@media \(max-width: 1024px\) \{\n\s+\.ae-root \.ae-abcdefgh\.ae-abcdefgh \{ font-size: 32px; \}/);
+    expect(css).toMatch(/@media \(max-width: 767px\) \{\n\s+\.ae-root \.ae-abcdefgh\.ae-abcdefgh \{ color: #ff0000; padding-top: 4px; \}/);
     expect(css.indexOf("max-width: 1024px")).toBeLessThan(css.indexOf("max-width: 767px"));
   });
 
   it("generates hover rules, hidden rules per device and the editor's 40% variant", () => {
     const button = element({ id: "hoverbtn", type: "button", props: { text: "Go" }, style: { background: { kind: "color", color: "#000000" }, hover: { background: { kind: "color", color: "kit:color.accent" }, opacity: 0.8 }, transition: 300 }, advanced: { hidden: { mobile: true, desktop: true } } });
     const css = elementsCss([button], kit);
-    expect(css).toContain(".ae-root .ae-hoverbtn:hover .ae-btn { background-color: var(--ae-color-accent); background-image: none; opacity: 0.8; }");
+    expect(css).toContain(".ae-root .ae-hoverbtn.ae-hoverbtn:hover .ae-btn { background-color: var(--ae-color-accent); background-image: none; opacity: 0.8; }");
     expect(css).toContain("transition: all 300ms ease");
-    expect(css).toMatch(/@media \(min-width: 1025px\) \{\n\s+\.ae-root \.ae-hoverbtn \{ display: none; \}/);
-    expect(css).toMatch(/@media \(max-width: 767px\) \{\n\s+\.ae-root \.ae-hoverbtn \{ display: none; \}/);
+    expect(css).toMatch(/@media \(min-width: 1025px\) \{\n\s+\.ae-root \.ae-hoverbtn\.ae-hoverbtn \{ display: none; \}/);
+    expect(css).toMatch(/@media \(max-width: 767px\) \{\n\s+\.ae-root \.ae-hoverbtn\.ae-hoverbtn \{ display: none; \}/);
     const editing = elementsCss([button], kit, { editMode: true });
     expect(editing).toContain("opacity: 0.4");
     expect(editing).not.toContain("display: none");
@@ -149,24 +149,44 @@ describe("the CSS generator", () => {
   it("handles containers, grids, images, spacers, dividers and typography presets", () => {
     const layout = demoHome as LayoutDoc;
     const css = pageCss(layout, demoKit as SiteKit);
-    expect(css).toContain(".ae-root .ae-rowbuild > .ae-con-inner { max-width: none; flex-direction: row; align-items: center; column-gap: 32px; row-gap: 24px; }");
-    expect(css).toMatch(/@media \(max-width: 767px\) \{[^}]*\.ae-root \.ae-rowbuild > \.ae-con-inner \{ flex-direction: column; \}/);
-    expect(css).toContain(".ae-root .ae-colleft1 { width: 50%; max-width: 100%; }");
-    expect(css).toContain(".ae-root .ae-hdbuilds { font-family: var(--ae-type-h2-family); font-size: var(--ae-type-h2-size);");
-    expect(css).toContain(".ae-root .ae-secbuild { background-color: #ffffff; background-image: none; }");
+    expect(css).toContain(".ae-root .ae-rowbuild.ae-rowbuild > .ae-con-inner { max-width: none; flex-direction: row; align-items: center; column-gap: 32px; row-gap: 24px; }");
+    expect(css).toMatch(/@media \(max-width: 767px\) \{[^}]*\.ae-root \.ae-rowbuild\.ae-rowbuild > \.ae-con-inner \{ flex-direction: column; \}/);
+    expect(css).toContain(".ae-root .ae-colleft1.ae-colleft1 { width: 50%; max-width: 100%; }");
+    expect(css).toContain(".ae-root .ae-hdbuilds.ae-hdbuilds { font-family: var(--ae-type-h2-family); font-size: var(--ae-type-h2-size);");
+    expect(css).toContain(".ae-root .ae-secbuild.ae-secbuild { background-color: #ffffff; background-image: none; }");
     const grid = element({ id: "gridabcd", type: "grid", props: { columns: { desktop: 3, mobile: 1 }, gap: { column: { value: 16, unit: "px" } } } });
     expect(elementsCss([grid], kit)).toContain("grid-template-columns: repeat(3, minmax(0, 1fr))");
     const spacer = element({ id: "spacerab", type: "spacer", props: { height: { desktop: { value: 80, unit: "px" }, mobile: { value: 40, unit: "px" } } } });
-    expect(elementsCss([spacer], kit)).toContain(".ae-root .ae-spacerab { height: 80px; }");
+    expect(elementsCss([spacer], kit)).toContain(".ae-root .ae-spacerab.ae-spacerab { height: 80px; }");
   });
 
   it("sanitizes custom CSS and rewrites 'selector'", () => {
     const styled = element({ id: "customcs", type: "spacer", advanced: { customCss: "selector { color: red } @import url(evil.css); selector:hover { background: url(javascript:alert(1)); behavior: url(x.htc) }" } });
     const css = elementsCss([styled], kit);
-    expect(css).toContain(".ae-root .ae-customcs { color: red }");
+    expect(css).toContain(".ae-root .ae-customcs.ae-customcs { color: red }");
     expect(css).not.toContain("@import");
     expect(css).not.toContain("javascript:");
     expect(css).not.toMatch(/\bbehavior:/);
+  });
+
+  it("gives an element's Style-tab rule enough specificity to beat a site class from Advanced > CSS classes", () => {
+    // A site converted from hand-coded sections keeps a legacy class on the element (Advanced >
+    // CSS classes). The element's own colour must win whatever order the site's stylesheet loads.
+    const styled = element({ id: "legacyel", type: "heading", props: { text: "x" }, style: { color: "#123456" }, advanced: { cssClasses: "promo hero-title" } });
+    const css = elementsCss([styled], kit);
+    // The element rule is emitted with the doubled class.
+    expect(css).toContain(".ae-root .ae-legacyel.ae-legacyel { color: #123456; }");
+    // Specificity (a,b,c): ids, then classes/attrs/pseudo-classes, then element names. Higher always wins.
+    const specificity = (selector: string): [number, number, number] => {
+      const ids = (selector.match(/#[\w-]+/g) ?? []).length;
+      const classes = (selector.match(/\.[\w-]+|\[[^\]]+\]|:[\w-]+(?![\w-]*\()/g) ?? []).length;
+      const elements = (selector.match(/(?:^|[\s>+~])[a-z][\w-]*/gi) ?? []).length;
+      return [ids, classes, elements];
+    };
+    const beats = (a: [number, number, number], b: [number, number, number]) => a[0] * 10000 + a[1] * 100 + a[2] > b[0] * 10000 + b[1] * 100 + b[2];
+    const elementRule = ".ae-root .ae-legacyel.ae-legacyel"; // 0,3,0
+    expect(beats(specificity(elementRule), specificity(".promo"))).toBe(true); // 0,1,0
+    expect(beats(specificity(elementRule), specificity(".ae-root .promo"))).toBe(true); // 0,2,0
   });
 });
 
@@ -307,7 +327,7 @@ describe("motion effects", () => {
     const { elementsCss: css } = await import("../../kit/css.ts");
     const moving = element({ id: "hovergrw", type: "spacer", advanced: { hoverAnimation: "grow", scroll: { parallax: 4 } } });
     const out = css([moving], kit);
-    expect(out).toContain(".ae-root .ae-hovergrw:hover { transform: scale(1.05); }");
-    expect(out).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ae-root \.ae-hovergrw:hover \{ transform: none; \}/);
+    expect(out).toContain(".ae-root .ae-hovergrw.ae-hovergrw:hover { transform: scale(1.05); }");
+    expect(out).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ae-root \.ae-hovergrw\.ae-hovergrw:hover \{ transform: none; \}/);
   });
 });

@@ -718,6 +718,27 @@ function Editor({ slug }: { slug: string }) {
   );
 
   if (source && !page) {
+    // A page built in the visual editor (a layout whose slug is not in the code) has no form
+    // fields; it is edited on the canvas. Point the person there instead of an empty form.
+    if (source.layouts?.[slug]) {
+      const builderPage = source.layouts[slug];
+      return (
+        <div className="flex flex-col gap-5">
+          {backLink}
+          <Notice
+            kind="info"
+            title="This page is edited visually"
+            action={
+              <LinkButton to={`/sites/${site.id}/visual/${slug}`} size="sm" data-testid="open-in-builder">
+                Open in the builder
+              </LinkButton>
+            }
+          >
+            {builderPage.label ? `"${builderPage.label}" was` : "This page was"} built in the visual editor, so there is no form here — its layout, text and pictures are edited on the page itself.
+          </Notice>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-5">
         {backLink}

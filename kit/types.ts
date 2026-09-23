@@ -316,7 +316,7 @@ export type IconProps = {
   rotate?: number;
 };
 
-export type VideoSource = "youtube" | "vimeo" | "file";
+export type VideoSource = "youtube" | "vimeo" | "wistia" | "file" | "embed";
 export type VideoProps = {
   source: VideoSource;
   url: string;

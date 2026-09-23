@@ -71,12 +71,12 @@ const LIBRARY: Library[] = [
     label: "Video",
     group: "basic",
     icon: "Play",
-    keywords: ["youtube", "vimeo", "mp4", "film"],
+    keywords: ["youtube", "vimeo", "wistia", "embed", "mp4", "film"],
     props: () => ({ source: "youtube", url: "", aspect: "16/9", controls: true }),
     content: [
       group("Video", [
-        { kind: "choice", label: "Source", path: ["props", "source"], allowNone: false, options: [{ value: "youtube", label: "YouTube" }, { value: "vimeo", label: "Vimeo" }, { value: "file", label: "File" }] },
-        { kind: "text", label: "Address", path: ["props", "url"], placeholder: "https://www.youtube.com/watch?v=…", hint: "YouTube and Vimeo load only when a visitor presses play (privacy-friendly). A file lives under /assets/ or on https://." },
+        { kind: "select", label: "Source", path: ["props", "source"], required: true, options: [{ value: "youtube", label: "YouTube" }, { value: "vimeo", label: "Vimeo" }, { value: "wistia", label: "Wistia" }, { value: "file", label: "File" }, { value: "embed", label: "Embed URL" }] },
+        { kind: "text", label: "Address", path: ["props", "url"], placeholder: "https://www.youtube.com/watch?v=…", hint: "YouTube, Vimeo and Wistia load only when a visitor presses play (privacy-friendly). Embed URL is any https player address; a file lives under /assets/ or on https://." },
         { kind: "text", label: "Title (for screen readers)", path: ["props", "title"], max: 200 },
         { kind: "text", label: "Cover picture", path: ["props", "poster"], placeholder: "/assets/cover.webp", hint: "Shown until the visitor presses play." },
         { kind: "select", label: "Shape", path: ["props", "aspect"], required: true, options: opts(["16/9", "16:9"], ["4/3", "4:3"], ["1/1", "Square"], ["9/16", "Portrait 9:16"], ["21/9", "Cinema 21:9"]) },

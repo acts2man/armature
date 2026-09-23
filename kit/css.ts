@@ -395,7 +395,11 @@ export function registerStyleTarget(type: string, inner: string): void {
 export const styleTargetOf = (type: string): string | undefined => styleTargets.get(type);
 
 export function elementRules(sheet: Sheet, element: Element, kit: SiteKit, options: CssOptions): void {
-  const selector = `.ae-root .ae-${cssIdent(element.id)}`;
+  // The element class is doubled (.ae-<id>.ae-<id>) so an element's own settings and Style-tab
+  // values always outrank a CSS class attached through Advanced > CSS classes (a legacy site
+  // class on the same element), whatever order the site's own stylesheet loads in.
+  const id = cssIdent(element.id);
+  const selector = `.ae-root .ae-${id}.ae-${id}`;
   const inner = styleTargets.get(element.type);
   const styleSelector = inner ? `${selector} ${inner}` : selector;
   const hoverSelector = inner ? `${selector}:hover ${inner}` : `${selector}:hover`;

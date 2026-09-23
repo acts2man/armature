@@ -42,11 +42,14 @@ const icon = iconSchema.nullable();
 const position = z.enum(["top", "left", "right"]);
 const aspect = z.enum(["1/1", "4/3", "3/2", "16/9", "3/4", "auto"]);
 
-/** Video addresses: YouTube and Vimeo pages, or a file on the site or https. */
+/** Video addresses: YouTube, Vimeo and Wistia pages, a generic https embed, or a file on the site or https. */
 export const isAllowedVideoUrl = (source: string, url: string): boolean => {
   if (url === "") return true;
   if (source === "youtube") return /^https:\/\/(www\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)\//i.test(url);
   if (source === "vimeo") return /^https:\/\/(www\.|player\.)?vimeo\.com\//i.test(url);
+  if (source === "wistia") return /^https:\/\/([a-z0-9-]+\.)?(wistia\.com|wistia\.net|wi\.st)\//i.test(url);
+  // A generic embed is any https iframe address; it loads only when the visitor presses play.
+  if (source === "embed") return /^https:\/\//i.test(url) && !url.startsWith("data:");
   return isAllowedMediaSrc(url) && !url.startsWith("data:");
 };
 
@@ -64,7 +67,7 @@ export const iconPropsSchema: z.ZodType<IconProps> = z.object({
 
 export const videoPropsSchema: z.ZodType<VideoProps> = z
   .object({
-    source: z.enum(["youtube", "vimeo", "file"]),
+    source: z.enum(["youtube", "vimeo", "wistia", "file", "embed"]),
     url: text(2000),
     poster: mediaSrcSchema.optional(),
     autoplay: z.boolean().optional(),
@@ -75,7 +78,7 @@ export const videoPropsSchema: z.ZodType<VideoProps> = z
     start: z.number().int().min(0).max(86_400).optional(),
     title: text(200).optional(),
   })
-  .refine((props) => isAllowedVideoUrl(props.source, props.url), { message: "must be a YouTube or Vimeo address, or a video file on this site or on https://", path: ["url"] });
+  .refine((props) => isAllowedVideoUrl(props.source, props.url), { message: "must be a YouTube, Vimeo or Wistia address, a generic https embed address, or a video file on this site or on https://", path: ["url"] });
 
 export const iconBoxPropsSchema: z.ZodType<IconBoxProps> = z.object({
   icon,

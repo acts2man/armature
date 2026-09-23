@@ -581,7 +581,9 @@ skipped, never silently.
 ### How the kit renders
 
 - `<ArmaturePage>` generates one stylesheet per page from the tree and the kit and mounts
-  it as a `<style>` text node: `.ae-root .ae-<id> { ... }`, media queries at the kit
+  it as a `<style>` text node: `.ae-root .ae-<id>.ae-<id> { ... }` (the element class is
+  doubled so an element's own settings outrank any legacy class attached through Advanced >
+  CSS classes, whatever order the site's stylesheet loads in), media queries at the kit
   breakpoints carrying only each device's own values, `:hover` rules, and the kit as
   custom properties on `.ae-root` (`--ae-color-primary`, `--ae-font-heading`,
   `--ae-content-width`, ...). Nothing leaks outside `.ae-root`, so the site's own CSS is
@@ -597,8 +599,9 @@ skipped, never silently.
   Content-Security-Policy must allow `https://fonts.googleapis.com` in `style-src` and
   `https://fonts.gstatic.com` in `font-src`, or list no Google fonts and load its own.
 - A widget's Style values land on what the visitor sees: a button's on its link
-  (`.ae-<id> .ae-btn`), an image's on the picture (`.ae-<id> img`), everything else on the
-  element's own box. Advanced spacing and size always apply to the element's box.
+  (`.ae-<id>.ae-<id> .ae-btn`), an image's on the picture (`.ae-<id>.ae-<id> img`),
+  everything else on the element's own box. Advanced spacing and size always apply to the
+  element's box, and the doubled element class means these win over a legacy CSS class.
 - Images carry `width` and `height`; the first picture on a page is eager with a high
   fetch priority, the rest lazy. Entrance animations use an IntersectionObserver and are
   skipped under `prefers-reduced-motion`.
@@ -651,4 +654,4 @@ force-pushed. The site then rebuilds as it does for any commit.
 
 ## Versioning
 
-This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) and version 2 (the page builder) are purely additive and keep the same number: a site that adds the bridge or the kit still declares `1`, and a site without either still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` and `PROTOCOL_VERSION` (1); the kit carries `KIT_VERSION` and `PROTOCOL_VERSION` (2), negotiated so either side can be older.
+This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) and version 2 (the page builder) are purely additive and keep the same number: a site that adds the bridge or the kit still declares `1`, and a site without either still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` and `PROTOCOL_VERSION` (1); the kit carries `KIT_VERSION` (currently `2.1.0`) and `PROTOCOL_VERSION` (2), negotiated so either side can be older.

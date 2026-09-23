@@ -59,6 +59,20 @@ describe("widget helpers", () => {
     expect(embedUrl({ source: "vimeo", url: "" }, "76979871", true)).toContain("dnt=1");
   });
 
+  it("reads Wistia ids and takes a generic embed address as-is", () => {
+    expect(videoId("wistia", "https://home.wistia.com/medias/abc12345xy")).toBe("abc12345xy");
+    expect(videoId("wistia", "https://fast.wistia.net/embed/iframe/abc12345xy?seo=false")).toBe("abc12345xy");
+    expect(videoId("wistia", "https://example.com/medias/abc12345xy")).toBeNull();
+    const wistia = embedUrl({ source: "wistia", url: "" }, "abc12345xy", true);
+    expect(wistia).toMatch(/^https:\/\/fast\.wistia\.net\/embed\/iframe\/abc12345xy\?/);
+    expect(wistia).toContain("autoPlay=true");
+    // A generic embed keeps its own address (query string intact) and is gated behind the facade.
+    const embed = "https://player.example.com/v/xyz?controls=1";
+    expect(videoId("embed", embed)).toBe(embed);
+    expect(videoId("embed", "http://insecure.example.com/v")).toBeNull();
+    expect(embedUrl({ source: "embed", url: embed }, embed, true)).toBe(embed);
+  });
+
   it("counts down to a date or from a visitor's first visit, remembered in their browser", () => {
     expect(countdownTarget({ mode: "date", date: "2030-01-01T00:00:00Z" }, 0)).toBe(Date.parse("2030-01-01T00:00:00Z"));
     expect(countdownTarget({ mode: "date" }, 0)).toBeNull();

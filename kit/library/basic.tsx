@@ -29,7 +29,7 @@ function IconWidget({ element, common }: WidgetContext) {
   );
 }
 
-/** The video id from a YouTube or Vimeo address, or null. */
+/** The video id from a YouTube, Vimeo or Wistia address; for a generic embed, the address itself; else null. */
 export function videoId(source: VideoProps["source"], url: string): string | null {
   if (source === "youtube") {
     const match = /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/))([A-Za-z0-9_-]{6,20})/.exec(url);
@@ -39,6 +39,12 @@ export function videoId(source: VideoProps["source"], url: string): string | nul
     const match = /vimeo\.com\/(?:video\/)?(\d{4,14})/.exec(url);
     return match?.[1] ?? null;
   }
+  if (source === "wistia") {
+    const match = /(?:wistia\.(?:com|net)|wi\.st)\/(?:medias|embed\/(?:iframe|medias|playlists))\/([A-Za-z0-9]{6,16})/.exec(url);
+    return match?.[1] ?? null;
+  }
+  // A generic embed keeps its address; a valid https one stands in for the id so the facade can gate it.
+  if (source === "embed") return /^https:\/\//i.test(url) && !url.startsWith("data:") ? url : null;
   return null;
 }
 
@@ -58,6 +64,15 @@ export function embedUrl(props: VideoProps, id: string, autoplay: boolean): stri
     if (props.start) params.set("start", String(props.start));
     return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
   }
+  if (props.source === "wistia") {
+    params.set("seo", "false");
+    if (autoplay) params.set("autoPlay", "true");
+    if (muted) params.set("muted", "true");
+    if (props.controls === false) params.set("playbar", "false");
+    return `https://fast.wistia.net/embed/iframe/${id}?${params.toString()}`;
+  }
+  // A generic embed loads its own address unchanged (its own query string is kept intact).
+  if (props.source === "embed") return id;
   params.set("dnt", "1");
   if (autoplay) params.set("autoplay", "1");
   if (muted) params.set("muted", "1");
@@ -65,6 +80,9 @@ export function embedUrl(props: VideoProps, id: string, autoplay: boolean): stri
   if (props.controls === false) params.set("controls", "0");
   return `https://player.vimeo.com/video/${id}?${params.toString()}${props.start ? `#t=${props.start}s` : ""}`;
 }
+
+/** The short note under the play button, by source. */
+const FACADE_NOTE: Record<string, string> = { youtube: "Plays from YouTube", vimeo: "Plays from Vimeo", wistia: "Plays from Wistia", embed: "Loads when you press play" };
 
 function VideoPlayer({ props, editMode }: { props: VideoProps; editMode: boolean }) {
   const id = videoId(props.source, props.url);
@@ -90,7 +108,7 @@ function VideoPlayer({ props, editMode }: { props: VideoProps; editMode: boolean
       />
     );
   }
-  if (!id) return <div className="ae-video-empty">Add a YouTube or Vimeo address</div>;
+  if (!id) return <div className="ae-video-empty">Add a YouTube, Vimeo, Wistia or embed address</div>;
   if (playing && !editMode) {
     return <iframe className="ae-video-media" src={embedUrl(props, id, true)} title={title} allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen loading="lazy" referrerPolicy="strict-origin-when-cross-origin" />;
   }
@@ -100,7 +118,7 @@ function VideoPlayer({ props, editMode }: { props: VideoProps; editMode: boolean
       <span className="ae-video-play">
         <Icon icon={GLYPHS.play} />
       </span>
-      <span className="ae-video-note">{props.source === "youtube" ? "Plays from YouTube" : "Plays from Vimeo"}</span>
+      <span className="ae-video-note">{FACADE_NOTE[props.source] ?? "Plays on click"}</span>
     </button>
   );
 }
