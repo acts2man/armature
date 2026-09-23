@@ -59,3 +59,16 @@ Elements), `builder-edit-container-layout` (Edit Container, whose first tab is L
 image's width handle mid-drag with its live value), `builder-spacing-handles` (a section's
 top padding handle mid-drag), `builder-history-versions` (an older publish previewed on the
 canvas), `builder-publish-dialog` (a layout and the site settings in one publish).
+
+## The WordPress-style dashboard (`wp-*`)
+
+Captured by `npx tsx tests/e2e/dashboard-screenshots.ts` at 1440×900 (`*-desktop.png`) and
+390×844 (`*-phone.png`, full page): `wp-site-dashboard` (staff) and `wp-site-dashboard-client`,
+`wp-sidebar-collapsed`, `wp-phone-menu` (the slide-out menu), `wp-pages` (row actions on
+hover), `wp-pages-add-new`, `wp-pages-trash`, `wp-media` (details panel open), `wp-media-list`,
+`wp-contact` (an entry open), `wp-contact-settings` (email recipients), `wp-appearance-globals`
+(the editor and the live preview), `wp-appearance-header`, `wp-appearance-footer`,
+`wp-appearance-menus` (a menu with a dropdown), `wp-users` (row actions), `wp-users-add`,
+`wp-site-settings` (Connection), `wp-site-settings-services`, `wp-site-settings-editing`,
+`wp-site-settings-history`, and `wp-editor-header-part` (the header built in the editor, edited
+in context around the home page).
