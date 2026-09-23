@@ -1,14 +1,16 @@
 /**
  * Everything drawn above the iframe for builder elements, from the rect map the kit
- * reports, at 60fps from the geometry store: the dashed hover outline with its type
- * label, the "armature wire" selection with joint handles and a floating toolbar (or
- * an Elementor-style handle tab for containers), the empty-container hint, the hover
- * "+" between sections, the drag indicator, and the hidden/locked badges. Later
- * milestones add the resize and spacing handles here.
+ * reports, at 60fps from the geometry store, in Elementor's language: a thin hover
+ * outline (solid on a widget, dashed on a container) with the type label, a solid accent
+ * outline on the selected element with its handle tab — a square pencil at the top-right
+ * of a widget (drag it to move; hover it for the parent, duplicate and delete), or a tab
+ * centred on a container's top edge with add / grip / delete (offset when nested) — the
+ * empty-container hint, the hover "+" between sections, the drag indicator, the resize and
+ * spacing handles, and the hidden/locked badges.
  */
 import { clsx } from "clsx";
 import { useEffect, useState, type ReactNode } from "react";
-import { IconCopy, IconEyeOff, IconLock, IconMove, IconPencil, IconPlus, IconTrash } from "@/components/icons.tsx";
+import { IconCopy, IconEyeOff, IconGrip, IconLock, IconPencil, IconPlus, IconTrash } from "@/components/icons.tsx";
 import type { Device, Element, SiteKit } from "@shared/builder/index.ts";
 import type { ElementRect, Rect, RichTextCommand, RichTextState } from "@shared/visualProtocol.ts";
 import { useGeometry, type GeometryStore } from "@/visual/geometry.ts";
@@ -32,17 +34,16 @@ export type ElementActions = {
 
 const scaleRect = (rect: Rect, scale: number, pad = 0) => ({ left: rect.x * scale - pad, top: rect.y * scale - pad, width: rect.width * scale + pad * 2, height: rect.height * scale + pad * 2 });
 
-function Joint({ className }: { className: string }) {
-  return <span aria-hidden="true" className={clsx("absolute h-2 w-2 border-2 border-accent bg-white", className)} />;
-}
-
-function ToolButton({ label, onClick, onPointerDown, children, danger, testId }: { label: string; onClick?: () => void; onPointerDown?: (event: React.PointerEvent) => void; children: ReactNode; danger?: boolean; testId?: string }) {
+/** One square of a handle tab. */
+function TabButton({ label, onClick, onPointerDown, children, danger, testId, className }: { label: string; onClick?: () => void; onPointerDown?: (event: React.PointerEvent) => void; children: ReactNode; danger?: boolean; testId?: string; className?: string }) {
   return (
-    <button type="button" title={label} aria-label={label} data-testid={testId} onClick={onClick} onPointerDown={onPointerDown} className={clsx("inline-flex h-8 min-w-8 items-center justify-center rounded-sm px-1.5", danger ? "hover:bg-red/80" : "hover:bg-ink-2")}>
+    <button type="button" title={label} aria-label={label} data-testid={testId} onClick={onClick} onPointerDown={onPointerDown} className={clsx("inline-flex h-6 w-6 items-center justify-center text-accent-fg", danger ? "hover:bg-red" : "hover:bg-white/20", className)}>
       {children}
     </button>
   );
 }
+
+const TAB = 24;
 
 export function ElementOverlays({
   store,
@@ -117,10 +118,16 @@ export function ElementOverlays({
   const isLocked = (entry: { element: Element; ancestors: string[] } | undefined): boolean => !!entry && !isStaff && (entry.element.locked === true || entry.ancestors.some((id) => findElement(state, id, slug)?.element.locked));
   const hiddenHere = (element: Element | undefined): boolean => element?.advanced.hidden?.[device] === true;
 
-  const toolbarPosition = (rect: ElementRect) => {
-    const top = rect.rect.y * scale - 44;
-    const below = top < 4;
-    return { left: Math.max(4, Math.min(rect.rect.x * scale, Math.max(4, (store.get().viewport.width || 0) * scale - 300))), top: below ? (rect.rect.y + rect.rect.height) * scale + 10 : top };
+  /** The widget tab sits outside the top-right corner (inside it when the element touches the top). */
+  const widgetTabPosition = (rect: ElementRect) => {
+    const top = rect.rect.y * scale - TAB - 1;
+    return { right: Math.max(0, (store.get().viewport.width || 0) * scale - (rect.rect.x + rect.rect.width) * scale - 1), top: top < 2 ? rect.rect.y * scale + 2 : top };
+  };
+  /** A container's tab straddles its top edge, centred; nested containers shift right so tabs never stack. */
+  const containerTabPosition = (rect: ElementRect, depth: number, buttons: number) => {
+    const width = buttons * TAB;
+    const top = rect.rect.y * scale - TAB / 2;
+    return { left: Math.max(2, (rect.rect.x + rect.rect.width / 2) * scale - width / 2 + depth * (TAB + 8)), top: top < 2 ? rect.rect.y * scale + 2 : top };
   };
 
   return (
@@ -136,8 +143,13 @@ export function ElementOverlays({
           ))}
 
       {hover && (
-        <div className="absolute rounded-[2px] outline-dashed outline-1 outline-accent/70" style={scaleRect(hover.rect, scale, 1)} data-testid={`hover-${hover.id}`}>
-          <span className="absolute -top-[20px] left-0 flex h-5 max-w-64 items-center gap-1 truncate bg-accent/85 px-1.5 text-[11px] font-semibold text-accent-fg">
+        <div
+          className={clsx("absolute outline-1 outline-accent/70", isContainerType(hover.type) || hover.type === "site-section" ? "outline-dashed" : "outline")}
+          style={scaleRect(hover.rect, scale, 1)}
+          data-testid={`hover-${hover.id}`}
+          data-kind={isContainerType(hover.type) || hover.type === "site-section" ? "container" : "widget"}
+        >
+          <span className={clsx("absolute left-0 flex h-5 max-w-64 items-center gap-1 truncate bg-accent/85 px-1.5 text-[11px] font-semibold text-accent-fg", hover.rect.y * scale < 22 ? "top-0" : "-top-[20px]")}>
             {label(hoverEntry?.element, hover)}
             {isLocked(hoverEntry) && <IconLock size={11} />}
           </span>
@@ -145,11 +157,7 @@ export function ElementOverlays({
       )}
 
       {selected && (
-        <div data-testid="element-selection" data-element-id={selected.id} className={clsx("absolute outline outline-[1.5px] outline-accent", editing && "outline-dashed")} style={scaleRect(selected.rect, scale, 2)}>
-          <Joint className="-left-[5px] -top-[5px]" />
-          <Joint className="-right-[5px] -top-[5px]" />
-          <Joint className="-bottom-[5px] -left-[5px]" />
-          <Joint className="-bottom-[5px] -right-[5px]" />
+        <div data-testid="element-selection" data-element-id={selected.id} data-kind={isContainerType(selected.type) || selected.type === "site-section" ? "container" : "widget"} className={clsx("absolute outline outline-[1.5px] outline-accent", editing && "outline-dashed")} style={scaleRect(selected.rect, scale, 1)}>
           {selected.empty && isContainerType(selected.type) && canEdit && !editing && (
             <div className="pointer-events-auto absolute inset-0 flex items-center justify-center">
               <button type="button" onClick={() => actions.onAddInside(selected.id)} className="inline-flex h-9 items-center gap-2 rounded-control border border-dashed border-accent bg-white/90 px-3 text-[12px] font-semibold text-accent hover:bg-white" data-testid="empty-container-add">
@@ -160,36 +168,70 @@ export function ElementOverlays({
         </div>
       )}
 
-      {selected && canEdit && !editing && !drag && !isLocked(selectedEntry) && (
+      {selected && canEdit && !editing && !drag && !isLocked(selectedEntry) && (isContainerType(selected.type) || selected.type === "site-section") && (
         <div
           role="toolbar"
           aria-label={`${label(selectedEntry?.element, selected)} tools`}
           data-testid="element-toolbar"
-          className="toast-in pointer-events-auto absolute flex h-9 items-center gap-0.5 rounded-[8px] bg-ink px-1 text-white shadow-dark"
-          style={toolbarPosition(selected)}
+          data-kind="container"
+          className="group pointer-events-auto absolute flex items-center overflow-hidden rounded-[4px] bg-accent shadow-pop"
+          style={containerTabPosition(selected, selectedEntry?.ancestors.length ?? 0, isContainerType(selected.type) ? 3 : 2)}
         >
-          <span className="flex h-7 items-center gap-1.5 rounded-sm bg-ink-2 px-2 text-[12px] font-semibold">
-            <span className="max-w-40 truncate">{label(selectedEntry?.element, selected)}</span>
+          {isContainerType(selected.type) && (
+            <TabButton label="Add an element inside" onClick={() => actions.onAddInside(selected.id)} testId="element-add">
+              <IconPlus size={14} />
+            </TabButton>
+          )}
+          <TabButton label={`${label(selectedEntry?.element, selected)}: drag to move`} onPointerDown={(event) => actions.onBeginMove(event, selected.id)} testId="element-move" className="cursor-grab active:cursor-grabbing">
+            <IconGrip size={14} />
+          </TabButton>
+          <TabButton label="Delete" onClick={() => actions.onDelete(selected.id)} danger testId="element-delete">
+            <IconTrash size={13} />
+          </TabButton>
+          <span className="hidden items-center border-l border-white/30 group-hover:flex">
+            {selectedEntry && selectedEntry.parentId && (
+              <TabButton label="Select the parent" onClick={() => actions.onSelectParent(selected.id)} testId="element-parent">
+                <span className="text-[11px] font-bold">↑</span>
+              </TabButton>
+            )}
+            <TabButton label="Duplicate" onClick={() => actions.onDuplicate(selected.id)} testId="element-duplicate">
+              <IconCopy size={13} />
+            </TabButton>
           </span>
-          <ToolButton label="Move (drag)" onPointerDown={(event) => actions.onBeginMove(event, selected.id)} testId="element-move">
-            <IconMove size={15} />
-          </ToolButton>
-          {(selected.type === "heading" || selected.type === "text" || selected.type === "button") && (
-            <ToolButton label="Edit text on the page" onClick={() => actions.onEdit(selected.id)} testId="element-edit">
-              <IconPencil size={15} />
-            </ToolButton>
-          )}
-          {selectedEntry && selectedEntry.parentId && (
-            <ToolButton label="Select the parent" onClick={() => actions.onSelectParent(selected.id)}>
-              <span className="text-[11px] font-bold">↑</span>
-            </ToolButton>
-          )}
-          <ToolButton label="Duplicate" onClick={() => actions.onDuplicate(selected.id)} testId="element-duplicate">
-            <IconCopy size={15} />
-          </ToolButton>
-          <ToolButton label="Delete" onClick={() => actions.onDelete(selected.id)} danger testId="element-delete">
-            <IconTrash size={15} />
-          </ToolButton>
+        </div>
+      )}
+
+      {selected && canEdit && !editing && !drag && !isLocked(selectedEntry) && !(isContainerType(selected.type) || selected.type === "site-section") && (
+        <div
+          role="toolbar"
+          aria-label={`${label(selectedEntry?.element, selected)} tools`}
+          data-testid="element-toolbar"
+          data-kind="widget"
+          className="group pointer-events-auto absolute flex items-center overflow-hidden rounded-[4px] bg-accent shadow-pop"
+          style={widgetTabPosition(selected)}
+        >
+          <span className="hidden items-center border-r border-white/30 group-hover:flex">
+            {selectedEntry && selectedEntry.parentId && (
+              <TabButton label="Select the parent" onClick={() => actions.onSelectParent(selected.id)} testId="element-parent">
+                <span className="text-[11px] font-bold">↑</span>
+              </TabButton>
+            )}
+            <TabButton label="Duplicate" onClick={() => actions.onDuplicate(selected.id)} testId="element-duplicate">
+              <IconCopy size={13} />
+            </TabButton>
+            <TabButton label="Delete" onClick={() => actions.onDelete(selected.id)} danger testId="element-delete">
+              <IconTrash size={13} />
+            </TabButton>
+          </span>
+          <TabButton
+            label={`${label(selectedEntry?.element, selected)}: edit, or drag to move`}
+            onPointerDown={(event) => actions.onBeginMove(event, selected.id)}
+            onClick={() => (selected.type === "heading" || selected.type === "text" || selected.type === "button" ? actions.onEdit(selected.id) : actions.onSelect(selected.id))}
+            testId="element-move"
+            className="cursor-grab active:cursor-grabbing"
+          >
+            <IconPencil size={13} />
+          </TabButton>
         </div>
       )}
 

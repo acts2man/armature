@@ -537,8 +537,10 @@ test.describe("the inspector", () => {
   test("the icon picker loads the icon set on demand and saves the icon into the button", async ({ page }) => {
     await openBuilder(page);
     const frame = siteFrame(page);
-    await frame.locator(".ae-btnbuild").scrollIntoViewIfNeeded();
+    await frame.locator(".ae-btnbuild").evaluate((node) => node.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(150);
     await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "btnbuild");
     await page.getByTestId("group-icon").getByRole("button", { name: "Icon" }).click();
     await page.getByRole("button", { name: "Choose an icon" }).click();
     await page.getByLabel("Search icons").fill("arrow right");
@@ -560,6 +562,64 @@ test.describe("the inspector", () => {
     await expect(frame.locator("link[data-armature-fonts]")).toHaveAttribute("href", /family=Fraunces/);
     await openGlobals(page);
     await expect(page.getByTestId("custom-fonts")).toContainText("Fraunces");
+  });
+});
+
+// --- the canvas handles (Elementor's outlines and tabs) ------------------------------------------
+
+test.describe("the canvas handles", () => {
+  test("a thin outline on hover (dashed on containers), a pencil tab on a widget, a centred tab on a container", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    // Hover: solid on a widget, dashed on a container, with the type label.
+    await frame.locator(".ae-hdbuilds").hover();
+    await expect(page.getByTestId("hover-hdbuilds")).toHaveAttribute("data-kind", "widget");
+    await expect(page.getByTestId("hover-hdbuilds")).toContainText("Heading");
+    await frame.locator(".ae-secbuild").hover({ position: { x: 5, y: 5 } });
+    await expect(page.getByTestId("hover-secbuild")).toHaveAttribute("data-kind", "container");
+    // A selected widget: solid outline and a square pencil tab outside its top-right corner.
+    await frame.locator(".ae-hdbuilds").click();
+    const selection = page.getByTestId("element-selection");
+    await expect(selection).toHaveAttribute("data-kind", "widget");
+    const tab = page.getByTestId("element-toolbar");
+    await expect(tab).toHaveAttribute("data-kind", "widget");
+    const selectionBox = (await selection.boundingBox())!;
+    const tabBox = (await tab.boundingBox())!;
+    expect(Math.abs(tabBox.x + tabBox.width - (selectionBox.x + selectionBox.width))).toBeLessThan(3);
+    expect(tabBox.y + tabBox.height).toBeLessThanOrEqual(selectionBox.y + 1);
+    expect(tabBox.width).toBeLessThan(40); // just the pencil until it is hovered
+    // Hovering the tab reveals parent, duplicate and delete.
+    await page.getByTestId("element-move").hover();
+    await expect(page.getByTestId("element-duplicate")).toBeVisible();
+    await page.getByTestId("element-duplicate").click();
+    await expect(frame.locator(".ae-heading")).toHaveCount(2);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(frame.locator(".ae-heading")).toHaveCount(1);
+    // A container: the tab straddles the top edge, centred, with add / grip / delete.
+    await selectByCorner(frame, ".ae-secbuild");
+    await expect(selection).toHaveAttribute("data-element-id", "secbuild");
+    await expect(tab).toHaveAttribute("data-kind", "container");
+    const sectionBox = (await selection.boundingBox())!;
+    const containerTab = (await tab.boundingBox())!;
+    expect(Math.abs(containerTab.x + containerTab.width / 2 - (sectionBox.x + sectionBox.width / 2))).toBeLessThan(6);
+    // Straddling the top edge, or just inside it when the container touches the top of the frame.
+    expect(containerTab.y).toBeLessThan(sectionBox.y + 4);
+    expect(containerTab.y + containerTab.height).toBeGreaterThan(sectionBox.y);
+    await expect(tab.getByTestId("element-move")).toBeVisible();
+    await expect(tab.getByTestId("element-delete")).toBeVisible();
+    // A nested container's tab is shifted right so it never sits on its parent's.
+    await frame.locator(".ae-txtbuild").click();
+    await page.keyboard.press("ArrowLeft"); // its column
+    await expect(selection).toHaveAttribute("data-element-id", "colrigh1");
+    const columnBox = (await selection.boundingBox())!;
+    const columnTab = (await tab.boundingBox())!;
+    expect(columnTab.x + columnTab.width / 2).toBeGreaterThan(columnBox.x + columnBox.width / 2 + 40);
+    // "+" on the tab opens Elements to add inside.
+    await tab.getByTestId("element-add").click();
+    await expect(page.getByTestId("elements-panel")).toBeVisible();
+    // Clicking anything at any depth selects exactly it.
+    await frame.locator(".ae-btnbuild .ae-btn").click();
+    await expect(selection).toHaveAttribute("data-element-id", "btnbuild");
   });
 });
 

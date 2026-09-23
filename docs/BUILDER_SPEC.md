@@ -237,9 +237,13 @@ right edge of the window (Stage 1 / content-only sites keep the older split of
   in the PARENT above the iframe from bridge-reported rects.
 - **Media:** no tab; the image control's "Media library" button opens the library as a modal
   (reuse, upload, alt text).
-- **Canvas interactions:** hover outline and type label; container handle tab (add, move,
-  duplicate, delete); widget handle (drag, edit, duplicate, delete); "armature wire"
-  selection with a floating dark toolbar; up-arrow / Alt-click selects the parent.
+- **Canvas interactions:** a thin hover outline with the type label (solid on a widget,
+  dashed on a container); the selected element gets a solid accent outline and its handle
+  tab — a widget's is a square pencil outside its top-right corner (click edits, drag moves;
+  hovering it reveals parent, duplicate and delete), a container's is centred on its top
+  edge with add / grip / delete (nested containers' tabs shift right so they never stack).
+  Clicking anything at any depth selects exactly it; up-arrow / Alt-click selects the
+  parent. Inline text editing, the resize handles and the spacing handles stay.
 - **Drag and drop.** **Decision:** pointer events, not HTML5 drag and drop, because the
   iframe never hands the parent its drag events. During a drag the parent lays a
   transparent capture layer over the iframe, hit-tests the pointer against the rect map
