@@ -561,13 +561,14 @@ export function EditorWorkspace({
         selectElement(null);
         setPanelView("elements");
       },
+      onSelectField: (path: string) => selectPath(path as FieldPath),
       onApplyStructure: (id: string, structureId: string) => {
         const structure = STRUCTURES.find((item) => item.id === structureId);
         if (!structure || isLockedForMe(id)) return;
         builderCommand("Changed the structure", pageSlug, (current) => applyStructure(current, id, pageSlug, structure));
       },
     }),
-    [builderCommand, isLockedForMe, pageSlug, selectElement, send],
+    [builderCommand, isLockedForMe, pageSlug, selectElement, selectPath, send],
   );
 
   /** A change to the site kit (Site settings). An edit that would make the kit invalid is dropped. */
@@ -1144,14 +1145,37 @@ export function EditorWorkspace({
     return out;
   }, [changed, layoutChanges]);
   const [canvasRoots, setCanvasRoots] = useState<Set<FieldPath>>(() => new Set());
+  /** The Stage 1 fields each coded site section shows, by the section's element id (one entry per field root). */
+  const [sectionFieldMap, setSectionFieldMap] = useState<Record<string, { path: FieldPath; kind: string }[]>>({});
   useEffect(() => {
     return geometry.subscribe(() => {
       const fields = geometry.get().fields;
       const roots = new Set<FieldPath>();
-      for (const field of fields) roots.add(fieldRoot(field.path));
+      const owned: Record<string, { path: FieldPath; kind: string }[]> = {};
+      for (const field of fields) {
+        const root = fieldRoot(field.path);
+        roots.add(root);
+        if (field.owner) {
+          const list = (owned[field.owner] ??= []);
+          if (!list.some((item) => item.path === root)) list.push({ path: root, kind: field.kind });
+        }
+      }
       setCanvasRoots((current) => (current.size === roots.size && [...roots].every((root) => current.has(root)) ? current : roots));
+      setSectionFieldMap((current) => (JSON.stringify(current) === JSON.stringify(owned) ? current : owned));
     });
   }, [geometry]);
+  const selectedSectionFields = useMemo(() => {
+    if (!selectedId) return undefined;
+    const fields = sectionFieldMap[selectedId];
+    if (!fields) return undefined;
+    return fields.map((field) => {
+      const parsed = parseFieldPath(field.path);
+      const page = parsed ? schema.pages.find((item) => item.slug === parsed.slug) : undefined;
+      const section = page?.sections.find((item) => item.key === parsed?.section);
+      const definition = section?.fields.find((item) => item.key === parsed?.field);
+      return { path: field.path, label: definition?.label ?? field.path, kind: definition?.type ?? field.kind };
+    });
+  }, [selectedId, sectionFieldMap, schema]);
   const selectedOnCanvas = selectedPath !== null && canvasRoots.has(fieldRoot(selectedPath));
   const currentLayout = builderView.layouts[pageSlug];
   const changedIds = useMemo(() => changedElementIds(builderView.layouts[pageSlug], baseline.layouts[pageSlug]), [builderView.layouts, baseline.layouts, pageSlug]);
@@ -1405,6 +1429,7 @@ export function EditorWorkspace({
                   kit={builderView.kit}
                   isStaff={isStaff}
                   actions={inspectorActions}
+                  sectionFields={selectedSectionFields}
                 />
               </div>
             ) : panelView === "auto" && selectedPath ? (

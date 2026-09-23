@@ -28,7 +28,12 @@ export type ElementInspectorActions = {
   onPickImage?: (onPick: (src: string, alt: string) => void) => void;
   /** Rebuild a section's columns from a structure preset (Layout > Structure). */
   onApplyStructure?: (id: string, structureId: string) => void;
+  /** A Stage 1 field inside a coded site section: select it on the page and edit it in the panel. */
+  onSelectField?: (path: string) => void;
 };
+
+/** One editable field of a coded site section, as the page reports it. */
+export type SectionField = { path: string; label: string; kind: string };
 
 function Crumbs({ state, slug, id, onSelect }: { state: BuilderState; slug: string; id: string; onSelect: (id: string) => void }) {
   const entry = findElement(state, id, slug);
@@ -69,6 +74,7 @@ export function ElementInspector({
   onDevice,
   kit,
   isStaff,
+  sectionFields,
 }: {
   state: BuilderState;
   slug: string;
@@ -84,6 +90,8 @@ export function ElementInspector({
   onDevice: (device: Device) => void;
   kit: SiteKit;
   isStaff: boolean;
+  /** For a coded site section: the fields the page shows for it (words, pictures, links, lists). */
+  sectionFields?: SectionField[];
 }) {
   const [tab, setTab] = useState<InspectorTab>("content");
   const [styleState, setStyleState] = useState<"normal" | "hover">("normal");
@@ -119,10 +127,27 @@ export function ElementInspector({
   if (tab === "content") {
     const siteSectionNote =
       element.type === "site-section" ? (
-        <div className="mx-5 mt-3 rounded-control border border-line bg-ground/60 p-3 text-[12px] leading-relaxed text-muted" data-testid="site-section-note">
-          {isStaff ? "This section is coded in the site's repository. To make its layout fully editable here, convert it to builder elements in the site's repo." : "This section is looked after by your agency. To change its layout, ask your agency to make this section fully editable."}
-          <span className="mt-1.5 block text-text">Its text and pictures are still editable — click them on the page.</span>
-        </div>
+        <>
+          <div className="mx-5 mt-3 rounded-control border border-line bg-ground/60 p-3 text-[12px] leading-relaxed text-muted" data-testid="site-section-note">
+            {isStaff ? "This section is coded in the site's repository. To make its layout fully editable here, convert it to builder elements in the site's repo." : "This section is looked after by your agency. To change its layout, ask your agency to make this section fully editable."}
+            <span className="mt-1.5 block text-text">Its text and pictures are still editable — click them on the page, or pick one below.</span>
+          </div>
+          {sectionFields && sectionFields.length > 0 && (
+            <section className="mt-3 border-b border-line px-5 pb-4" data-testid="section-fields">
+              <h3 className="flex h-10 items-center text-[13px] font-bold text-text">Editable here</h3>
+              <ul className="flex flex-col gap-1">
+                {sectionFields.map((field) => (
+                  <li key={field.path}>
+                    <button type="button" onClick={() => actions.onSelectField?.(field.path)} data-testid={`section-field-${field.path.split(".").pop() ?? ""}`} className="flex h-8 w-full items-center justify-between rounded-sm border border-line px-2 text-left text-[12px] text-text hover:border-accent hover:bg-ground">
+                      <span className="truncate">{field.label}</span>
+                      <span className="ml-2 shrink-0 text-[11px] text-muted">{field.kind}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       ) : null;
     body = content ? (
       <>

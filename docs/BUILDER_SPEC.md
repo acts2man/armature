@@ -237,6 +237,12 @@ right edge of the window (Stage 1 / content-only sites keep the older split of
   in the PARENT above the iframe from bridge-reported rects.
 - **Media:** no tab; the image control's "Media library" button opens the library as a modal
   (reuse, upload, alt text).
+- **Still-coded site sections:** clicking one selects it as a whole ("Edit Section"). Its
+  Content tab carries a note — clients: "ask your agency to make this section fully
+  editable"; staff: "convert it to builder elements in the site's repo" — and an "Editable
+  here" list of the Stage 1 fields the page shows for it (words, pictures, links, lists);
+  picking one selects it on the page and opens its field editor in the panel, exactly as
+  clicking it on the page does.
 - **Canvas interactions:** a thin hover outline with the type label (solid on a widget,
   dashed on a container); the selected element gets a solid accent outline and its handle
   tab — a widget's is a square pencil outside its top-right corner (click edits, drag moves;

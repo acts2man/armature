@@ -565,6 +565,36 @@ test.describe("the inspector", () => {
   });
 });
 
+// --- still-coded site sections ------------------------------------------------------------------------
+
+test.describe("still-coded site sections", () => {
+  test("select as a whole, show the note and the editable fields, and a field opens its editor", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    await selectByCorner(frame, "[data-ae-id='sechero1']");
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "sechero1");
+    await expect(page.getByTestId("edit-title")).toContainText("Edit Section");
+    await expect(page.getByTestId("site-section-note")).toContainText("convert it to builder elements in the site's repo");
+    const fields = page.getByTestId("section-fields");
+    await expect(fields).toContainText("Headline");
+    await expect(fields).toContainText("Hero photo");
+    await expect(fields).toContainText("Button");
+    await fields.getByTestId("section-field-title").click();
+    await expect(page.getByTestId("selection-toolbar")).toContainText("Headline");
+    await expect(page.getByTestId("field-editor")).toBeVisible();
+    await expect(page.getByTestId("element-selection")).toHaveCount(0);
+  });
+
+  test("a client reads the ask-your-agency note", async ({ page }) => {
+    await openEditor(page, { role: "client", editingLevel: "builder" });
+    await waitForReady(page);
+    await page.getByRole("button", { name: /Phone view/ }).click();
+    await selectByCorner(siteFrame(page), "[data-ae-id='sechero1']");
+    await expect(page.getByTestId("site-section-note")).toContainText("ask your agency to make this section fully editable");
+    await expect(page.getByTestId("section-fields")).toContainText("Headline");
+  });
+});
+
 // --- drag anywhere ----------------------------------------------------------------------------------
 
 test.describe("drag anywhere", () => {
