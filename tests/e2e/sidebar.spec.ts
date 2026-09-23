@@ -8,9 +8,9 @@ import { expect, test, type Page } from "@playwright/test";
 import { SITE_ID, installMocks } from "./mocks.ts";
 
 /** The items a connected site shows today, in order. Later parts add Media, Contact and Appearance. */
-const STAFF_ITEMS = ["Dashboard", "Pages", "Users", "Site settings"];
-const CLIENT_ITEMS = ["Dashboard", "Pages"];
-const HIDDEN = ["nav-stats", "nav-posts", "nav-media", "nav-contact", "nav-appearance"];
+const STAFF_ITEMS = ["Dashboard", "Media", "Pages", "Users", "Site settings"];
+const CLIENT_ITEMS = ["Dashboard", "Media", "Pages"];
+const HIDDEN = ["nav-stats", "nav-posts", "nav-contact", "nav-appearance"];
 
 const sidebar = (page: Page) => page.getByTestId("sidebar");
 const itemLabels = (page: Page) => sidebar(page).getByTestId("site-sidebar").locator("ul a").evaluateAll((links) => links.map((link) => link.textContent?.trim()));

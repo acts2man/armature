@@ -53,8 +53,8 @@ Deno.serve(
       await recordAttempt(env, {
         site_id: site.id,
         user_id: caller.userId,
-        page_slug: Array.from(new Set([...outcome.slugs, ...(outcome.trash ?? [])])).join(", ") || (outcome.kit ? "site settings" : outcome.media ? "media" : ""),
-        fields_changed: [...outcome.fields, ...outcome.layouts.map((slug) => `layout:${slug}`), ...(outcome.trash ?? []).map((slug) => `trash:${slug}`), ...(outcome.kit ? ["kit"] : []), ...(outcome.media ? ["media"] : [])],
+        page_slug: Array.from(new Set([...outcome.slugs, ...(outcome.trash ?? [])])).join(", ") || (outcome.kit ? "site settings" : "media library"),
+        fields_changed: [...outcome.fields, ...outcome.layouts.map((slug) => `layout:${slug}`), ...(outcome.trash ?? []).map((slug) => `trash:${slug}`), ...(outcome.kit ? ["kit"] : []), ...(outcome.media ? ["media"] : []), ...outcome.images.map((path) => `upload:${path}`), ...(outcome.deleted ?? []).map((path) => `delete:${path}`)],
         commit_sha: outcome.commitSha,
         commit_url: outcome.commitUrl,
         status: "committed",

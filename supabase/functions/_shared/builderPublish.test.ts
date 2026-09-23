@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertRejects, assertStringIncludes } from "jsr:@std/assert@1";
 import { CONTENT_PATH, serializeContent } from "../../../shared/contentFile.ts";
 import { SCHEMA_PATH } from "../../../shared/schema.ts";
-import { layoutPath, serializeBuilderFile, SITE_KIT_PATH, trashPath } from "../../../shared/builder/schema.ts";
+import { layoutPath, MEDIA_META_PATH, serializeBuilderFile, SITE_KIT_PATH, trashPath } from "../../../shared/builder/schema.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { Element, LayoutDoc } from "../../../kit/types.ts";
 import { ArmatureError } from "./errors.ts";
@@ -225,4 +225,23 @@ Deno.test("a copy is made on the server from the committed file, so unread value
   await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "second": { from: "about-us", label: "Second", path: "/about-us/" } } }), userEmail: "x", permissions: staff }), ArmatureError, "already uses");
   await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "second": { from: "nowhere", label: "", path: "" } } }), userEmail: "x", permissions: staff }), ArmatureError, "no page called");
   await assertRejects(() => runBuilderPublish({ repo, input: input({ copies: { "second": { from: "about-us", label: "", path: "" } } }), userEmail: "x", permissions: permissionsFor(false, "style") }), ArmatureError, "add");
+});
+
+Deno.test("the media library: uploads keep their names (made safe and unique) and a deletion takes its alt text with it", async () => {
+  const { repo, commits } = fakeRepo({ [BASE]: { "public/assets/team.svg": "<svg/>", "public/assets/uploads/site-visit.webp": "x", [MEDIA_META_PATH]: serializeBuilderFile({ "/assets/team.svg": { alt: "The crew" }, "/assets/uploads/site-visit.webp": { alt: "A visit" } }) } }, BASE);
+  const outcome = await runBuilderPublish({ repo, input: input({ uploads: [{ name: "Site Visit.WEBP", data: "data:image/webp;base64,UklGRg==" }, { name: "../evil name.png", data: "data:image/png;base64,iVBORw0KGgo=" }] }), userEmail: "x", permissions: permissionsFor(false, "content") });
+  assertEquals(outcome.images, ["/assets/uploads/site-visit-2.webp", "/assets/uploads/evil-name.png"]);
+  assert(commits[0]?.files.some((file) => file.path === "public/assets/uploads/site-visit-2.webp" && file.encoding === "base64"));
+  assertStringIncludes(commits[0]?.message ?? "", "Media library");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ uploads: [{ name: "a.txt", data: "data:text/plain;base64,aGk=" }] }), userEmail: "x", permissions: staff }), ArmatureError, "not a PNG, JPEG, WebP or GIF");
+
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ deleteAssets: ["/assets/team.svg"] }), userEmail: "x", permissions: permissionsFor(false, "style") }), ArmatureError, "cannot delete pictures");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ deleteAssets: ["/assets/nowhere.png"] }), userEmail: "x", permissions: staff }), ArmatureError, "no picture at");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ deleteAssets: ["/etc/passwd"] }), userEmail: "x", permissions: staff }), ArmatureError, "not a picture on this site");
+  const gone = await runBuilderPublish({ repo, input: input({ deleteAssets: ["/assets/team.svg"] }), userEmail: "x", permissions: staff });
+  assertEquals(gone.deleted, ["/assets/team.svg"]);
+  assertEquals(gone.media, true);
+  const last = commits.at(-1)!;
+  assertEquals(last.files.find((file) => file.path === "public/assets/team.svg")?.delete, true);
+  assertEquals(committed(last, MEDIA_META_PATH), { "/assets/uploads/site-visit.webp": { alt: "A visit" } });
 });

@@ -26,7 +26,7 @@ export const BUILT: Record<SiteNavKey, boolean> = {
   dashboard: true,
   stats: false,
   posts: false,
-  media: false,
+  media: true,
   pages: true,
   contact: false,
   appearance: false,

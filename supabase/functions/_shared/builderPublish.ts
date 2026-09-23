@@ -11,7 +11,7 @@
  * file is written back exactly as it was (unless that very setting was changed); one
  * that is new is refused with a plain-English message.
  */
-import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta, PageCopy, TrashAction } from "../../../shared/publishTypes.ts";
+import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta, MediaUpload, PageCopy, TrashAction } from "../../../shared/publishTypes.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
 import { mergeLayouts, mergeValues, stableJson, type MergeConflict, type Resolution } from "../../../shared/builder/merge.ts";
@@ -33,6 +33,8 @@ export type BuilderPublishInput = {
   resolutions: Record<string, Resolution>;
   trash?: Record<string, TrashAction>;
   copies?: Record<string, PageCopy>;
+  uploads?: MediaUpload[];
+  deleteAssets?: string[];
 };
 
 const UPLOADS = { dir: "public/assets/uploads", url: "/assets/uploads" };
@@ -134,7 +136,8 @@ export async function runBuilderPublish(opts: {
   permissions: Permissions;
   now?: () => number;
 }): Promise<BuilderPublishOutcome> {
-  const { repo, input, permissions } = opts;
+  const { repo, permissions } = opts;
+  let input = opts.input;
   if (typeof input.baseCommitSha !== "string" || input.baseCommitSha.length === 0) {
     throw new ArmatureError("invalid", "This editor session did not record which version it loaded. Reload the page and try again.");
   }
@@ -371,8 +374,69 @@ export async function runBuilderPublish(opts: {
     }
   }
 
+  // --- the media library: uploads and deletions ---------------------------------------------
+  const libraryUploads: string[] = [];
+  const deleted: string[] = [];
+  if ((input.uploads?.length ?? 0) > 0 || (input.deleteAssets?.length ?? 0) > 0) {
+    const existing = new Set((await repo.listTree("public/assets", head)).map((entry) => `/${entry.path.replace(/^public\//, "")}`));
+    for (const upload of input.uploads ?? []) {
+      const match = typeof upload?.data === "string" ? DATA_IMAGE.exec(upload.data) : null;
+      if (!match) {
+        errors.push(`"${String(upload?.name ?? "").slice(0, 60)}" is not a PNG, JPEG, WebP or GIF picture`);
+        continue;
+      }
+      const data = (match[2] ?? "").replace(/\s+/g, "");
+      if (!isValidBase64(data)) {
+        errors.push(`"${String(upload.name).slice(0, 60)}": the picture's data is not valid`);
+        continue;
+      }
+      const bytes = base64ByteLength(data);
+      if (bytes > MAX_IMAGE_BYTES) {
+        errors.push(`"${String(upload.name).slice(0, 60)}" is too large (${(bytes / 1024 / 1024).toFixed(1)} MB, limit ${MAX_IMAGE_BYTES / 1024 / 1024} MB)`);
+        continue;
+      }
+      const ext = EXTENSIONS[(match[1] ?? "").toLowerCase()] ?? "png";
+      const base =
+        String(upload.name ?? "")
+          .replace(/\.[a-z0-9]+$/i, "")
+          .toLowerCase()
+          .normalize("NFKD")
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 60) || "picture";
+      let name = `${base}.${ext}`;
+      let n = 2;
+      while (existing.has(`${UPLOADS.url}/${name}`)) name = `${base}-${n++}.${ext}`;
+      existing.add(`${UPLOADS.url}/${name}`);
+      files.push({ path: `${UPLOADS.dir}/${name}`, content: data, encoding: "base64" });
+      libraryUploads.push(`${UPLOADS.url}/${name}`);
+    }
+    for (const path of input.deleteAssets ?? []) {
+      if (typeof path !== "string" || !/^\/assets\/[A-Za-z0-9._\-/]+$/.test(path) || path.includes("..")) {
+        errors.push(`"${String(path).slice(0, 80)}" is not a picture on this site`);
+        continue;
+      }
+      if (!existing.has(path)) {
+        errors.push(`There is no picture at ${path}; it may already be gone.`);
+        continue;
+      }
+      if (!permissions.staff && permissions.level !== "builder") {
+        errors.push("Your account cannot delete pictures from the library; ask the agency.");
+        continue;
+      }
+      files.push({ path: `public${path}`, content: "", encoding: "utf-8", delete: true });
+      deleted.push(path);
+    }
+    if (libraryUploads.length > 0 || deleted.length > 0) labels.push("Media library");
+  }
+
   // --- media metadata (alt text) -----------------------------------------------------------
   let mediaWritten = false;
+  if (deleted.length > 0 && (input.media === null || input.media === undefined)) {
+    // A deleted picture's alt text goes with it.
+    const theirs = validateMedia(await readJson(repo, MEDIA_META_PATH, head)).value ?? {};
+    if (deleted.some((path) => path in theirs)) input = { ...input, media: Object.fromEntries(Object.entries(theirs).filter(([path]) => !deleted.includes(path))) };
+  }
   if (input.media !== null && input.media !== undefined) {
     const mine = validateMedia(input.media);
     errors.push(...mine.errors);
@@ -414,7 +478,8 @@ export async function runBuilderPublish(opts: {
     commitSha: result.commitSha,
     commitUrl: result.commitUrl,
     fields: content.fields,
-    images: [...content.images, ...[...uploads.keys()].map((name) => `${UPLOADS.url}/${name}`)],
+    images: [...content.images, ...[...uploads.keys()].map((name) => `${UPLOADS.url}/${name}`), ...libraryUploads],
+    deleted,
     slugs: Array.from(new Set([...content.slugs, ...writtenLayouts])),
     layouts: writtenLayouts,
     trash: trashed,
@@ -441,6 +506,8 @@ export function parseBuilderPublishRequest(raw: Record<string, unknown>): Builde
     const entry = copy as Record<string, unknown>;
     copies[slug] = { from: String(entry["from"] ?? ""), label: String(entry["label"] ?? ""), path: String(entry["path"] ?? "") };
   }
+  const uploads: MediaUpload[] = (Array.isArray(raw["uploads"]) ? raw["uploads"] : []).slice(0, 50).map((entry) => ({ name: String((entry as Record<string, unknown>)?.["name"] ?? ""), data: String((entry as Record<string, unknown>)?.["data"] ?? "") }));
+  const deleteAssets: string[] = (Array.isArray(raw["deleteAssets"]) ? raw["deleteAssets"] : []).slice(0, 100).map((entry) => String(entry));
   return {
     site_id: typeof raw["site_id"] === "string" ? raw["site_id"] : "",
     baseCommitSha: typeof raw["baseCommitSha"] === "string" ? raw["baseCommitSha"] : "",
@@ -450,6 +517,8 @@ export function parseBuilderPublishRequest(raw: Record<string, unknown>): Builde
     media: raw["media"] ?? null,
     trash,
     copies,
+    uploads,
+    deleteAssets,
     resolutions,
   };
 }

@@ -96,6 +96,10 @@ public/assets/uploads/<page-slug>-<timestamp>-<safe-file-name>.<webp|png|jpg>
 
 and sets the field to `/assets/uploads/<that file>`. Your site must serve the `public/` folder at the web root so that `/assets/uploads/...` resolves. That is the default for Vite, Next.js, Astro and most React setups. Do not rename or delete files in this folder by hand: the content file points at them.
 
+Pictures uploaded from the dashboard's Media Library land here too, under their own (made-safe,
+made-unique) file names; a deletion from the library removes the file and its alt text from
+`content/media.json` in the same commit.
+
 ## How a site should read its content
 
 Import the JSON at build time, so the text is baked into the built HTML and the site renders correctly with no network request:

@@ -324,7 +324,13 @@ export type BuilderPublishRequest = {
   trash?: Record<string, TrashAction>;
   /** New pages copied from existing builder pages on the server, by the new slug (so nothing in the file is lost in the copy). */
   copies?: Record<string, PageCopy>;
+  /** Pictures for the media library, as prepared in the browser (a data: URL each), with the name to keep. */
+  uploads?: MediaUpload[];
+  /** Pictures to remove from the site ("/assets/…" paths). */
+  deleteAssets?: string[];
 };
+
+export type MediaUpload = { name: string; data: string };
 
 export type PageCopy = { from: string; label: string; path: string };
 
@@ -339,6 +345,8 @@ export type BuilderPublishResponse = {
   layouts: string[];
   /** Page slugs moved into or out of the bin, or deleted from it. */
   trash?: string[];
+  /** Pictures removed from the site. */
+  deleted?: string[];
   kit: boolean;
   media: boolean;
   /** True when someone else had published in between and the draft was merged onto it. */

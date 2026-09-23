@@ -327,10 +327,31 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             layouts[slug] = { ...source, pageSlug: slug, label: copy.label || `${String(source["label"] ?? copy.from)} (copy)`, path: copy.path || `/${slug}/` };
             written.push(slug);
           }
+          const uploaded: string[] = [];
+          for (const upload of (body["uploads"] ?? []) as { name: string; data: string }[]) {
+            const base = upload.name.replace(/\.[a-z0-9]+$/i, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "picture";
+            const ext = /^data:image\/(\w+)/.exec(upload.data)?.[1]?.replace("jpeg", "jpg") ?? "png";
+            let name = `${base}.${ext}`;
+            let n = 2;
+            while (media.some((file) => file.path === `/assets/uploads/${name}`)) name = `${base}-${n++}.${ext}`;
+            media.push({ path: `/assets/uploads/${name}`, bytes: Math.floor((upload.data.length * 3) / 4), kind: "image", alt: "" });
+            uploaded.push(`/assets/uploads/${name}`);
+          }
+          const deleted: string[] = [];
+          for (const path of (body["deleteAssets"] ?? []) as string[]) {
+            const index = media.findIndex((file) => file.path === path);
+            if (index < 0) return json(route, { ok: false, code: "invalid", message: `There is no picture at ${path}; it may already be gone.` }, 400);
+            media.splice(index, 1);
+            deleted.push(path);
+          }
+          if (body["media"] && typeof body["media"] === "object") {
+            const meta = body["media"] as Record<string, { alt: string }>;
+            for (const file of media) file.alt = meta[file.path]?.alt ?? "";
+          }
           commitSha = "b0b0b0b0b1b1b1b1b2b2b2b2b3b3b3b3b4b4b4b4";
           const stamp = new Date().toISOString();
           if (written.length > 0 || trashed.length > 0) (state.rows["publishes"] ??= []).unshift({ id: `pub-${stamp}`, site_id: SITE_ID, user_id: userId, page_slug: [...new Set([...written, ...trashed])].join(", "), fields_changed: [], commit_sha: commitSha, commit_url: `https://github.com/acme/alder-stone/commit/${commitSha}`, status: "committed", error: null, created_at: stamp });
-          return json(route, { ok: true, commitSha, commitUrl: `https://github.com/acme/alder-stone/commit/${commitSha}`, fields: [], images: [], slugs: written, layouts: written, trash: trashed, kit: !!body["kit"], media: !!body["media"], merged: options.builderPublish === "conflict-once" });
+          return json(route, { ok: true, commitSha, commitUrl: `https://github.com/acme/alder-stone/commit/${commitSha}`, fields: [], images: uploaded, slugs: written, layouts: written, trash: trashed, deleted, kit: !!body["kit"], media: !!body["media"], merged: options.builderPublish === "conflict-once" });
         }
         case "content-publish-batch":
           state.publishRequests.push(body);

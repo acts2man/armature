@@ -21,6 +21,7 @@ import { PageEditor } from "@/pages/PageEditor.tsx";
 import { PublishHistory } from "@/pages/PublishHistory.tsx";
 import { SignIn } from "@/pages/SignIn.tsx";
 import { SiteHome } from "@/pages/SiteHome.tsx";
+import { SiteMedia } from "@/pages/SiteMedia.tsx";
 import { SitePages } from "@/pages/SitePages.tsx";
 import { SiteConnection, SiteEditingSettings, SiteHistorySettings, SiteServicesSettings, SiteSettings } from "@/pages/SiteSettings.tsx";
 import { Team } from "@/pages/Team.tsx";
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
                   { index: true, element: <SiteHome /> },
                   { path: "pages", element: <SitePages /> },
                   { path: "pages/:slug", element: <PageEditor /> },
+                  { path: "media", element: <SiteMedia /> },
                   { path: "requests", element: <ChangeRequests /> },
                   { path: "requests/new", element: <NewChangeRequest /> },
                   { path: "requests/:requestId", element: <ChangeRequestDetail /> },
