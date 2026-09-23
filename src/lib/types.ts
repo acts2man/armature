@@ -69,6 +69,8 @@ export type SiteServices = {
   transactional_email_provider: "resend" | "other" | "none" | null;
   transactional_from_address: string | null;
   agreement_accepted_on: string | null;
+  /** Where the site's form entries are emailed (up to ten addresses). */
+  form_recipients?: string[];
   notes: string;
   updated_at: string | null;
   updated_by: string | null;

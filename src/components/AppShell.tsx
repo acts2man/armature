@@ -25,6 +25,7 @@ import type { IconProps } from "./icons.tsx";
 import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconLogout, IconMenu, IconPencil, IconSettings, IconTeam, WireA } from "./icons.tsx";
 import { useIsStaffFor, useSiteQuery } from "./SiteLayout.tsx";
 import { siteNavItems } from "./siteNav.ts";
+import { useUnreadCount } from "@/hooks/useMessages.ts";
 import { CountBadge, Drawer, Monogram, Notice, Select, Skeleton } from "./ui.tsx";
 
 type NavItem = {
@@ -356,7 +357,8 @@ function SiteSidebarContent({ siteId, collapsed, onNavigate }: SidebarProps & { 
   const switcherSites: SiteOption[] = staffAnywhere ? (agencySites.data ?? []) : sites.map((entry) => ({ id: entry.site.id, name: entry.site.name }));
   const siteName = site?.name ?? membership?.site.name ?? switcherSites.find((entry) => entry.id === siteId)?.name ?? "";
   const hostingOnly = site ? isHostingOnly(site) : true;
-  const items: NavItem[] = site ? siteNavItems({ root, isStaff, hostingOnly }) : [];
+  const unread = useUnreadCount(site ? siteId : undefined);
+  const items: NavItem[] = site ? siteNavItems({ root, isStaff, hostingOnly }).map((item) => (item.key === "contact" ? { ...item, badge: unread } : item)) : [];
 
   return (
     <div className={clsx("flex h-full flex-col justify-between gap-6 p-4 pt-4", collapsed ? "sm:px-2" : "sm:px-3")} data-testid="site-sidebar">

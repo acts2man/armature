@@ -203,8 +203,17 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           if (wantsCount) return countOf(0);
           if (request.method() === "POST") return json(route, [{ id: "55555555-5555-4555-8555-555555555555" }], 201);
           return json(route, []);
-        case "site_services":
-          return json(route, []);
+        case "site_services": {
+          const rows = (state.rows["site_services"] ??= []);
+          if (request.method() === "POST" || request.method() === "PATCH") {
+            const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
+            const existing = rows.find((row) => row["site_id"] === (patch["site_id"] ?? SITE_ID));
+            if (existing) Object.assign(existing, patch);
+            else rows.push({ site_id: SITE_ID, form_recipients: [], notes: "", ...patch });
+            return json(route, rows, 201);
+          }
+          return json(route, rows);
+        }
         case "site_billing":
           return json(route, []);
         case "form_submissions": {
@@ -214,6 +223,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             [...url.searchParams].every(([column, filter]) => {
               if (column === "select" || column === "order" || column === "limit" || column === "offset") return true;
               if (filter.startsWith("eq.")) return String(row[column]) === filter.slice(3);
+              if (filter.startsWith("in.(")) return filter.slice(4, -1).split(",").map((part) => part.replace(/^"|"$/g, "")).includes(String(row[column]));
               if (filter === "is.null") return row[column] === null || row[column] === undefined;
               if (filter === "not.is.null") return row[column] !== null && row[column] !== undefined;
               return true;

@@ -15,6 +15,7 @@ import { Button, Drawer, EmptyState, Field, IconButton, Input, Modal, Notice, Pa
 import { formatBytes, mediaEntries, mediaUsage, thumbnailUrl, type MediaEntry } from "@/builder/media.ts";
 import { useMediaActions } from "@/hooks/useMediaActions.ts";
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
+import { useWide } from "@/hooks/useWide.ts";
 import { isHostingOnly } from "@/lib/services.ts";
 import { isAcceptedImageType } from "@/lib/resizeImage.ts";
 import type { ContentGetResponse } from "@shared/publishTypes.ts";
@@ -29,19 +30,6 @@ function readView(): View {
   } catch {
     return "grid";
   }
-}
-
-/** Wide enough for the details panel beside the grid (the sidebar's breakpoint); below it, a drawer. */
-function useWide(): boolean {
-  const query = "(min-width: 900px)";
-  const [wide, setWide] = useState(() => (typeof window === "undefined" ? true : window.matchMedia(query).matches));
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    const onChange = () => setWide(media.matches);
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, []);
-  return wide;
 }
 
 /** The picture's natural size, once the browser has it. */
