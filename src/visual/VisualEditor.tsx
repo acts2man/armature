@@ -49,6 +49,7 @@ export function VisualEditor() {
   const [wantedSlug] = useState(() => search.get("page") || pageSlug || undefined);
   const [elementId] = useState(() => search.get("element"));
   const [panel] = useState<"page-settings" | null>(() => (search.get("panel") === "settings" ? "page-settings" : null));
+  const [part] = useState<"_header" | "_footer" | null>(() => (search.get("part") === "header" ? "_header" : search.get("part") === "footer" ? "_footer" : null));
   // "Add New Page" on the Pages screen hands the new page over; it exists only in the draft until published.
   const [newPage] = useState(() => (search.get("new") ? readNewPageHandoff(siteId) : null));
   const { user, agency } = useAuth();
@@ -159,7 +160,8 @@ export function VisualEditor() {
       initialSlug={wantedSlug}
       initialElementId={elementId && /^[a-z0-9]{8}$/.test(elementId) ? elementId : null}
       initialPanel={panel}
-      initialNewPage={newPage?.pageSlug === wantedSlug ? newPage : null}
+      initialNewPage={newPage?.pageSlug === wantedSlug || (newPage !== null && part !== null && newPage.pageSlug === part) ? newPage : null}
+      initialPart={part}
     />
   );
 }

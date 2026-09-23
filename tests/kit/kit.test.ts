@@ -17,7 +17,8 @@ import { BRIDGE_MESSAGE_TYPES, BUILDER_PROTOCOL_VERSION, EDITOR_MESSAGE_TYPES } 
 import { PROTOCOL_VERSION, type SiteSchemaLike } from "../../kit/bridge.ts";
 import { elementsCss, kitCss, pageCss } from "../../kit/css.ts";
 import { defaultSiteKit } from "../../kit/defaults.ts";
-import { KIT_VERSION, createArmatureKit, type ContentTree } from "../../kit/index.ts";
+import { ArmatureChrome, KIT_VERSION, createArmatureKit, type ContentTree } from "../../kit/index.ts";
+import { checkLayout, checkSiteKit } from "../../kit/validate.ts";
 import { hasOverride, resolve, setAt } from "../../kit/responsive.ts";
 import { RichText, plainDoc, richTextToPlain } from "../../kit/richText.tsx";
 import { serializeRichText } from "../../kit/richTextDom.ts";
@@ -351,5 +352,38 @@ describe("motion effects", () => {
     const out = css([moving], kit);
     expect(out).toContain(".ae-root .ae-hovergrw.ae-hovergrw:hover { transform: scale(1.05); }");
     expect(out).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[\s\S]*\.ae-root \.ae-hovergrw\.ae-hovergrw:hover \{ transform: none; \}/);
+  });
+});
+
+describe("the header and footer built in the editor", () => {
+  const header: LayoutDoc = { version: 1, pageSlug: "_header", path: "/", label: "Header", root: [element({ type: "container", props: { direction: "row" }, children: [element({ type: "site-logo", props: { src: "/assets/logo.svg", alt: "Acme" } }), element({ type: "nav-menu", props: { menu: "main", breakpoint: 600 } })] })] };
+  const menus = [{ id: "main", name: "Main", items: [{ id: "home", label: "Home", kind: "page" as const, page: "home" }, { id: "more", label: "More", kind: "url" as const, href: "https://example.com", children: [{ id: "about", label: "About", kind: "page" as const, page: "about" }] }] }];
+
+  it("_header and _footer are valid layout slugs and menus validate in the kit", () => {
+    expect(checkLayout(header).problems).toEqual([]);
+    expect(checkLayout({ ...header, pageSlug: "_sidebar" }).value).toBeNull();
+    const report = checkSiteKit({ ...defaultSiteKit(), menus });
+    expect(report.problems).toEqual([]);
+    expect(report.value?.menus?.[0]?.items[1]?.children?.[0]?.label).toBe("About");
+    const bad = checkSiteKit({ ...defaultSiteKit(), menus: [{ id: "main", name: "Main", items: [{ id: "x", label: "X", kind: "url", href: "javascript:alert(1)" }] }] });
+    expect(bad.problems.some((problem) => problem.path.join(".").includes("href"))).toBe(true);
+  });
+
+  it("ArmatureChrome renders the fallback without a part, and the part (logo linked home, menu with dropdown) with one", () => {
+    createArmatureKit({ allowedOrigins: [], schema: demoSchema as unknown as SiteSchemaLike, content: demoContent as ContentTree, siteKit: { ...(demoKit as SiteKit), menus }, layouts: [demoHome as LayoutDoc] });
+    const fallback = renderToStaticMarkup(createElement(ArmatureChrome, { part: "header", fallback: createElement("header", { id: "coded" }, "Coded") }));
+    expect(fallback).toContain('id="coded"');
+    createArmatureKit({ allowedOrigins: [], schema: demoSchema as unknown as SiteSchemaLike, content: demoContent as ContentTree, siteKit: { ...(demoKit as SiteKit), menus }, layouts: [demoHome as LayoutDoc, header] });
+    const html = renderToStaticMarkup(createElement(ArmatureChrome, { part: "header", fallback: createElement("header", { id: "coded" }, "Coded") }));
+    expect(html).not.toContain('id="coded"');
+    expect(html).toContain('data-armature-part="header"');
+    expect(html).toContain('href="/"');
+    expect(html).toContain('src="/assets/logo.svg"');
+    expect(html).toContain('aria-label="Main"');
+    expect(html).toContain('href="/about/"');
+    expect(html).toContain("ae-nav-sub");
+    expect(html).toContain("@media (max-width: 600px)");
+    // The footer has no part: its fallback shows.
+    expect(renderToStaticMarkup(createElement(ArmatureChrome, { part: "footer", fallback: "F" }))).toBe("F");
   });
 });

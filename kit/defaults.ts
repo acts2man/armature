@@ -66,5 +66,6 @@ export function defaultSiteKit(): SiteKit {
     breakpoints: { tablet: 1024, mobile: 767 },
     imageRadius: px(0),
     pageBackground: "#ffffff",
+    menus: [],
   };
 }

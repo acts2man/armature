@@ -565,8 +565,9 @@ is skipped on the site (the editor shows "Unsupported element").
 
 ```
 content/layouts/<pageSlug>.json    one layout per page (coded pages: optional; builder pages: always)
+content/layouts/_header.json       the header built in the editor (kit 2.4+), rendered by <ArmatureChrome part="header">; _footer.json likewise
 content/trash/<pageSlug>.json      builder pages in the bin: moved here as they are by "Trash" on the Pages screen, moved back by "Restore"; the site never renders them
-content/site-kit.json              global colours, fonts, typography and button presets, container defaults, breakpoints
+content/site-kit.json              global colours, fonts, typography and button presets, container defaults, breakpoints, and `menus` (kit 2.4+: the navigation menus the Nav Menu widget shows)
 content/media.json                 default alt text per picture, from the media library
 public/assets/uploads/             pictures, as in v1
 ```

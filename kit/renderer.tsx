@@ -9,7 +9,7 @@ import { pageCss } from "./css.ts";
 import { installEntranceAnimations, installParallax } from "./motion.ts";
 import { safeAttributeName } from "./sanitize.ts";
 import type { KitSnapshot, KitStore } from "./store.ts";
-import type { Element, LayoutDoc, SiteSectionProps } from "./types.ts";
+import { chromeSlug, isChromeSlug, type ChromePart, type Element, type LayoutDoc, type SiteSectionProps } from "./types.ts";
 import { cssIdent, googleFontsHref } from "./values.ts";
 import { getWidget } from "./widgets.tsx";
 
@@ -22,6 +22,8 @@ export type KitRuntime = {
   onSlotsChange: Set<() => void>;
   /** Where the Form widget sends entries (the dashboard's form-submit function), when the site set it. */
   forms?: { endpoint: string; siteId: string };
+  /** Coded pages' live paths by slug (from content/schema.json), for the Nav Menu widget's page links. */
+  pagePaths: Map<string, string>;
 };
 
 let runtime: KitRuntime | null = null;
@@ -205,7 +207,7 @@ function useKitFonts(kit: KitSnapshot["kit"]): void {
 export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: LayoutDoc }) {
   const snapshot = useKitSnapshot();
   const layout = given ?? snapshot.layouts[slug];
-  const builderPage = !getKitRuntime().codedSlugs.has(slug);
+  const builderPage = !getKitRuntime().codedSlugs.has(slug) && !isChromeSlug(slug);
   const css = useMemo(() => (layout ? pageCss(layout, snapshot.kit, { editMode: snapshot.editMode }) : ""), [layout, snapshot.kit, snapshot.editMode]);
   useKitFonts(snapshot.kit);
   const root = useRef<HTMLDivElement>(null);
@@ -285,13 +287,39 @@ function subscribeLocation(listener: () => void) {
 }
 const readPath = () => (typeof window === "undefined" ? "/" : window.location.pathname);
 
+/**
+ * The site's header or footer: the part built in the editor (content/layouts/_header.json
+ * or _footer.json) when the site has one, else `fallback` (the coded header or footer).
+ * Wrap nothing else around it: it renders the <header> or <footer> itself.
+ */
+export function ArmatureChrome({ part, fallback = null }: { part: ChromePart; fallback?: ReactNode }) {
+  const snapshot = useKitSnapshot();
+  const slug = chromeSlug(part);
+  const layout = snapshot.layouts[slug];
+  if (!layout) return <>{fallback}</>;
+  const Tag = part === "header" ? "header" : "footer";
+  return (
+    <Tag className={`ae-chrome ae-chrome-${part}`} data-armature-chrome="" data-armature-part={part}>
+      <ArmaturePage slug={slug} layout={layout} />
+    </Tag>
+  );
+}
+
+/** The path a menu item's page lives at: a coded page from the schema, or a built page's own path. */
+export function pagePathOf(slug: string, layouts: Record<string, LayoutDoc>): string | null {
+  const coded = getKitRuntime().pagePaths.get(slug);
+  if (coded) return coded;
+  const layout = layouts[slug];
+  return layout && !isChromeSlug(slug) ? layout.path : null;
+}
+
 /** The builder-only page at the current path, or `fallback` (the site's 404). Place it before the site's catch-all. */
 export function ArmatureRoute({ fallback = null, path }: { fallback?: ReactNode; path?: string }) {
   const snapshot = useKitSnapshot();
   const livePath = useSyncExternalStore(subscribeLocation, readPath, readPath);
   const wanted = normalizePath(path ?? livePath);
   const kit = getKitRuntime();
-  const layout = Object.values(snapshot.layouts).find((candidate) => !kit.codedSlugs.has(candidate.pageSlug) && normalizePath(candidate.path) === wanted);
+  const layout = Object.values(snapshot.layouts).find((candidate) => !kit.codedSlugs.has(candidate.pageSlug) && !isChromeSlug(candidate.pageSlug) && normalizePath(candidate.path) === wanted);
   if (!layout) return <>{fallback}</>;
   return (
     <>
@@ -308,7 +336,7 @@ export function useBuilderPages(): { slug: string; path: string; label: string }
   return useMemo(
     () =>
       Object.values(snapshot.layouts)
-        .filter((layout) => !kit.codedSlugs.has(layout.pageSlug))
+        .filter((layout) => !kit.codedSlugs.has(layout.pageSlug) && !isChromeSlug(layout.pageSlug))
         .map((layout) => ({ slug: layout.pageSlug, path: layout.path, label: layout.label ?? layout.pageSlug })),
     [snapshot.layouts, kit],
   );

@@ -458,6 +458,54 @@ export type SiteKit = {
   breakpoints: { tablet: number; mobile: number };
   imageRadius: Size;
   pageBackground: Color;
+  /** Navigation menus (optional; older kits have none). */
+  menus?: Menu[];
+};
+
+/**
+ * The site's navigation menus (Appearance › Menus), used by the Nav Menu widget. A page
+ * item points at a page slug (coded or built); a url item carries an address. One level
+ * of children makes a dropdown.
+ */
+export type MenuItem = {
+  id: string;
+  label: string;
+  kind: "page" | "url";
+  page?: string;
+  href?: string;
+  newTab?: boolean;
+  children?: MenuItem[];
+};
+export type Menu = { id: string; name: string; items: MenuItem[] };
+
+/** The header and footer built in the editor live in content/layouts/_header.json and _footer.json. */
+export const CHROME_SLUGS = ["_header", "_footer"] as const;
+export type ChromeSlug = (typeof CHROME_SLUGS)[number];
+export type ChromePart = "header" | "footer";
+export const isChromeSlug = (slug: string): slug is ChromeSlug => (CHROME_SLUGS as readonly string[]).includes(slug);
+export const chromeSlug = (part: ChromePart): ChromeSlug => (part === "header" ? "_header" : "_footer");
+
+export type SiteLogoProps = {
+  src: string;
+  alt?: string;
+  height?: MaybeResponsive<Size>;
+  /** Wrap the logo in a link to the home page (on by default). */
+  linkHome?: boolean;
+  align?: MaybeResponsive<"left" | "center" | "right">;
+  naturalWidth?: number;
+  naturalHeight?: number;
+};
+
+export type NavMenuProps = {
+  /** The id of a menu from the site kit's menus. */
+  menu?: string;
+  layout?: "horizontal" | "vertical";
+  align?: MaybeResponsive<"left" | "center" | "right">;
+  /** Below this width (pixels) the menu folds behind a hamburger button. */
+  breakpoint?: number;
+  /** Keep the menu at the top of the window while the page scrolls. */
+  sticky?: boolean;
+  gap?: Size;
 };
 
 /** What a site registers for a hand-coded section it wants in the tree. */

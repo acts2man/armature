@@ -29,7 +29,7 @@ export const BUILT: Record<SiteNavKey, boolean> = {
   media: true,
   pages: true,
   contact: true,
-  appearance: false,
+  appearance: true,
   users: true,
   settings: true,
 };

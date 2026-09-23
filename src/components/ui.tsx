@@ -15,6 +15,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type AnchorHTMLAttributes,
   type ButtonHTMLAttributes,
   type HTMLAttributes,
   type InputHTMLAttributes,
@@ -58,7 +59,8 @@ export function LinkButton({
   className,
   children,
   external,
-}: {
+  ...rest
+}: Omit<AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "children"> & {
   to: string;
   variant?: Variant;
   size?: Size;
@@ -68,13 +70,13 @@ export function LinkButton({
 }) {
   if (external) {
     return (
-      <a href={to} target="_blank" rel="noreferrer" className={buttonClass(variant, size, clsx("btn", className))}>
+      <a {...rest} href={to} target="_blank" rel="noreferrer" className={buttonClass(variant, size, clsx("btn", className))}>
         {children}
       </a>
     );
   }
   return (
-    <Link to={to} className={buttonClass(variant, size, clsx("btn", className))}>
+    <Link {...rest} to={to} className={buttonClass(variant, size, clsx("btn", className))}>
       {children}
     </Link>
   );

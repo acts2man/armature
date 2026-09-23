@@ -13,6 +13,7 @@ import type { MediaMeta } from "@shared/publishTypes.ts";
 import { CONTAINER_TYPES, newElementId, withFreshIds, type Advanced, type Element, type LayoutDoc, type SiteKit, type Style } from "@shared/builder/index.ts";
 import { deepEqual } from "@shared/contentFile.ts";
 import type { SlotInfo } from "@shared/visualProtocol.ts";
+import { CHROME_SLUGS } from "@kit/types.ts";
 
 export type BuilderState = {
   layouts: Record<string, LayoutDoc>;
@@ -59,9 +60,26 @@ export function indexLayout(layout: LayoutDoc): Map<string, IndexEntry> {
 }
 
 /** Find an element anywhere in the draft (the page is usually known; pass it to skip the search). */
+/**
+ * The layout that holds an element: the page's own, else a chrome part shown with it (the
+ * header or footer built in the editor), so clicking the header on any page edits the header.
+ */
+export function ownerSlug(state: BuilderState, id: string, slug: string): string {
+  const own = state.layouts[slug];
+  if (own && indexLayout(own).has(id)) return slug;
+  for (const chrome of CHROME_SLUGS) {
+    const layout = state.layouts[chrome];
+    if (layout && indexLayout(layout).has(id)) return chrome;
+  }
+  return slug;
+}
+
+/** A placement's real layout: the parent's owner when there is a parent, else the given slug. */
+const resolveKey = (state: BuilderState, key: ParentKey): ParentKey => (key.parentId === null ? key : { ...key, slug: ownerSlug(state, key.parentId, key.slug) });
+
 export function findElement(state: BuilderState, id: string, slug?: string): IndexEntry | undefined {
   if (slug) {
-    const layout = state.layouts[slug];
+    const layout = state.layouts[ownerSlug(state, id, slug)];
     return layout ? indexLayout(layout).get(id) : undefined;
   }
   for (const layout of Object.values(state.layouts)) {
@@ -71,7 +89,8 @@ export function findElement(state: BuilderState, id: string, slug?: string): Ind
   return undefined;
 }
 
-export const childrenOf = (state: BuilderState, key: ParentKey): Element[] => {
+export const childrenOf = (state: BuilderState, rawKey: ParentKey): Element[] => {
+  const key = resolveKey(state, rawKey);
   const layout = state.layouts[key.slug];
   if (!layout) return [];
   if (key.parentId === null) return layout.root;
@@ -136,7 +155,8 @@ const stamp = (element: Element, by: string): Element => ({ ...element, meta: { 
 export type Placement = ParentKey & { index: number };
 
 /** Can `element` (or a fresh tree) be placed under this parent? Containers only, never inside themselves, never inside a locked element. */
-export function canPlace(state: BuilderState, key: ParentKey, movingId?: string, allowLocked = false): boolean {
+export function canPlace(state: BuilderState, rawKey: ParentKey, movingId?: string, allowLocked = false): boolean {
+  const key = resolveKey(state, rawKey);
   const layout = state.layouts[key.slug];
   if (!layout) return false;
   if (key.parentId === null) return true;
@@ -147,7 +167,8 @@ export function canPlace(state: BuilderState, key: ParentKey, movingId?: string,
   return true;
 }
 
-export function insertElement(state: BuilderState, element: Element, at: Placement, by = "editor"): BuilderState | null {
+export function insertElement(state: BuilderState, element: Element, rawAt: Placement, by = "editor"): BuilderState | null {
+  const at = { ...rawAt, ...resolveKey(state, rawAt) };
   if (!canPlace(state, at)) return null;
   const layout = state.layouts[at.slug];
   if (!layout) return null;
@@ -155,14 +176,17 @@ export function insertElement(state: BuilderState, element: Element, at: Placeme
   return withLayout(state, at.slug, root);
 }
 
-export function removeElement(state: BuilderState, id: string, slug: string): BuilderState | null {
+export function removeElement(state: BuilderState, id: string, rawSlug: string): BuilderState | null {
+  const slug = ownerSlug(state, id, rawSlug);
   const layout = state.layouts[slug];
   if (!layout || !indexLayout(layout).has(id)) return null;
   return withLayout(state, slug, removeFrom(layout.root, id));
 }
 
 /** Move an element within its page or to another page. `at.index` counts positions before the move. */
-export function moveElement(state: BuilderState, id: string, from: string, at: Placement, allowLocked = false): BuilderState | null {
+export function moveElement(state: BuilderState, id: string, rawFrom: string, rawAt: Placement, allowLocked = false): BuilderState | null {
+  const from = ownerSlug(state, id, rawFrom);
+  const at = { ...rawAt, ...resolveKey(state, rawAt) };
   const source = state.layouts[from];
   const entry = source ? indexLayout(source).get(id) : undefined;
   if (!source || !entry) return null;
@@ -177,7 +201,8 @@ export function moveElement(state: BuilderState, id: string, from: string, at: P
   return next;
 }
 
-export function updateElement(state: BuilderState, id: string, slug: string, update: (element: Element) => Element, by = "editor"): BuilderState | null {
+export function updateElement(state: BuilderState, id: string, rawSlug: string, update: (element: Element) => Element, by = "editor"): BuilderState | null {
+  const slug = ownerSlug(state, id, rawSlug);
   const layout = state.layouts[slug];
   if (!layout || !indexLayout(layout).has(id)) return null;
   let changed = false;
@@ -224,7 +249,8 @@ export function setPath<T extends object>(target: T, path: readonly string[], va
 export const setElementPath = (state: BuilderState, id: string, slug: string, path: readonly string[], value: unknown): BuilderState | null =>
   updateElement(state, id, slug, (element) => setPath(element, path, value));
 
-export function duplicateElement(state: BuilderState, id: string, slug: string): { state: BuilderState; newId: string } | null {
+export function duplicateElement(state: BuilderState, id: string, rawSlug: string): { state: BuilderState; newId: string } | null {
+  const slug = ownerSlug(state, id, rawSlug);
   const layout = state.layouts[slug];
   const entry = layout ? indexLayout(layout).get(id) : undefined;
   if (!layout || !entry) return null;

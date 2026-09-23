@@ -245,3 +245,18 @@ Deno.test("the media library: uploads keep their names (made safe and unique) an
   assertEquals(last.files.find((file) => file.path === "public/assets/team.svg")?.delete, true);
   assertEquals(committed(last, MEDIA_META_PATH), { "/assets/uploads/site-visit.webp": { alt: "A visit" } });
 });
+
+Deno.test("a header built in the editor publishes as content/layouts/_header.json without an address of its own", async () => {
+  const { repo, commits } = fakeRepo({ [BASE]: {} }, BASE);
+  const header: LayoutDoc = { version: 1, pageSlug: "_header", path: "/", label: "Header", root: [{ id: "logologo", type: "site-logo", props: { src: "/assets/logo.svg", alt: "Acme" }, style: {}, advanced: {}, meta }, { id: "navnavna", type: "nav-menu", props: { menu: "main", breakpoint: 767 }, style: {}, advanced: {}, meta }] };
+  const outcome = await runBuilderPublish({ repo, input: input({ layouts: { _header: header } }), userEmail: "x", permissions: staff });
+  assertEquals(outcome.layouts, ["_header"]);
+  assertEquals(committed(commits[0], layoutPath("_header")).pageSlug, "_header");
+  assertStringIncludes(commits[0]?.message ?? "", "Header");
+  // A kit with menus goes through the same publish.
+  const kit = { ...defaultSiteKit(), menus: [{ id: "main", name: "Main menu", items: [{ id: "home", label: "Home", kind: "page", page: "home" }, { id: "more", label: "More", kind: "url", href: "https://example.com", children: [{ id: "sub", label: "Sub", kind: "page", page: "about" }] }] }] };
+  const withMenus = await runBuilderPublish({ repo, input: input({ kit }), userEmail: "x", permissions: staff });
+  assertEquals(withMenus.kit, true);
+  assertEquals(committed(commits[1], SITE_KIT_PATH).menus[0].items[1].children[0].label, "Sub");
+  await assertRejects(() => runBuilderPublish({ repo, input: input({ kit: { ...kit, menus: [{ id: "bad id", name: "x", items: [] }] } }), userEmail: "x", permissions: staff }), ArmatureError, "an id of lowercase letters");
+});

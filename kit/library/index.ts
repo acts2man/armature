@@ -3,4 +3,5 @@ import "./basic.tsx";
 import "./content.tsx";
 import "./interactive.tsx";
 import "./form.tsx";
+import "./chrome.tsx";
 import "./css.ts";

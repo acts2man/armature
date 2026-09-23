@@ -11,6 +11,25 @@ const color = (value: unknown) => (typeof value === "string" ? refToCss(value) :
 const size = (value: unknown) => (value && typeof value === "object" ? sizeToCss(value as Size) : undefined);
 const justify = (value: string) => (value === "center" ? "center" : value === "right" ? "flex-end" : "flex-start");
 
+const alignItems = (value: string) => (value === "center" ? "center" : value === "right" ? "flex-end" : "flex-start");
+
+const siteLogoCss: WidgetCssHook = (sheet, selector, props) => {
+  const height = size(props["height"]);
+  if (height) sheet.add("base", selector, "--ae-logo-height", height);
+  const align = props["align"];
+  if (typeof align === "string") sheet.add("base", selector, "text-align", align);
+};
+
+const navMenuCss: WidgetCssHook = (sheet, selector, props) => {
+  const gap = size(props["gap"]);
+  if (gap) sheet.add("base", selector, "--ae-nav-gap", gap);
+  const align = props["align"];
+  if (typeof align === "string") {
+    sheet.add("base", selector, "--ae-nav-justify", justify(align));
+    sheet.add("base", selector, "--ae-nav-align-items", alignItems(align));
+  }
+};
+
 const BASE = `
 .ae-root .ae-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .ae-root .ae-bg-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; pointer-events: none; }
@@ -23,6 +42,28 @@ const BASE = `
 .ae-root .ae-icon-stacked { background: var(--ae-color-primary); color: #fff; }
 .ae-root .ae-icon-framed { border: 2px solid currentColor; }
 .ae-root .ae-icon-circle { border-radius: 50%; }
+.ae-root .ae-logo { line-height: 0; }
+.ae-root .ae-logo-link { display: inline-block; }
+.ae-root .ae-logo-img { height: var(--ae-logo-height, 48px); width: auto; max-width: 100%; }
+.ae-root .ae-logo-empty { display: inline-flex; align-items: center; height: var(--ae-logo-height, 48px); padding: 0 12px; border: 1px dashed #b8c2cc; border-radius: 6px; font: 600 13px/1 var(--ae-font-body); color: #4a5866; line-height: 1; }
+.ae-root .ae-nav { position: relative; font-family: var(--ae-font-body); }
+.ae-root .ae-nav-sticky { position: sticky; top: 0; z-index: 40; }
+.ae-root .ae-nav-list, .ae-root .ae-nav-sub { list-style: none; margin: 0; padding: 0; }
+.ae-root .ae-nav-list { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ae-nav-gap, 8px); justify-content: var(--ae-nav-justify, flex-start); }
+.ae-root .ae-nav-vertical .ae-nav-list { flex-direction: column; align-items: var(--ae-nav-align-items, flex-start); }
+.ae-root .ae-nav-item { position: relative; }
+.ae-root .ae-nav-row { display: inline-flex; align-items: center; gap: 4px; }
+.ae-root .ae-nav-link { display: inline-block; padding: 8px 10px; color: var(--ae-color-text); text-decoration: none; font-weight: 500; border-radius: 6px; }
+.ae-root .ae-nav-link:hover, .ae-root .ae-nav-link[aria-current="page"] { color: var(--ae-color-primary); }
+.ae-root .ae-nav-sub-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: 6px; }
+.ae-root .ae-nav-sub { display: none; min-width: 200px; padding: 6px; background: #fff; border: 1px solid #d7dde3; border-radius: 8px; box-shadow: 0 12px 32px rgba(22, 32, 43, 0.14); }
+.ae-root .ae-nav-horizontal .ae-nav-sub { position: absolute; left: 0; top: 100%; z-index: 30; }
+.ae-root .ae-nav-item.ae-nav-open > .ae-nav-sub, .ae-root .ae-nav-horizontal .ae-nav-item:hover > .ae-nav-sub, .ae-root .ae-nav-horizontal .ae-nav-item:focus-within > .ae-nav-sub { display: block; }
+.ae-root .ae-nav-sub .ae-nav-link { display: block; }
+.ae-root .ae-nav-toggle { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: transparent; color: var(--ae-color-text); cursor: pointer; border-radius: 6px; }
+.ae-root .ae-nav-toggle-bars { display: flex; flex-direction: column; gap: 5px; width: 22px; }
+.ae-root .ae-nav-toggle-bars span { display: block; height: 2px; background: currentColor; border-radius: 2px; }
+.ae-root .ae-nav-empty { display: inline-block; padding: 8px 12px; border: 1px dashed #b8c2cc; border-radius: 6px; font: 500 13px/1.4 var(--ae-font-body); color: #4a5866; }
 .ae-root .ae-icon-square { border-radius: 0; }
 .ae-root .ae-video { position: relative; width: 100%; overflow: hidden; background: #0d1117; border-radius: var(--ae-image-radius); }
 .ae-root .ae-video-media { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; object-fit: cover; }
@@ -332,3 +373,5 @@ const hooks: Record<string, WidgetCssHook> = {
 };
 
 for (const [type, hook] of Object.entries(hooks)) registerWidgetCss(type, hook);
+registerWidgetCss("site-logo", siteLogoCss);
+registerWidgetCss("nav-menu", navMenuCss);

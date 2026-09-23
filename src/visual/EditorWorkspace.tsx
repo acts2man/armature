@@ -32,6 +32,7 @@ import {
   changedElementIds,
   changedPages,
   deletePage,
+  ownerSlug,
   findElement,
   insertElement,
   kitChanged,
@@ -52,6 +53,7 @@ import {
 import { SiteSettingsPanel } from "@/builder/SiteSettingsPanel.tsx";
 import { NewPageDialog, type PagesPanelActions } from "@/builder/PagesPanel.tsx";
 import { clearNewPageHandoff } from "./pages.ts";
+import { isChromeSlug, type ChromeSlug } from "@kit/types.ts";
 import { describeTree, useTemplateActions, useTemplates, type TemplateKind, type TemplateRow } from "@/builder/templates.ts";
 import { SaveTemplateDialog, TemplateLibrary } from "@/builder/TemplatesUI.tsx";
 import { StructurePicker } from "@/builder/StructurePicker.tsx";
@@ -177,6 +179,7 @@ export function EditorWorkspace({
   initialElementId = null,
   initialPanel = null,
   initialNewPage = null,
+  initialPart = null,
 }: {
   site: Site;
   isStaff: boolean;
@@ -190,6 +193,8 @@ export function EditorWorkspace({
   initialPanel?: "page-settings" | null;
   /** A page made on the Pages screen, to create in the draft once the site is up. */
   initialNewPage?: LayoutDoc | null;
+  /** Open on the header or footer built in the editor, shown around the page. */
+  initialPart?: ChromeSlug | null;
   /** An element to select once the page is up (the "Show me" link on the Pages screen). */
   initialElementId?: string | null;
 }) {
@@ -396,7 +401,7 @@ export function EditorWorkspace({
   const builderPages = useMemo<PageDefinition[]>(
     () =>
       Object.values(builderView.layouts)
-        .filter((layout) => !schema.pages.some((item) => item.slug === layout.pageSlug))
+        .filter((layout) => !schema.pages.some((item) => item.slug === layout.pageSlug) && !isChromeSlug(layout.pageSlug))
         .map((layout) => ({ slug: layout.pageSlug, label: layout.label || layout.pageSlug, path: layout.path, sections: [] }))
         .sort((a, b) => a.label.localeCompare(b.label)),
     [builderView.layouts, schema.pages],
@@ -404,6 +409,14 @@ export function EditorWorkspace({
   const allPages = useMemo(() => [...schema.pages, ...builderPages], [schema.pages, builderPages]);
   const [pageSlug, setPageSlug] = useState<string>(() => (initialSlug && (schema.pages.some((page) => page.slug === initialSlug) || !!content.layouts?.[initialSlug]) ? initialSlug : (defaultPage(schema)?.slug ?? "")));
   const page = allPages.find((item) => item.slug === pageSlug);
+  // Editing the header or footer built in the editor: the part's tree is the one edits land in
+  // at the root, while the page stays on the canvas around it.
+  const [editingPart, setEditingPart] = useState<ChromeSlug | null>(initialPart);
+  const activeSlug = editingPart && builderView.layouts[editingPart] ? editingPart : pageSlug;
+  const activeSlugRef = useRef(activeSlug);
+  useEffect(() => {
+    activeSlugRef.current = activeSlug;
+  });
   const [device, setDevice] = useState<Device>("desktop");
   const [preview, setPreview] = useState(false);
   const [leftTab, setLeftTab] = useState<LeftTab>("layers");
@@ -441,8 +454,9 @@ export function EditorWorkspace({
     // The page lives in the URL, so a reload or a shared link opens the same page. A
     // "Show me" element stays in the URL until the page is up and it has been selected.
     const element = pendingElement.current;
-    navigate(`/sites/${site.id}/visual?page=${encodeURIComponent(pageSlug)}${element ? `&element=${encodeURIComponent(element)}` : ""}`, { replace: true });
-  }, [pageSlug, site.id, navigate]);
+    const part = editingPart ? `&part=${editingPart === "_header" ? "header" : "footer"}` : "";
+    navigate(`/sites/${site.id}/visual?page=${encodeURIComponent(pageSlug)}${part}${element ? `&element=${encodeURIComponent(element)}` : ""}`, { replace: true });
+  }, [pageSlug, editingPart, site.id, navigate]);
 
   useEffect(() => {
     if (!hint) return;
@@ -540,7 +554,16 @@ export function EditorWorkspace({
     [ready, protocol, send],
   );
   const selectPath = useCallback((path: FieldPath | null, scroll = true) => select(path ? { kind: "field", path } : null, scroll), [select]);
-  const selectElement = useCallback((id: string | null, scroll = true) => select(id ? { kind: "element", id, slug: pageSlug } : null, scroll), [select, pageSlug]);
+  const selectElement = useCallback(
+    (id: string | null, scroll = true) => {
+      if (!id) return select(null, scroll);
+      // Selecting something in the header or footer switches to editing that part; a page element switches back.
+      const owner = ownerSlug(builderRef.current, id, pageSlug);
+      setEditingPart(isChromeSlug(owner) ? owner : null);
+      select({ kind: "element", id, slug: owner }, scroll);
+    },
+    [select, pageSlug],
+  );
 
   const goToPage = useCallback(
     (slug: string, override?: PageDefinition) => {
@@ -663,8 +686,9 @@ export function EditorWorkspace({
 
   const insertAt = useCallback(
     (element: Element, target: { parentId: string | null; index: number }, label: string) => {
-      builderCommand(`Added ${label}`, pageSlug, (current) => insertElement(current, element, { slug: pageSlug, ...target }, userName));
-      setSelection({ kind: "element", id: element.id, slug: pageSlug });
+      const slug = activeSlugRef.current;
+      builderCommand(`Added ${label}`, pageSlug, (current) => insertElement(current, element, { slug, ...target }, userName));
+      setSelection({ kind: "element", id: element.id, slug });
       setPanelView("auto");
       window.setTimeout(() => send({ type: "armature:element:select", id: element.id, scroll: true }), 120);
     },
@@ -681,7 +705,7 @@ export function EditorWorkspace({
         if (!(entry.parentId && isLockedForMe(entry.parentId))) return { parentId: entry.parentId, index: entry.index + 1 };
       }
     }
-    return { parentId: null, index: current.layouts[pageSlug]?.root.length ?? 0 };
+    return { parentId: null, index: current.layouts[activeSlugRef.current]?.root.length ?? 0 };
   }, [selectedId, pageSlug, isLockedForMe]);
 
   const deleteElement = useCallback(
@@ -707,7 +731,7 @@ export function EditorWorkspace({
       if (entry.parentId && isLockedForMe(entry.parentId)) return toast.show("That element sits inside a locked container.", "info");
       // The copy is made here, not inside the command, so its id is known before React runs the updater.
       const copy = withFreshIds(entry.element);
-      builderCommand(`Duplicated ${widgetLabel(entry.element.type)}`, pageSlug, (current) => insertElement(current, copy, { slug: pageSlug, parentId: entry.parentId, index: entry.index + 1 }, userName));
+      builderCommand(`Duplicated ${widgetLabel(entry.element.type)}`, pageSlug, (current) => insertElement(current, copy, { slug: ownerSlug(current, id, pageSlug), parentId: entry.parentId, index: entry.index + 1 }, userName));
       selectElement(copy.id);
     },
     [builderCommand, isLockedForMe, pageSlug, sections, selectElement, toast, userName],
@@ -770,7 +794,7 @@ export function EditorWorkspace({
     (id: string, target: { parentId: string | null; index: number }) => {
       if (isLockedForMe(id)) return toast.show("That element is locked by the agency.", "info");
       const entry = findElement(builderRef.current, id, pageSlug);
-      builderCommand(`Moved ${widgetLabel(entry?.element.type ?? "")}`, pageSlug, (current) => moveElement(current, id, pageSlug, { slug: pageSlug, ...target }, isStaff));
+      builderCommand(`Moved ${widgetLabel(entry?.element.type ?? "")}`, pageSlug, (current) => moveElement(current, id, pageSlug, { slug: activeSlugRef.current, ...target }, isStaff));
     },
     [builderCommand, isLockedForMe, isStaff, pageSlug, toast],
   );
@@ -821,7 +845,7 @@ export function EditorWorkspace({
       const siblingsOf = (id: string): { ids: string[]; index: number; parentId: string | null } | null => {
         const entry = findElement(builderRef.current, id, pageSlug);
         if (!entry) return null;
-        const siblings = entry.parentId === null ? (builderRef.current.layouts[pageSlug]?.root ?? []) : (findElement(builderRef.current, entry.parentId, pageSlug)?.element.children ?? []);
+        const siblings = entry.parentId === null ? (builderRef.current.layouts[ownerSlug(builderRef.current, id, pageSlug)]?.root ?? []) : (findElement(builderRef.current, entry.parentId, pageSlug)?.element.children ?? []);
         return { ids: siblings.map((element) => element.id), index: entry.index, parentId: entry.parentId };
       };
       switch (key) {
@@ -1008,18 +1032,25 @@ export function EditorWorkspace({
           // Committed at once: a shortcut pressed right after the click arrives as the next
           // message and must already see this selection.
           const id = message.id;
-          if (id)
+          if (id) {
+            const owner = ownerSlug(builderRef.current, id, pageSlug);
             flushSync(() => {
-              setSelection({ kind: "element", id, slug: pageSlug });
+              setSelection({ kind: "element", id, slug: owner });
+              setEditingPart(isChromeSlug(owner) ? owner : null);
               setPanelView("auto"); // a click on the page opens that element's Edit panel
             });
+          }
           else if (selection?.kind === "element") flushSync(() => setSelection(null));
         }
         return;
       case "armature:element:contextmenu": {
         if (!builder) return;
         const box = sheetRef.current?.getBoundingClientRect();
-        setSelection({ kind: "element", id: message.id, slug: pageSlug });
+        {
+          const owner = ownerSlug(builderRef.current, message.id, pageSlug);
+          setSelection({ kind: "element", id: message.id, slug: owner });
+          setEditingPart(isChromeSlug(owner) ? owner : null);
+        }
         setMenu({ id: message.id, x: (box?.left ?? 0) + message.x * scale, y: (box?.top ?? 0) + message.y * scale });
         return;
       }
@@ -1241,8 +1272,8 @@ export function EditorWorkspace({
     });
   }, [selectedId, sectionFieldMap, schema]);
   const selectedOnCanvas = selectedPath !== null && canvasRoots.has(fieldRoot(selectedPath));
-  const currentLayout = builderView.layouts[pageSlug];
-  const changedIds = useMemo(() => changedElementIds(builderView.layouts[pageSlug], baseline.layouts[pageSlug]), [builderView.layouts, baseline.layouts, pageSlug]);
+  const currentLayout = builderView.layouts[activeSlug];
+  const changedIds = useMemo(() => changedElementIds(builderView.layouts[activeSlug], baseline.layouts[activeSlug]), [builderView.layouts, baseline.layouts, activeSlug]);
   const sectionsInUse = useMemo(() => new Set((currentLayout?.root ?? []).flatMap((element) => (element.type === "site-section" ? [String(element.props["key"])] : []))), [currentLayout]);
 
   // --- pages and templates ------------------------------------------------------------------------------
@@ -1257,6 +1288,13 @@ export function EditorWorkspace({
   const pageActions: PagesPanelActions = {
     onOpen: (slug) => goToPage(slug),
     onCreate: (layout) => {
+      if (isChromeSlug(layout.pageSlug)) {
+        // A header or footer built in the editor: it shows around the current page from now on.
+        builderCommand(`Built the ${layout.pageSlug === "_header" ? "header" : "footer"} in the editor`, pageSlug, (current) => setLayout(current, layout));
+        setEditingPart(layout.pageSlug);
+        select(null);
+        return;
+      }
       builderCommand(`Created the page "${layout.label ?? layout.pageSlug}"`, layout.pageSlug, (current) => setLayout(current, layout));
       goToPage(layout.pageSlug, { slug: layout.pageSlug, label: layout.label ?? layout.pageSlug, path: layout.path, sections: [] });
     },
@@ -1454,6 +1492,24 @@ export function EditorWorkspace({
           <SkeletonPanel />
         ) : builder ? (
           <BuilderPanel collapsed={panelCollapsed} onToggle={togglePanel}>
+            {editingPart && (
+              <div className="flex items-center justify-between gap-2 border-b border-line bg-blue-soft px-4 py-2 text-[12px] text-blue" data-testid="part-banner">
+                <span>
+                  Editing the <strong>{editingPart === "_header" ? "header" : "footer"}</strong>. It shows on every page.
+                </span>
+                <button
+                  type="button"
+                  className="shrink-0 font-semibold underline underline-offset-2"
+                  data-testid="part-back"
+                  onClick={() => {
+                    setEditingPart(null);
+                    select(null);
+                  }}
+                >
+                  Back to the page
+                </button>
+              </div>
+            )}
             {panelView === "history" ? (
               <HistoryPanel
                 history={history}
@@ -1492,7 +1548,7 @@ export function EditorWorkspace({
               <div className="min-h-0 flex-1 overflow-y-auto">
                 <ElementInspector
                   state={builderView}
-                  slug={pageSlug}
+                  slug={selection?.kind === "element" ? selection.slug : pageSlug}
                   id={selectedId}
                   locked={lockedIn(builderView, selectedId)}
                   agencyName={agencyName}
@@ -1504,7 +1560,7 @@ export function EditorWorkspace({
                   isStaff={isStaff}
                   actions={inspectorActions}
                   sectionFields={selectedSectionFields}
-                  problems={problemsBySlug[pageSlug]?.filter((problem) => problem.elementId === selectedId)}
+                  problems={problemsBySlug[selection?.kind === "element" ? selection.slug : pageSlug]?.filter((problem) => problem.elementId === selectedId)}
                 />
               </div>
             ) : panelView === "auto" && selectedPath ? (
@@ -1629,7 +1685,7 @@ export function EditorWorkspace({
                     onAddSection: (index) => setStructureAt({ index }),
                     onBeginMove: (event, id) => {
                       if (isLockedForMe(id)) return;
-                      beginDrag(event, { kind: "move", id, slug: pageSlug, label: widgetLabel(findElement(builderView, id, pageSlug)?.element.type ?? "") });
+                      beginDrag(event, { kind: "move", id, slug: ownerSlug(builderView, id, pageSlug), label: widgetLabel(findElement(builderView, id, pageSlug)?.element.type ?? "") });
                     },
                     onSelectParent: (id) => {
                       const parent = findElement(builderView, id, pageSlug)?.parentId;

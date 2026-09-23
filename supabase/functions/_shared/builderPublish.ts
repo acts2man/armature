@@ -16,7 +16,8 @@ import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
 import { mergeLayouts, mergeValues, stableJson, type MergeConflict, type Resolution } from "../../../shared/builder/merge.ts";
 import { kitPermissionErrors, layoutPermissionErrors, type Permissions } from "../../../shared/builder/permissions.ts";
-import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, trashPath, type Problem } from "../../../shared/builder/schema.ts";
+import { checkLayout, checkSiteKit, describeProblem, isLayoutSlug, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, trashPath, type Problem } from "../../../shared/builder/schema.ts";
+import { isChromeSlug } from "../../../kit/types.ts";
 import { restoreKitProblems, restoreLayoutProblems, unpreservedProblems } from "../../../shared/builder/preserve.ts";
 import { base64ByteLength, isValidBase64 } from "../../../shared/base64.ts";
 import { MAX_IMAGE_BYTES, MAX_TOTAL_IMAGE_BYTES } from "../../../shared/publishTypes.ts";
@@ -159,7 +160,7 @@ export async function runBuilderPublish(opts: {
 
   // --- layouts ------------------------------------------------------------------
   for (const [slug, raw] of Object.entries(input.layouts ?? {})) {
-    if (!PAGE_SLUG_PATTERN.test(slug) || slug.length > 100) {
+    if (!isLayoutSlug(slug) || slug.length > 100) {
       errors.push(`"${slug.slice(0, 60)}" is not a valid page name`);
       continue;
     }
@@ -313,7 +314,7 @@ export async function runBuilderPublish(opts: {
   const allLayouts = new Map<string, LayoutDoc>();
   for (const entry of await repo.listTree("content/layouts", head)) {
     const slug = entry.path.replace(/^content\/layouts\//, "").replace(/\.json$/, "");
-    if (!finalLayouts.has(slug) && PAGE_SLUG_PATTERN.test(slug)) {
+    if (!finalLayouts.has(slug) && isLayoutSlug(slug)) {
       const { layout } = await readLayout(repo, slug, head);
       if (layout) allLayouts.set(slug, layout);
     }
@@ -321,7 +322,8 @@ export async function runBuilderPublish(opts: {
   for (const [slug, layout] of finalLayouts) if (layout) allLayouts.set(slug, layout);
   for (const [slug, layout] of restored) allLayouts.set(slug, layout);
   for (const [slug, layout] of allLayouts) {
-    if (codedSlugs.has(slug)) continue;
+    // Coded pages own their paths already; the header and footer parts have no address of their own.
+    if (codedSlugs.has(slug) || isChromeSlug(slug)) continue;
     const path = normalizePath(layout.path);
     const owner = pathOwners.get(path);
     if (owner && owner !== slug) errors.push(`The page "${layout.label ?? slug}" uses the address ${layout.path}, which ${codedSlugs.has(owner) ? "a page coded into the site" : `the page "${allLayouts.get(owner)?.label ?? owner}"`} already uses.`);

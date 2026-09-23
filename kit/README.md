@@ -139,6 +139,31 @@ createArmatureKit({
 
 Without it a form shows "This form is not connected yet" and never sends.
 
+### 7. Let the dashboard build the header and footer (optional, kit 2.4+)
+
+Render the site's header and footer through the kit's chrome part, with the coded ones as
+the fallback:
+
+```tsx
+import { ArmatureChrome } from "./lib/armature-kit";
+
+<ArmatureChrome part="header" fallback={<Header />} />
+<main>…</main>
+<ArmatureChrome part="footer" fallback={<Footer />} />
+```
+
+Nothing changes until someone builds a header or footer under **Appearance › Header /
+Footer** in the dashboard: from then on `content/layouts/_header.json` (or `_footer.json`)
+renders in that place on every page, inside a `<header data-armature-part="header">` (or
+`<footer>`), and the coded one is the fallback again the moment the built part is removed.
+The parts use the same `import.meta.glob("../content/layouts/*.json")` as the pages, so
+nothing else is needed. Two widgets exist for them: **Site Logo** (a picture linked to
+`/`) and **Nav Menu** (one of the menus made under **Appearance › Menus**, stored in
+`content/site-kit.json` as `menus`; page items link to the paths in `content/schema.json`
+and to built pages' own paths, with one level of dropdowns, a hamburger below the width the
+widget sets, and an optional sticky position). Keep `data-armature-chrome` on your coded
+header and footer so the editor keeps telling clients they are coded.
+
 ## SSR / TanStack Start
 
 The kit renders on the server unchanged — during SSR there is no `document`, so it stays
@@ -260,6 +285,10 @@ The validator is pure TypeScript with no imports outside this folder, so it runs
 `tsx`, Vite or Deno without a bundler.
 
 ## Files the editor writes
+
+- `content/layouts/_header.json` and `content/layouts/_footer.json`: the header and footer
+  built in the editor (see step 7). `content/trash/<slug>.json`: pages in the bin, never
+  rendered.
 
 ```
 content/layouts/<pageSlug>.json    one layout per page (coded pages: optional; builder pages: always)

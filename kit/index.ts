@@ -34,7 +34,7 @@ import type { LayoutDoc, SiteKit } from "./types.ts";
 import "./widgets.tsx";
 import "./library/index.ts";
 
-export const KIT_VERSION = "2.3.0";
+export const KIT_VERSION = "2.4.0";
 export { PROTOCOL_VERSION };
 
 export type ArmatureKitConfig = {
@@ -78,6 +78,7 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
   const runtime: KitRuntime = {
     store,
     codedSlugs: new Set((config.schema?.pages ?? []).map((page) => page.slug)),
+    pagePaths: new Map((config.schema?.pages ?? []).filter((page) => typeof page.path === "string").map((page) => [page.slug, page.path as string])),
     slots: new Map(),
     onSlotsChange: new Set(),
     forms: config.forms && /^https:\/\/[^\s]+$/i.test(config.forms.endpoint) && /^[0-9a-f-]{36}$/i.test(config.forms.siteId) ? config.forms : undefined,
@@ -139,7 +140,8 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
   };
 }
 
-export { ArmaturePage, ArmatureRoute, ArmatureSlot, useBuilderPages, useKitSnapshot } from "./renderer.tsx";
+export { ArmaturePage, ArmatureRoute, ArmatureSlot, ArmatureChrome, useBuilderPages, useKitSnapshot } from "./renderer.tsx";
+export { CHROME_SLUGS, isChromeSlug, chromeSlug } from "./types.ts";
 export { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
 export { Icon } from "./icon.tsx";
 export { pageCss, kitCss, elementsCss, registerBaseCss, registerStyleTarget, registerWidgetCss } from "./css.ts";

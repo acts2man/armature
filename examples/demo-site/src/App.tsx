@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, Route, Routes, useNavigate } from "react-router";
-import { ArmatureRoute, ArmatureSlot } from "../../../kit/index.ts";
+import { ArmatureChrome, ArmatureRoute, ArmatureSlot } from "../../../kit/index.ts";
 import { armature } from "./armature.ts";
 import { registerNavigate, usePageCopy } from "./content.ts";
 import { SectionParity } from "./parity.tsx";
@@ -156,7 +156,7 @@ export function App() {
   useEffect(() => registerNavigate((path) => navigate(path)), [navigate]);
   return (
     <>
-      <Header />
+      <ArmatureChrome part="header" fallback={<Header />} />
       <main>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -167,7 +167,7 @@ export function App() {
           <Route path="*" element={<ArmatureRoute fallback={<NotFound />} />} />
         </Routes>
       </main>
-      <Footer />
+      <ArmatureChrome part="footer" fallback={<Footer />} />
     </>
   );
 }

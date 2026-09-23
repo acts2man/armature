@@ -19,7 +19,7 @@
  * No React, no dependencies.
  */
 import { defaultSiteKit } from "./defaults.ts";
-import type { Element, LayoutDoc, SiteKit } from "./types.ts";
+import { CHROME_SLUGS, type Element, type LayoutDoc, type SiteKit } from "./types.ts";
 import { UNSUPPORTED_TYPE } from "./types.ts";
 import { UNITS, isColorValue, parseKitRef, parseSize } from "./values.ts";
 
@@ -38,6 +38,8 @@ export const LAYOUT_LIMITS = {
 
 export const ELEMENT_ID_PATTERN = /^[a-z0-9]{8}$/;
 export const PAGE_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+/** A page slug, or one of the chrome parts (_header, _footer). */
+export const isLayoutSlug = (slug: string): boolean => PAGE_SLUG_PATTERN.test(slug) || (CHROME_SLUGS as readonly string[]).includes(slug);
 export const ELEMENT_TYPE_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 export const ATTRIBUTE_NAME = /^(?!on)[a-z][a-z0-9-]{0,40}$/i;
@@ -564,6 +566,8 @@ const panelItems = arr(obj({ id: req(rowId), title: req(str(300)), content: req(
 const flipSide = { icon: nullable(icon), src: mediaSrc, title: req(str(300)), description: str(3000) };
 const buttonPreset = kitRef("button", "kit:button.primary");
 
+const kitId = str(41, { pattern: /^[a-z0-9][a-z0-9_-]{0,40}$/, allowed: "an id of lowercase letters, digits, - and _" });
+
 export const PROPS_CHECKS: Record<string, Check<Record<string, unknown>>> = {
   container: obj(
     {
@@ -615,6 +619,8 @@ export const PROPS_CHECKS: Record<string, Check<Record<string, unknown>>> = {
     },
     "an image with a source",
   ),
+  "site-logo": obj({ src: req(mediaSrc), alt: str(500), height: responsive(size), linkHome: bool(), align: responsive(en(["left", "center", "right"])), naturalWidth: num(1, 20000, { int: true }), naturalHeight: num(1, 20000, { int: true }) }, "a site logo with a picture"),
+  "nav-menu": obj({ menu: kitId, layout: en(["horizontal", "vertical"]), align: responsive(en(["left", "center", "right"])), breakpoint: num(320, 2000, { int: true }), sticky: bool(), gap: size }, "a navigation menu"),
   button: obj({ text: req(str(300)), link, preset: buttonPreset, size: en(["sm", "md", "lg", "xl"]), icon: nullable(icon), iconPosition: en(["before", "after"]), align: responsive(en(["left", "center", "right", "justify"])) }, "a button with its text"),
   spacer: obj({ height: responsive(size) }, "spacer settings"),
   divider: obj({ style: borderStyle, width: responsive(size), weight: size, color, align: en(["left", "center", "right"]), text: str(300), icon: nullable(icon) }, "divider settings"),
@@ -866,7 +872,7 @@ export function checkLayout(raw: unknown): CheckReport<LayoutDoc> {
   };
   if (!isRecord(raw)) return fatal([], "a layout file: an object with version 1, a pageSlug, a path and a root list of elements", raw);
   if (raw["version"] !== 1) return fatal(["version"], "version 1 (the only layout format there is)", raw["version"]);
-  if (typeof raw["pageSlug"] !== "string" || !PAGE_SLUG_PATTERN.test(raw["pageSlug"]) || raw["pageSlug"].length > 100) return fatal(["pageSlug"], "a page slug of lowercase letters, digits and hyphens", raw["pageSlug"]);
+  if (typeof raw["pageSlug"] !== "string" || !isLayoutSlug(raw["pageSlug"]) || raw["pageSlug"].length > 100) return fatal(["pageSlug"], "a page slug of lowercase letters, digits and hyphens (or _header / _footer)", raw["pageSlug"]);
   if (!Array.isArray(raw["root"])) return fatal(["root"], "a root list of elements", raw["root"]);
   const path = pagePath.run(raw["path"], ctx, ["path"]);
   if (path === INVALID) return fatal(["path"], PATH_ALLOWED, raw["path"]);
@@ -897,7 +903,24 @@ export function checkLayout(raw: unknown): CheckReport<LayoutDoc> {
 
 const typographyPreset = obj({ fontFamily: fontRef, fontSize: req(responsive(size)), fontWeight, lineHeight: size, letterSpacing: size, textTransform }, "a text style with a size");
 const buttonPresetShape = obj({ background: req(color), color: req(color), borderWidth: size, borderColor: color, radius: size, padding: sides(size), hover: obj({ background: color, color, borderColor: color }, "hover colours") }, "a button style with a background and a text colour");
-const kitId = str(41, { pattern: /^[a-z0-9][a-z0-9_-]{0,40}$/, allowed: "an id of lowercase letters, digits, - and _" });
+
+const menuItem: Check<Record<string, unknown>> = lazy(
+  () =>
+    obj(
+      {
+        id: req(kitId),
+        label: req(str(120)),
+        kind: req(en(["page", "url"])),
+        page: str(100, { pattern: PAGE_SLUG_PATTERN, allowed: "a page slug" }),
+        href: href,
+        newTab: bool(),
+        children: arr(menuItem, 50),
+      },
+      "a menu item with an id, a label and a kind (page or url)",
+    ),
+  "a menu item",
+);
+const menuCheck = obj({ id: req(kitId), name: req(str(80)), items: req(arr(menuItem, 100)) }, "a menu with an id, a name and its items");
 
 const siteKitCheck = obj(
   {
@@ -912,6 +935,7 @@ const siteKitCheck = obj(
     breakpoints: req(refine(obj({ tablet: req(num(480, 2000, { int: true })), mobile: req(num(320, 1200, { int: true })) }, "tablet and mobile breakpoints in pixels"), (points) => Number(points["mobile"]) < Number(points["tablet"]), "a mobile breakpoint below the tablet one")),
     imageRadius: req(size),
     pageBackground: req(color),
+    menus: arr(menuCheck, 20),
   },
   "a site kit",
 );

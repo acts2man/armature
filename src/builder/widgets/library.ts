@@ -4,12 +4,12 @@
  * of these (kit/library/); the kit validator checks them (kit/validate.ts).
  * Import this module once, next to the registry.
  */
-import { createElement as h } from "react";
+import { createElement as h, type ReactNode } from "react";
 import { newElementId, type Element } from "@shared/builder/index.ts";
 import { px } from "@kit/values.ts";
 import { controlInputClass } from "../controls/inputs.tsx";
 import { registerContentSpecs, registerStyleKind } from "../controls/specs.ts";
-import type { ControlSpec, Option } from "../controls/types.ts";
+import type { ControlSpec, CustomContext, Option } from "../controls/types.ts";
 import { createElement } from "../store.ts";
 import { registerWidgetDefinition, type WidgetGroup } from "./registry.ts";
 
@@ -42,7 +42,64 @@ const sampleImages = () => [
   { id: rid(), src: "/assets/hero.svg", alt: "", caption: "" },
 ];
 
+/** The Nav Menu's menu picker: the site's menus come from the kit (Appearance › Menus). */
+function menuPicker(context: CustomContext): ReactNode {
+  const menus = context.kit.menus ?? [];
+  const current = (context.read(["props", "menu"]) as string | undefined) ?? menus[0]?.id ?? "";
+  return h(
+    "div",
+    { className: "px-5 py-2" },
+    h("label", { className: "mb-1 block text-[12px] font-semibold text-text", htmlFor: "nav-menu-picker" }, "Menu"),
+    menus.length === 0
+      ? h("p", { className: "text-[12px] leading-relaxed text-muted" }, "No menus yet. Create one under Appearance › Menus in the dashboard, then choose it here.")
+      : h(
+          "select",
+          { id: "nav-menu-picker", value: current, className: "h-9 w-full rounded-control border border-line bg-panel px-2 text-[13px]", "data-testid": "nav-menu-picker", onChange: (event: { target: { value: string } }) => context.write(["props", "menu"], event.target.value, "Changed the menu") },
+          ...menus.map((menu) => h("option", { key: menu.id, value: menu.id }, menu.name)),
+        ),
+  );
+}
+
 const LIBRARY: Library[] = [
+  // --- header and footer ---------------------------------------------------------------------------------
+  {
+    type: "site-logo",
+    label: "Site Logo",
+    group: "basic",
+    icon: "Image",
+    keywords: ["logo", "brand", "header", "home"],
+    props: () => ({ src: "", alt: "", linkHome: true, height: px(48) }),
+    content: [
+      group("Logo", [
+        { kind: "image", label: "Logo picture", path: ["props"] },
+        { kind: "size", label: "Height", path: ["props", "height"], units: ["px", "em", "rem"], responsive: true, min: 8, max: 600 },
+        { kind: "toggle", label: "Link to the home page", path: ["props", "linkHome"] },
+        align(),
+      ]),
+    ],
+    style: "media",
+  },
+  {
+    type: "nav-menu",
+    label: "Nav Menu",
+    group: "basic",
+    icon: "Menu",
+    keywords: ["navigation", "menu", "links", "header", "hamburger"],
+    props: () => ({ layout: "horizontal", breakpoint: 767, sticky: false }),
+    content: [
+      group("Menu", [
+        { kind: "custom", id: "nav-menu-picker", render: (context) => menuPicker(context) },
+        { kind: "choice", label: "Layout", path: ["props", "layout"], allowNone: false, options: [{ value: "horizontal", label: "Horizontal" }, { value: "vertical", label: "Vertical" }] },
+        align(),
+        { kind: "size", label: "Space between items", path: ["props", "gap"], units: ["px", "em", "rem"], min: 0, max: 200 },
+      ]),
+      group("Phones and tablets", [
+        { kind: "number", label: "Fold into a menu button below (pixels)", path: ["props", "breakpoint"], min: 320, max: 2000 },
+        { kind: "toggle", label: "Stick to the top while scrolling", path: ["props", "sticky"] },
+      ]),
+    ],
+    style: "box",
+  },
   // --- basic ---------------------------------------------------------------------------------------------
   {
     type: "icon",
