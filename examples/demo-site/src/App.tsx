@@ -3,6 +3,7 @@ import { Link, Route, Routes, useNavigate } from "react-router";
 import { ArmatureRoute, ArmatureSlot } from "../../../kit/index.ts";
 import { armature } from "./armature.ts";
 import { registerNavigate, usePageCopy } from "./content.ts";
+import { SectionParity } from "./parity.tsx";
 
 function Header() {
   const copy = usePageCopy("shared");
@@ -160,6 +161,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          {/* A test-only page proving builder CSS never changes how a site section renders. */}
+          <Route path="/section-parity" element={<SectionParity />} />
           {/* Builder-only pages (content/layouts/*.json with a path of their own) come before the 404. */}
           <Route path="*" element={<ArmatureRoute fallback={<NotFound />} />} />
         </Routes>

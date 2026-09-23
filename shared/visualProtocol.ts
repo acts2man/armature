@@ -14,7 +14,7 @@
  * Protocol 2 (site contract v2, the page builder) adds the `armature:layout:*`,
  * `armature:element:*`, `armature:elements:map`, `armature:slot` and
  * `armature:richtext:*` messages. The kit in kit/ carries its own copy of the shapes;
- * kit/kit.test.ts asserts the two stay in step.
+ * tests/kit/kit.test.ts asserts the two stay in step.
  */
 import type { LayoutDoc, RichDoc, SiteKit, SiteSectionInfo } from "../kit/types.ts";
 export type { LayoutDoc, RichDoc, SiteKit, SiteSectionInfo };

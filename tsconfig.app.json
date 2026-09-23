@@ -27,5 +27,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "shared", "bridge", "kit", "examples/demo-site/content.test.ts"]
+  "include": ["src", "shared", "bridge", "kit", "tests/kit", "examples/demo-site/content.test.ts"]
 }

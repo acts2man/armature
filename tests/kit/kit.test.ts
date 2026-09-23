@@ -6,24 +6,24 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import demoContact from "../examples/demo-site/content/layouts/contact.json";
-import demoHome from "../examples/demo-site/content/layouts/home.json";
-import demoKit from "../examples/demo-site/content/site-kit.json";
-import demoContent from "../examples/demo-site/content/pages.json";
-import demoSchema from "../examples/demo-site/content/schema.json";
-import { LAYOUT_LIMITS, layoutDocSchema, validateElement, validateLayout, validateSiteKit } from "../shared/builder/schema.ts";
-import { newElementId, withFreshIds } from "../shared/builder/ids.ts";
-import { BRIDGE_MESSAGE_TYPES, BUILDER_PROTOCOL_VERSION, EDITOR_MESSAGE_TYPES } from "../shared/visualProtocol.ts";
-import { PROTOCOL_VERSION, type SiteSchemaLike } from "./bridge.ts";
-import { elementsCss, kitCss, pageCss } from "./css.ts";
-import { defaultSiteKit } from "./defaults.ts";
-import { KIT_VERSION, createArmatureKit, type ContentTree } from "./index.ts";
-import { hasOverride, resolve, setAt } from "./responsive.ts";
-import { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
-import { serializeRichText } from "./richTextDom.ts";
-import { sanitizeCss, safeHref, safeMediaSrc } from "./sanitize.ts";
-import type { Element, LayoutDoc, SiteKit } from "./types.ts";
-import { fontFamilyCss, parseKitRef, parseSize, refToCss, sizeToCss } from "./values.ts";
+import demoContact from "../../examples/demo-site/content/layouts/contact.json";
+import demoHome from "../../examples/demo-site/content/layouts/home.json";
+import demoKit from "../../examples/demo-site/content/site-kit.json";
+import demoContent from "../../examples/demo-site/content/pages.json";
+import demoSchema from "../../examples/demo-site/content/schema.json";
+import { LAYOUT_LIMITS, layoutDocSchema, validateElement, validateLayout, validateSiteKit } from "../../shared/builder/schema.ts";
+import { newElementId, withFreshIds } from "../../shared/builder/ids.ts";
+import { BRIDGE_MESSAGE_TYPES, BUILDER_PROTOCOL_VERSION, EDITOR_MESSAGE_TYPES } from "../../shared/visualProtocol.ts";
+import { PROTOCOL_VERSION, type SiteSchemaLike } from "../../kit/bridge.ts";
+import { elementsCss, kitCss, pageCss } from "../../kit/css.ts";
+import { defaultSiteKit } from "../../kit/defaults.ts";
+import { KIT_VERSION, createArmatureKit, type ContentTree } from "../../kit/index.ts";
+import { hasOverride, resolve, setAt } from "../../kit/responsive.ts";
+import { RichText, plainDoc, richTextToPlain } from "../../kit/richText.tsx";
+import { serializeRichText } from "../../kit/richTextDom.ts";
+import { sanitizeCss, safeHref, safeMediaSrc } from "../../kit/sanitize.ts";
+import type { Element, LayoutDoc, SiteKit } from "../../kit/types.ts";
+import { fontFamilyCss, parseKitRef, parseSize, refToCss, sizeToCss } from "../../kit/values.ts";
 
 const meta = { createdBy: "test", updatedAt: "2026-09-22T00:00:00.000Z" };
 const element = (partial: Partial<Element> & { type: string }): Element => ({ id: newElementId(), props: {}, style: {}, advanced: {}, meta, ...partial });
@@ -283,7 +283,7 @@ describe("protocol pins", () => {
 
 describe("the kit store while an element is typed into", () => {
   it("marks the element, patches its prop into the draft, and bumps its epoch when the edit ends", async () => {
-    const { createKitStore } = await import("./store.ts");
+    const { createKitStore } = await import("../../kit/store.ts");
     const layout = { version: 1, pageSlug: "home", path: "/", root: [{ id: "hd000001", type: "heading", props: { text: "Old" }, style: {}, advanced: {}, meta: { createdBy: "t", updatedAt: "2026-09-22T00:00:00.000Z" } }] };
     const store = createKitStore({ layouts: [layout as never] });
     store.setEditing("hd000001");
@@ -304,7 +304,7 @@ describe("the kit store while an element is typed into", () => {
 
 describe("motion effects", () => {
   it("writes hover animations with a reduced-motion opt-out, and marks parallax for the runtime", async () => {
-    const { elementsCss: css } = await import("./css.ts");
+    const { elementsCss: css } = await import("../../kit/css.ts");
     const moving = element({ id: "hovergrw", type: "spacer", advanced: { hoverAnimation: "grow", scroll: { parallax: 4 } } });
     const out = css([moving], kit);
     expect(out).toContain(".ae-root .ae-hovergrw:hover { transform: scale(1.05); }");

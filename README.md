@@ -54,7 +54,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 | --- | --- |
 | `src/` | The dashboard: a Vite + React + TypeScript single-page app, hosted on Netlify. `src/visual/` is the visual editor. |
 | `bridge/` | `armature-bridge.ts`, the one dependency-free file a v1.1 site copies in to support click-to-edit content, with its README. |
-| `kit/` | The site kit (site contract v2): the folder a site copies to `src/lib/armature-kit/` for the page builder. Bridge v2, renderer, widgets, CSS generator, rich-text renderer. React is its only dependency. |
+| `kit/` | The site kit (site contract v2): the folder a site copies to `src/lib/armature-kit/` for the page builder, with its README. Bridge v2, renderer, widgets, CSS generator, rich-text renderer. React is its only dependency. |
 | `shared/builder/` | The page builder's data model as zod schemas, shared by the dashboard and the edge functions. |
 | `examples/demo-site/` | A tiny Vite + React site that follows the contract, including the bridge. The end-to-end tests run the editor against it. |
 | `tests/e2e/` | Playwright tests of the visual editor against the demo site, with Supabase mocked and GitHub never touched. |

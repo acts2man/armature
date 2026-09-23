@@ -23,7 +23,8 @@ export default defineConfig({
     target: "es2022",
   },
   test: {
-    include: ["shared/**/*.test.ts", "bridge/**/*.test.ts", "kit/**/*.test.ts", "kit/**/*.test.tsx", "examples/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
+    // The kit folder ships to sites verbatim, so its tests live in tests/kit/, not kit/.
+    include: ["shared/**/*.test.ts", "bridge/**/*.test.ts", "tests/kit/**/*.test.ts", "tests/kit/**/*.test.tsx", "examples/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
   },
 });

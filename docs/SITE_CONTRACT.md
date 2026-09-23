@@ -453,8 +453,8 @@ exactly as before.
 ### What the site adds
 
 1. **The kit.** Copy the `kit/` folder of this repository into the site as
-   `src/lib/armature-kit/` (React is its only dependency; it replaces
-   `armature-bridge.ts`) and create it once:
+   `src/lib/armature-kit/` (React is its only dependency; `kit/README.md` explains it and
+   it replaces `armature-bridge.ts`) and create it once:
 
    ```ts
    // src/lib/armature.ts

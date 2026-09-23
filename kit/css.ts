@@ -5,7 +5,8 @@
  * the kit breakpoints (tablet and mobile rules only carry the values set at that
  * device, so inheritance falls out of the cascade); hover values become `:hover` rules;
  * kit values become custom properties on `.ae-root`. Everything is scoped under
- * `.ae-root` so builder CSS and the site's own CSS never fight. Pure module.
+ * `.ae-root` so builder CSS and the site's own CSS never fight, and resets never reach
+ * into registered site sections (see `NOT_SITE`). Pure module.
  */
 import { own, perDevice, resolve } from "./responsive.ts";
 import { sanitizeCss } from "./sanitize.ts";
@@ -477,9 +478,18 @@ function buttonPresetRules(sheet: Sheet, name: string, preset: ButtonPreset): vo
   }
 }
 
+/**
+ * Registered site sections are hand-coded and rendered inside `.ae-root` (wrapped in
+ * `.ae-site-section`). Builder CSS must never change how they render, so every reset or
+ * base rule that could match arbitrary markup — anything not already scoped to a builder
+ * `.ae-*` class — excludes the section wrapper and everything inside it. `:where()` keeps
+ * the exclusion at zero specificity, so the rule's specificity is unchanged.
+ */
+const NOT_SITE = ":not(:where(.ae-site-section, .ae-site-section *))";
+
 const BASE_CSS = `
 .ae-root { box-sizing: border-box; }
-.ae-root *, .ae-root *::before, .ae-root *::after { box-sizing: border-box; }
+.ae-root *${NOT_SITE}, .ae-root *${NOT_SITE}::before, .ae-root *${NOT_SITE}::after { box-sizing: border-box; }
 .ae-root .ae-el { min-width: 0; }
 .ae-root .ae-con { position: relative; display: flex; flex-direction: column; width: 100%; }
 .ae-root .ae-con > .ae-con-inner { display: flex; flex-direction: column; flex: 1 1 auto; width: 100%; margin: 0 auto; gap: var(--ae-con-gap); min-width: 0; }
