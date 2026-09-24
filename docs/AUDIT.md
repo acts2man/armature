@@ -113,6 +113,127 @@ nothing, never scrolls sideways, and never shows the word "Armature" to a client
 - **Email is still not sent** for invites and password resets beyond Supabase's own
   templates (as documented in README). Invite links are shown to copy.
 
+## Every control on every widget
+
+**Date:** 2026-09-24. **How:** `src/builder/controls/coverage.test.ts` takes every widget type the
+Elements panel offers and every leaf control on its Content, Style (Normal and Hover) and
+Advanced tabs (the popovers opened up: the typography fields, the border fields), sets a value
+the way the inspector writes it, and renders the element through the kit — the stylesheet
+`kit/css.ts` generates and the HTML the widget renders. A control **Works** when, at desktop, a
+declaration or an attribute changes and the element still validates; when a phone-only
+override on top of the desktop value changes only the phone media block (the base rules, the
+tablet block and the markup stay as they were); and, on the Hover state, when only `:hover`
+rules change. `builder.spec.ts` "number steppers" drives a sample of the same controls through
+the real inspector (margin, opacity, the site breakpoints, the font size) and checks the canvas.
+The matrix below is what the test prints (`COVERAGE_MATRIX=1 npx vitest run
+src/builder/controls/coverage.test.ts --silent=false --reporter=verbose`); the counts are leaf
+controls, of which "per device" have the device switch and "on hover" sit on the Hover state.
+
+| Widget | Content | Style | Style (hover) | Advanced |
+| --- | --- | --- | --- | --- |
+| container | Works (11 controls, 7 per device) | Works (9 controls, 9 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| grid | Works (11 controls, 7 per device) | Works (9 controls, 9 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| heading | Works (3 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| text | — (the Text Editor itself; `builder.spec.ts` "the Text Editor in the panel and the text on the canvas stay in sync") | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| image | Works (9 controls, 3 per device) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| button | Works (7 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| spacer | Works (1 control, 1 per device) | Works (3 controls, 3 per device) | Works (3 controls, 2 per device, 2 on hover) | Works (30 controls, 16 per device) |
+| divider | Works (7 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| site-logo | **Fixed** (4 controls, 2 per device: Height and Alignment ignored a phone or tablet value, and a desktop value once any override existed) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| nav-menu | **Fixed** (5 controls, 1 per device: Alignment ignored a phone or tablet value) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| icon | Works (9 controls, 2 per device) | Works (3 controls, 3 per device) | Works (3 controls, 2 per device, 2 on hover) | Works (30 controls, 16 per device) |
+| video | Works (9 controls; 3 behaviour-only: Loop, Muted, Start at) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| icon-box | Works (9 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| image-box | Works (8 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| icon-list | Works (6 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| accordion | Works (4 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| toggle | Works (4 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| tabs | Works (3 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| testimonial | Works (7 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| star-rating | Works (7 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| counter | Works (9 controls, 1 per device; 1 behaviour-only: Duration) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| progress | Works (7 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| alert | Works (5 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| social-icons | Works (8 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| gallery | Works (6 controls, 1 per device) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| carousel | Works (12 controls, 1 per device; 4 behaviour-only: Play by itself, Seconds per slide, Pause while pointed at, Loop) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| map | Works (4 controls, 1 per device) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+| cta | Works (9 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| price-table | Works (11 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| countdown | Works (9 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| flip-box | Works (13 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| blockquote | Works (6 controls, 1 per device) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| toc | Works (3 controls) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| form | Works (7 controls; 2 behaviour-only: Thank-you message, Or go to a page) | Works (22 controls, 20 per device) | Works (23 controls, 20 per device, 22 on hover) | Works (30 controls, 16 per device) |
+| html | Works (3 controls, 1 per device) | Works (8 controls, 8 per device) | Works (9 controls, 8 per device, 8 on hover) | Works (30 controls, 16 per device) |
+
+The Advanced column is the same 30 controls on every widget (Layout, In its container, In its
+grid, Position, Motion effects, Responsive, Attributes, Custom CSS); a widget with no text gets
+the shorter Style tab (background, border, shadow, effects).
+
+### Fixed in this job
+
+- **Site Logo › Height and Alignment, Nav Menu › Alignment** (`kit/library/css.ts`): the controls
+  have the device switch, but the CSS hooks read the value as if it were plain, so a phone or
+  tablet override produced nothing (and, for the logo, `0undefined` once the wrapper existed).
+  They now go through the same per-device path as every other rule.
+- **A first phone or tablet value on a typography field linked to a site text style copied the
+  phone value up to desktop.** The file format needs a desktop base, and the inspector seeded it
+  with the value just typed; it now seeds it with the site style's own desktop value (what desktop
+  was showing), so desktop keeps looking the same. The toolbar's A− / A+ does the same, seeding
+  desktop with the site style's size or the size the page computed. `builder.spec.ts` "A− and A+
+  on the floating toolbar" checks the phone size moves and desktop stays at 28px.
+- **Opacity** (named as broken): could not be reproduced. The matrix passes it at desktop, as a
+  phone override and on hover for every widget; `builder.spec.ts` "the arrow keys step the
+  focused number…" types 0.5, steps to 0.55 with the button and to 1 with Shift+ArrowUp, and
+  reads each value back from the canvas. The kit's CSS has emitted `opacity` since the first
+  builder commit, so the real site's kit (2.2.0) has it too. If it fails on a specific site, the
+  cause is outside the control → CSS path (the site's own stylesheet, for instance); please
+  send the page and the value.
+
+### Still broken / notes on the controls
+
+- **A phone or tablet value set before any desktop value becomes the desktop value too**
+  (every control without a site-style fallback: margin, opacity, a background…). Reason: a
+  per-device value is stored as `{ desktop, tablet?, mobile? }` and `desktop` is required by the
+  site contract, so the first value written has to fill it. What to do: set the desktop value
+  first, or after (the desktop field then edits the base and the phone keeps its override).
+  Changing the contract to allow a phone-only value is a kit version bump (types, validator,
+  CSS generator, every site's kit) and is not done here.
+- **Behaviour-only controls** cannot show in a static render and are checked by the widget's
+  own tests instead: the video's Loop, Muted and Start at (they go into the player address the
+  facade builds when the visitor presses play); the carousel's Play by itself, Seconds per slide,
+  Pause while pointed at and Loop (they run after the page loads, never in the editor); the
+  counter's Duration (the count-up); the form's Thank-you message and Or go to a page (after the
+  form is sent; `builder.spec.ts` "the form checks fields…"). They are listed in the test with
+  these reasons, so a control that stops working is still caught everywhere else.
+- **The site kit's own controls (Globals)** are not widget controls and are outside the matrix;
+  `builder.spec.ts` "changing a site colour restyles everything" and "the Globals panel numbers
+  have the same steppers" cover the kit → stylesheet path.
+
+## Number steppers and the font-size toolbar
+
+Every number in the inspector and in Globals (a plain number, a size, the four sides, the
+four corners, a gap, a shadow offset, the stroke width, a gradient angle or stop, the overlay
+and colour opacities, the custom entry of a select such as a font weight, the transition and
+animation times) has up and down buttons: one step per click (1 for px and %, 0.1 for em, rem
+and unitless values, 0.05 for opacity, the control's own step otherwise), ten with Shift, and a
+hold repeats after 350 ms every 50 ms. The arrow keys on the field do the same. The canvas
+follows every step; one hold, one key-repeat run or one scrub is one undo step (`history.ts`
+merges a `drag:` group however long it lasts; typing still merges only while it keeps coming).
+Headings, Text Editors, buttons and every widget whose Style tab has typography get A−, the
+current size and A+ over the selected element (and on the rich-text toolbar while a Text
+Editor is edited), writing the font size for the device being edited.
+
+| Feature | Status | Covered by |
+| --- | --- | --- |
+| Up/down buttons step, Shift steps 10, the canvas follows, the unit sets the step (px 1, em 0.1) | Works | `builder.spec.ts` "the up and down buttons step…" |
+| Press-and-hold repeats and is one undo step | Works | `builder.spec.ts` "the up and down buttons step…" (a 900 ms hold, then one Undo) |
+| Arrow keys and Shift+arrows; a key-repeat run is one undo step | Works | `builder.spec.ts` "the arrow keys step the focused number…" |
+| Opacity by 0.05 | Works | `builder.spec.ts` "the arrow keys step the focused number…" |
+| Globals numbers (the site breakpoints reach the stylesheet) | Works | `builder.spec.ts` "the Globals panel numbers have the same steppers" |
+| A− / A+ per device on the strip and on the rich-text toolbar; a hold is one undo step | Works | `builder.spec.ts` "A− and A+ on the floating toolbar…"; `fontSize.test.ts` |
+
 ## What changed under the hood (so the audit is repeatable)
 
 - `kit/validate.ts` is the one validator, tolerant per element and per property; zod is gone.
@@ -122,3 +243,7 @@ nothing, never scrolls sideways, and never shows the word "Armature" to a client
 - Fixtures: `tests/fixtures/treetestprep/` (the site's `content/` folder, verbatim).
 - Tests added: `shared/builder/validate.test.ts`, Deno `realSite.test.ts`, Playwright
   `problems.spec.ts`, `navigation.spec.ts`, `real-site.spec.ts`, `screens.spec.ts`.
+- Controls: `src/builder/controls/coverage.test.ts` (the matrix above), `src/builder/fontSize.test.ts`,
+  `builder.spec.ts` "number steppers". `ARMATURE_E2E_PORT` and `ARMATURE_E2E_SITE_PORT` move the
+  Playwright dev servers off 5173/5174, so two checkouts can test side by side without one
+  reusing the other's server (`reuseExistingServer` is on outside CI).

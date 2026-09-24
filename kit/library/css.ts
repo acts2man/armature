@@ -13,21 +13,17 @@ const justify = (value: string) => (value === "center" ? "center" : value === "r
 
 const alignItems = (value: string) => (value === "center" ? "center" : value === "right" ? "flex-end" : "flex-start");
 
+// The logo's height and alignment and the menu's alignment are per device (their controls
+// have the device switch), so each lands in its device's media block like every other rule.
 const siteLogoCss: WidgetCssHook = (sheet, selector, props) => {
-  const height = size(props["height"]);
-  if (height) sheet.add("base", selector, "--ae-logo-height", height);
-  const align = props["align"];
-  if (typeof align === "string") sheet.add("base", selector, "text-align", align);
+  sheet.responsive(selector, props["height"] as never, (value: Size) => [["--ae-logo-height", sizeToCss(value) ?? "48px"]]);
+  sheet.responsive(selector, props["align"] as never, (value: string) => [["text-align", value]]);
 };
 
 const navMenuCss: WidgetCssHook = (sheet, selector, props) => {
   const gap = size(props["gap"]);
   if (gap) sheet.add("base", selector, "--ae-nav-gap", gap);
-  const align = props["align"];
-  if (typeof align === "string") {
-    sheet.add("base", selector, "--ae-nav-justify", justify(align));
-    sheet.add("base", selector, "--ae-nav-align-items", alignItems(align));
-  }
+  sheet.responsive(selector, props["align"] as never, (value: string) => [["--ae-nav-justify", justify(value)], ["--ae-nav-align-items", alignItems(value)]]);
 };
 
 const BASE = `
