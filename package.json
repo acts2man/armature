@@ -21,7 +21,8 @@
     "test:e2e:ui": "playwright test --ui",
     "engine": "node --import tsx engine/server/index.ts",
     "test:engine": "vitest run --config engine/vitest.config.ts",
-    "typecheck:engine": "tsc -p engine/tsconfig.json --noEmit"
+    "typecheck:engine": "tsc -p engine/tsconfig.json --noEmit",
+    "record:guide-videos": "node scripts/record-guide-videos.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

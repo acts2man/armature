@@ -25,6 +25,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 - **Team**: the agency's own staff and their invitations.
 - **Agency settings**: portal name, logo and accent colour. Clients see the agency's brand and never the word Armature.
 - **Publish history** for every site, with a link to each commit.
+- **Getting started**: a seven-section end-to-end guide (agency setup, adding a site, one-time site setup, giving the client access, editing and publishing, keeping sites up to date, troubleshooting) with a checklist, a screenshot per step, and per-section walkthroughs recorded by `npm run record:guide-videos`.
 
 **For everyone who edits: the visual editor**
 
