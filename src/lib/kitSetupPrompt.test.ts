@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSetupPrompt, type SiteSetupContext } from "./kitSetupPrompt.ts";
+import { buildSetupPrompt, SETUP_BRANCH, type SiteSetupContext } from "./kitSetupPrompt.ts";
 
 const context = (overrides: Partial<SiteSetupContext> = {}): SiteSetupContext => ({
   repo: "acme/alder-stone",
@@ -19,12 +19,22 @@ const context = (overrides: Partial<SiteSetupContext> = {}): SiteSetupContext =>
 });
 
 describe("buildSetupPrompt", () => {
-  it("includes the repo, branch, kit path and site id", () => {
+  it("includes the repo, kit path and site id", () => {
     const text = buildSetupPrompt(context());
     expect(text).toContain("acme/alder-stone");
-    expect(text).toContain("branch main");
     expect(text).toContain("src/lib/armature-kit");
     expect(text).toContain("11111111-1111-4111-8111-111111111111");
+  });
+
+  it("names the test-copy branch and warns off the live branch", () => {
+    const text = buildSetupPrompt(context());
+    expect(text).toContain(SETUP_BRANCH);
+    expect(text).toContain(`origin/main`);
+    expect(text).toContain(`Do NOT touch main directly`);
+    // Ends by telling Troy to come back to Armature (no PR).
+    expect(text).toContain("Preview");
+    expect(text).toContain("Go live");
+    expect(text).toContain("Do NOT open a pull request");
   });
 
   it("shows the from/to versions and lists releases with steps", () => {
@@ -40,9 +50,10 @@ describe("buildSetupPrompt", () => {
     expect(text).toContain("VITE_ARMATURE_STATS_SITE_ID  = 11111111-1111-4111-8111-111111111111");
   });
 
-  it("says 'main' is the connected branch when it is, and warns off otherwise", () => {
-    expect(buildSetupPrompt(context({ branch: "main" }))).toContain("main unless main is the connected branch (it is)");
-    expect(buildSetupPrompt(context({ branch: "production" }))).toContain("main unless main is the connected branch (it is not — leave main alone)");
+  it("handles a non-main connected branch by naming main as off-limits", () => {
+    const text = buildSetupPrompt(context({ branch: "production" }));
+    expect(text).toContain("it is not — leave main alone entirely");
+    expect(text).toContain("origin/production");
   });
 
   it("names 'fresh install' when the site has no current version", () => {

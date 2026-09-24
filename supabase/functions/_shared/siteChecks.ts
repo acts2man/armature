@@ -41,7 +41,21 @@ export type RepoCheckResult = {
   schema?: SiteSchema;
   content?: unknown;
   warnings: string[];
+  /**
+   * True when every GitHub-side check passed (App installed, linked to the
+   * agency, has write access, branch exists) but one or more Armature-side
+   * files are missing (schema.json, pages.json, the kit folder). site-connect
+   * uses this to save the site with status="needs_setup" instead of refusing
+   * to save it, so the agency can open the site and use the in-app Set up
+   * this site flow to add the missing files on a test-copy branch.
+   */
+  needsSetup: boolean;
 };
+
+/** The subset of check ids that must all pass before a site can be saved at all. */
+export const REPO_CHECK_IDS = ["app-config", "app-key", "installation", "installation-linked", "installation-token", "repo-access", "branch"] as const;
+/** The check ids Armature files own; failing these routes to "needs_setup". */
+export const ARMATURE_CHECK_IDS = ["schema-file", "content-file", "kit-file"] as const;
 
 const SECRETS_FIX =
   "In Supabase open Edge Functions → Secrets and add the value, then redeploy the functions (docs/SETUP.md, part B). Secrets only reach functions deployed after they were saved.";
@@ -56,6 +70,7 @@ const ORDER: { id: string; label: (input: RepoCheckInput) => string }[] = [
   { id: "branch", label: (i) => `The branch "${i.branch}" exists` },
   { id: "schema-file", label: () => `${SCHEMA_PATH} is present and valid` },
   { id: "content-file", label: () => `${CONTENT_PATH} is present and valid` },
+  { id: "kit-file", label: () => "The Armature kit is installed" },
 ];
 
 export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckResult> {
@@ -65,11 +80,20 @@ export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckRes
   const warnings: string[] = [];
   const labelFor = (id: string) => ORDER.find((entry) => entry.id === id)?.label(input) ?? id;
 
+  // Which Armature-side checks failed because the file is MISSING (a setup step
+  // fixes those). Malformed or contract-breaking files are real bugs and stay
+  // out of this set, so they do not route the site to needs_setup.
+  const armatureMissing = new Set<string>();
+
   const pass = (id: string, detail: string) =>
     checks.push({ id, label: labelFor(id), status: "ok", detail });
   const fail = (id: string, detail: string, fix: string) =>
     checks.push({ id, label: labelFor(id), status: "fail", detail, fix });
-  const finish = (result: Omit<RepoCheckResult, "checks" | "allPassed" | "warnings">): RepoCheckResult => {
+  const missing = (id: string, detail: string, fix: string) => {
+    armatureMissing.add(id);
+    checks.push({ id, label: labelFor(id), status: "fail", detail, fix });
+  };
+  const finish = (result: Omit<RepoCheckResult, "checks" | "allPassed" | "warnings" | "needsSetup">): RepoCheckResult => {
     const done = new Set(checks.map((check) => check.id));
     for (const entry of ORDER) {
       if (!done.has(entry.id)) {
@@ -81,7 +105,14 @@ export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckRes
         });
       }
     }
-    return { ...result, checks, warnings, allPassed: checks.every((check) => check.status === "ok") };
+    const allPassed = checks.every((check) => check.status === "ok");
+    const repoChecksPassed = (REPO_CHECK_IDS as readonly string[]).every((id) =>
+      checks.some((check) => check.id === id && check.status === "ok"),
+    );
+    const armatureChecksBroken = (ARMATURE_CHECK_IDS as readonly string[]).some((id) =>
+      checks.some((check) => check.id === id && check.status === "fail") && !armatureMissing.has(id),
+    );
+    return { ...result, checks, warnings, allPassed, needsSetup: repoChecksPassed && armatureMissing.size > 0 && !armatureChecksBroken };
   };
 
   // 1. secrets present
@@ -211,82 +242,97 @@ export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckRes
   pass("branch", `${input.branch} is at ${branch.sha.slice(0, 7)}`);
   const headSha = branch.sha;
 
+  const SETUP_FIX =
+    'This site is not set up for Armature yet. Open its Dashboard and press "Set up this site" to get a ready-to-paste Claude Code prompt for a one-time setup on the armature/setup branch.';
+
   // 8. schema
   const schemaFile = await probe.file(SCHEMA_PATH, headSha);
+  let schema: SiteSchema | undefined;
   if (!schemaFile.ok || typeof schemaFile.text !== "string") {
-    fail(
-      "schema-file",
-      `HTTP ${schemaFile.status || "no response"} — ${schemaFile.message}`,
-      `${SCHEMA_PATH} is missing from the "${input.branch}" branch (or is larger than 1 MB). The site's developer needs to add it — see docs/SITE_CONTRACT.md.`,
-    );
-    return finish({ installation, headSha });
+    missing("schema-file", `${SCHEMA_PATH} is missing from "${input.branch}"`, SETUP_FIX);
+  } else {
+    let schemaRaw: unknown;
+    try {
+      schemaRaw = JSON.parse(schemaFile.text);
+    } catch {
+      fail(
+        "schema-file",
+        `${SCHEMA_PATH} is not valid JSON`,
+        "Open the file and fix the JSON (a missing comma or quote is the usual cause), commit, and try again.",
+      );
+      return finish({ installation, headSha });
+    }
+    const schemaReport = validateSiteSchema(schemaRaw);
+    if (!schemaReport.schema) {
+      fail(
+        "schema-file",
+        schemaReport.errors.slice(0, 5).join("\n") +
+          (schemaReport.errors.length > 5 ? `\n…and ${schemaReport.errors.length - 5} more` : ""),
+        "The schema does not follow the site contract. Fix the problems listed, commit, and try again. docs/SITE_CONTRACT.md describes every rule.",
+      );
+      return finish({ installation, headSha });
+    }
+    warnings.push(...schemaReport.warnings);
+    schema = schemaReport.schema;
+    const pageCount = schema.pages.length;
+    pass("schema-file", `armatureContract ${schema.armatureContract}, ${pageCount} page${pageCount === 1 ? "" : "s"}`);
   }
-  let schemaRaw: unknown;
-  try {
-    schemaRaw = JSON.parse(schemaFile.text);
-  } catch {
-    fail(
-      "schema-file",
-      `${SCHEMA_PATH} is not valid JSON`,
-      "Open the file and fix the JSON (a missing comma or quote is the usual cause), commit, and try again.",
-    );
-    return finish({ installation, headSha });
-  }
-  const schemaReport = validateSiteSchema(schemaRaw);
-  if (!schemaReport.schema) {
-    fail(
-      "schema-file",
-      schemaReport.errors.slice(0, 5).join("\n") +
-        (schemaReport.errors.length > 5 ? `\n…and ${schemaReport.errors.length - 5} more` : ""),
-      "The schema does not follow the site contract. Fix the problems listed, commit, and try again. docs/SITE_CONTRACT.md describes every rule.",
-    );
-    return finish({ installation, headSha });
-  }
-  warnings.push(...schemaReport.warnings);
-  const pageCount = schemaReport.schema.pages.length;
-  pass("schema-file", `armatureContract ${schemaReport.schema.armatureContract}, ${pageCount} page${pageCount === 1 ? "" : "s"}`);
 
   // 9. content
   const contentFile = await probe.file(CONTENT_PATH, headSha);
+  let content: unknown | undefined;
   if (!contentFile.ok || typeof contentFile.text !== "string") {
-    fail(
+    missing("content-file", `${CONTENT_PATH} is missing from "${input.branch}"`, SETUP_FIX);
+  } else if (!schema) {
+    // The schema failed above but the content file exists — report both.
+    pass("content-file", `${CONTENT_PATH} is present (validation deferred until the schema is added)`);
+  } else {
+    let contentRaw: unknown;
+    try {
+      contentRaw = JSON.parse(contentFile.text);
+    } catch {
+      fail(
+        "content-file",
+        `${CONTENT_PATH} is not valid JSON`,
+        "Open the file and fix the JSON, commit, and try again.",
+      );
+      return finish({ installation, headSha, schema });
+    }
+    if (!isPlainObject(contentRaw)) {
+      fail("content-file", `${CONTENT_PATH} is not a JSON object`, "The file must be an object keyed by page slug.");
+      return finish({ installation, headSha, schema });
+    }
+    const contentReport = validateContentTree(contentRaw, schema.pages);
+    if (contentReport.errors.length > 0) {
+      fail(
+        "content-file",
+        contentReport.errors.slice(0, 5).join("\n") +
+          (contentReport.errors.length > 5 ? `\n…and ${contentReport.errors.length - 5} more` : ""),
+        "Every field the schema declares needs a value of the right shape in the content file. Fix the problems listed, commit, and try again.",
+      );
+      return finish({ installation, headSha, schema, content: contentRaw });
+    }
+    warnings.push(...contentReport.warnings);
+    content = contentRaw;
+    pass(
       "content-file",
-      `HTTP ${contentFile.status || "no response"} — ${contentFile.message}`,
-      `${CONTENT_PATH} is missing from the "${input.branch}" branch (or is larger than 1 MB). The site's developer needs to add it with a value for every field in the schema.`,
+      `${contentReport.checked} field${contentReport.checked === 1 ? "" : "s"} present and well-shaped` +
+        (contentReport.warnings.length > 0 ? ` (${contentReport.warnings.length} warning${contentReport.warnings.length === 1 ? "" : "s"})` : ""),
     );
-    return finish({ installation, headSha, schema: schemaReport.schema });
   }
-  let contentRaw: unknown;
-  try {
-    contentRaw = JSON.parse(contentFile.text);
-  } catch {
-    fail(
-      "content-file",
-      `${CONTENT_PATH} is not valid JSON`,
-      "Open the file and fix the JSON, commit, and try again.",
-    );
-    return finish({ installation, headSha, schema: schemaReport.schema });
-  }
-  if (!isPlainObject(contentRaw)) {
-    fail("content-file", `${CONTENT_PATH} is not a JSON object`, "The file must be an object keyed by page slug.");
-    return finish({ installation, headSha, schema: schemaReport.schema });
-  }
-  const contentReport = validateContentTree(contentRaw, schemaReport.schema.pages);
-  if (contentReport.errors.length > 0) {
-    fail(
-      "content-file",
-      contentReport.errors.slice(0, 5).join("\n") +
-        (contentReport.errors.length > 5 ? `\n…and ${contentReport.errors.length - 5} more` : ""),
-      "Every field the schema declares needs a value of the right shape in the content file. Fix the problems listed, commit, and try again.",
-    );
-    return finish({ installation, headSha, schema: schemaReport.schema, content: contentRaw });
-  }
-  warnings.push(...contentReport.warnings);
-  pass(
-    "content-file",
-    `${contentReport.checked} field${contentReport.checked === 1 ? "" : "s"} present and well-shaped` +
-      (contentReport.warnings.length > 0 ? ` (${contentReport.warnings.length} warning${contentReport.warnings.length === 1 ? "" : "s"})` : ""),
-  );
 
-  return finish({ installation, headSha, schema: schemaReport.schema, content: contentRaw });
+  // 10. kit
+  const kitVersionFile = await probe.file("src/lib/armature-kit/version.ts", headSha);
+  const kitIndexFile = kitVersionFile.ok ? null : await probe.file("src/lib/armature-kit/index.ts", headSha);
+  if (kitVersionFile.ok || kitIndexFile?.ok) {
+    pass("kit-file", kitVersionFile.ok ? "src/lib/armature-kit/version.ts is present" : "src/lib/armature-kit/index.ts is present");
+  } else {
+    missing(
+      "kit-file",
+      "The Armature kit is not in src/lib/armature-kit/ (or the site's developer put it somewhere else — set the Kit path under Site settings)",
+      SETUP_FIX,
+    );
+  }
+
+  return finish({ installation, headSha, schema, content });
 }

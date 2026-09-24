@@ -28,7 +28,8 @@ export type FunctionName =
   | "site-embed-check"
   | "builder-publish"
   | "kit-status"
-  | "update-kit";
+  | "update-kit"
+  | "finish-setup";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });
 

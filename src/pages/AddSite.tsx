@@ -216,6 +216,7 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
     connect.reset();
   }
 
+  const hasLinkedAccount = installations.data && installations.data.length > 0;
   let installationsBlock: ReactNode;
   if (installations.isPending) {
     installationsBlock = <Skeleton className="w-56" />;
@@ -225,18 +226,18 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
         {installations.error.message}
       </Notice>
     );
-  } else if (installations.data.length === 0) {
+  } else if (!hasLinkedAccount) {
     installationsBlock = <p className="text-[14px] text-text">No GitHub account linked yet.</p>;
   } else {
     installationsBlock = (
       <div>
-        <p className="text-[13px] font-semibold text-text">Linked GitHub accounts</p>
-        <ul className="mt-2 flex flex-wrap gap-2">
-          {installations.data.map((installation) => (
+        <p className="text-[13px] font-semibold text-text">Connected GitHub</p>
+        <ul className="mt-2 flex flex-wrap gap-2" data-testid="linked-accounts">
+          {installations.data!.map((installation) => (
             <li key={installation.installation_id} className="inline-flex h-9 items-center gap-2 rounded-control border border-line bg-ground px-3 text-[13px]">
               <IconGithub size={16} />
               <span className="font-mono text-text">{installation.account_login}</span>
-              <Pill tone="grey">{installation.account_type}</Pill>
+              <Pill tone="green">Connected ✓</Pill>
             </li>
           ))}
         </ul>
@@ -262,7 +263,19 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
     const data = connect.data;
     resultBlock = (
       <div className="flex flex-col gap-4">
-        {data.site ? (
+        {data.site && data.needsSetup ? (
+          <Notice
+            kind="warning"
+            title={`${data.site.name} is connected but not set up for Armature yet`}
+            action={
+              <LinkButton to={`/sites/${data.site.id}`} size="sm" data-testid="open-needs-setup">
+                Open the site to set it up
+              </LinkButton>
+            }
+          >
+            That's a one-time step done with Claude Code. Open the site — the setup box on the Dashboard has a ready-to-paste prompt that does the work on a test-copy branch (armature/setup). Once you're happy with Preview, press Go live inside Armature.
+          </Notice>
+        ) : data.site ? (
           <Notice
             kind="success"
             title={upgrade ? `${data.site.name} now has its repository connected` : `${data.site.name} is connected`}
@@ -301,24 +314,35 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
     <>
       <Panel title={<StepTitle number={1}>Connect GitHub</StepTitle>}>
         <div className="flex flex-col gap-4 p-4 sm:p-5">
-          <p className="text-[14px] leading-relaxed text-muted">
-            Install the GitHub App on the account or organisation that owns the site's repository and choose that repository. GitHub brings you back here when it is done.
-          </p>
-          {installationsBlock}
-          {install.isError && (
-            <Notice kind="danger" title="The install link could not be created">
-              {install.error.message}
-            </Notice>
+          {hasLinkedAccount ? (
+            <>
+              {installationsBlock}
+              <p className="text-[13px] text-muted">
+                Linking another GitHub account or organisation is done once for the whole agency. Open <a href={`/agency/settings#github`} className="text-primary underline">Agency settings → GitHub</a> to add one.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-[14px] leading-relaxed text-muted">
+                Install the GitHub App on the account or organisation that owns the site's repository and choose that repository. GitHub brings you back here when it is done.
+              </p>
+              {installationsBlock}
+              {install.isError && (
+                <Notice kind="danger" title="The install link could not be created">
+                  {install.error.message}
+                </Notice>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={() => install.mutate()} loading={install.isPending} data-testid="install-github">
+                  <IconGithub size={16} /> Install the GitHub App
+                </Button>
+                <Button variant="secondary" onClick={() => void installations.refetch()} loading={installations.isFetching && !installations.isPending}>
+                  <IconRefresh size={16} /> Refresh list
+                </Button>
+              </div>
+              <p className="text-[13px] text-muted">Already installed? Open the App on GitHub and press Configure. It brings you back here too.</p>
+            </>
           )}
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => install.mutate()} loading={install.isPending}>
-              <IconGithub size={16} /> Install the GitHub App
-            </Button>
-            <Button variant="secondary" onClick={() => void installations.refetch()} loading={installations.isFetching && !installations.isPending}>
-              <IconRefresh size={16} /> Refresh list
-            </Button>
-          </div>
-          <p className="text-[13px] text-muted">Already installed? Open the App on GitHub and press Configure. It brings you back here too.</p>
         </div>
       </Panel>
 

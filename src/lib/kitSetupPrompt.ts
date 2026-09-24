@@ -4,14 +4,21 @@
  * connected branch, kit path, id and stats endpoint — is filled in here so the
  * agency does not have to touch the text.
  *
- * The rule of the prompt is stated up front: the site's visual tests must stay
- * pixel-identical (production build only), never touch main unless it is the
- * connected branch, never force-push.
+ * The setup runs on a TEST-COPY branch (armature/setup) branched from the
+ * connected branch, so the live branch keeps rendering the site as it is
+ * today. Preview and Go live in Armature take the test copy the rest of the
+ * way — Preview shows Netlify's branch preview, Go live merges armature/setup
+ * into the connected branch through the GitHub API as one merge (never a
+ * force-push; on conflict Armature stops and explains).
  */
 import type { KitReleaseNote, KitSetupStep } from "@kit/index.ts";
 
+/** The branch the setup prompt uses for the test-copy work. */
+export const SETUP_BRANCH = "armature/setup";
+
 export type SiteSetupContext = {
   repo: string;
+  /** The connected branch — the setup prompt branches OFF this into SETUP_BRANCH. */
   branch: string;
   kitPath: string;
   siteId: string;
@@ -27,14 +34,22 @@ const H = "----------------------------------------------------------------";
 
 export function buildSetupPrompt(ctx: SiteSetupContext): string {
   const lines: string[] = [];
-  lines.push(`Please set up the Armature kit on this repository (${ctx.repo}, branch ${ctx.branch}).`);
+  lines.push(`Please set up the Armature kit on this repository (${ctx.repo}).`);
+  lines.push("");
+  lines.push(H);
+  lines.push("WHICH BRANCH TO WORK ON");
+  lines.push(H);
+  lines.push(`- Do ALL the work on a NEW branch called ${SETUP_BRANCH}, branched from ${ctx.branch}.`);
+  lines.push(`  Start with: git fetch origin && git switch -c ${SETUP_BRANCH} origin/${ctx.branch} (create it if it does not exist yet; if it does, use it).`);
+  lines.push(`- Do NOT touch ${ctx.branch} directly. The live site stays exactly as it is on ${ctx.branch} today until Armature merges the setup for you.`);
+  lines.push(`- When you finish, push ${SETUP_BRANCH} to origin and tell Troy to come back to Armature. Armature will then show him Preview (Netlify's branch preview of ${SETUP_BRANCH}) and Go live (merges ${SETUP_BRANCH} into ${ctx.branch} through the GitHub API as one merge — never a force-push).`);
   lines.push("");
   lines.push(H);
   lines.push("RULES (do not break any of these)");
   lines.push(H);
-  lines.push(`- Every visual check runs against the site's production build (npm run build && npm run preview, or the framework's equivalent). It must look pixel-identical to before you started.`);
-  lines.push(`- Only push to the connected branch: ${ctx.branch}. Never force-push, never rewrite history on any other branch.`);
-  lines.push(`- Do not touch main unless main is the connected branch (${ctx.branch === "main" ? "it is" : "it is not — leave main alone"}).`);
+  lines.push(`- Every visual check runs against the site's production build (npm run build && npm run preview, or the framework's equivalent). It must look pixel-identical to the site running on ${ctx.branch} today.`);
+  lines.push(`- Only push to ${SETUP_BRANCH}. Never force-push. Never rewrite history on any branch.`);
+  lines.push(`- Do NOT touch main unless main IS the connected branch (${ctx.branch === "main" ? "it is — but still only via " + SETUP_BRANCH : "it is not — leave main alone entirely"}).`);
   lines.push(`- The kit folder is at ${ctx.kitPath}. Copy the whole folder from Armature verbatim; do not edit files inside it.`);
   lines.push("");
   lines.push(H);
@@ -84,6 +99,6 @@ export function buildSetupPrompt(ctx: SiteSetupContext): string {
   lines.push(H);
   lines.push("WHEN YOU ARE DONE");
   lines.push(H);
-  lines.push("Commit and push to the connected branch. Armature notices the new version automatically the next time the site rebuilds (data-armature-kit on <html> is the signal); the site's Kit status card in Site settings will flip to Up to date once the deploy is live.");
+  lines.push(`Commit and push to ${SETUP_BRANCH}. Do NOT open a pull request; Armature merges the branch for Troy when he presses Go live. Then tell Troy: "The test copy is on ${SETUP_BRANCH}. Open the site in Armature and press Preview to check it, then Go live when you are happy." Armature notices the version automatically once the merge lands (data-armature-kit on <html> is the signal).`);
   return lines.join("\n");
 }

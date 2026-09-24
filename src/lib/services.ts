@@ -64,14 +64,16 @@ export function renewalState(next: string | null, overdue: string | null, today:
   return { date, days, state: days < 0 ? "past" : days <= RENEWAL_SOON_DAYS ? "soon" : "later" };
 }
 
-export type SiteStatusLabel = "Live" | "Onboarding" | "Needs attention" | "Hosting only";
+export type SiteStatusLabel = "Live" | "Onboarding" | "Needs attention" | "Hosting only" | "Needs setup";
 
 /**
- * Hosting-only sites say so; a connected site that has never published is still
- * onboarding; a connected site that has published is live.
+ * Hosting-only sites say so; needs_setup means the repo is connected but the
+ * Armature files are missing; a connected site that has never published is
+ * still onboarding; a connected site that has published is live.
  */
 export function siteStatusLabel(site: Pick<Site, "status" | "last_published_at">): SiteStatusLabel {
   if (site.status === "hosting_only") return "Hosting only";
+  if (site.status === "needs_setup") return "Needs setup";
   if (site.status === "needs_attention") return "Needs attention";
   return site.last_published_at ? "Live" : "Onboarding";
 }
@@ -80,10 +82,12 @@ export const SITE_STATUS_TONES: Record<SiteStatusLabel, PillTone> = {
   Live: "green",
   Onboarding: "blue",
   "Needs attention": "amber",
+  "Needs setup": "amber",
   "Hosting only": "grey",
 };
 
 export const isHostingOnly = (site: Pick<Site, "status">): boolean => site.status === "hosting_only";
+export const needsSetup = (site: Pick<Site, "status">): boolean => site.status === "needs_setup";
 
 export const EMAIL_PROVIDER_LABELS: Record<NonNullable<SiteServices["email_provider"]>, string> = {
   google_workspace: "Google Workspace",

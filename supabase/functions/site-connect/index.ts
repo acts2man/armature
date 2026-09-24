@@ -71,28 +71,38 @@ Deno.serve(
       linkedInstallationIds: await linkedInstallationIds(caller.supabase, agencyId),
     });
 
-    if (!result.allPassed || !result.installation) {
+    // We save the site as soon as the GitHub-side checks pass. If Armature files
+    // are missing we save it with status="needs_setup" so the agency can open the
+    // Dashboard and run Set up this site.
+    if (!result.installation) {
+      return { ok: true, allPassed: false, checks: result.checks };
+    }
+    const repoChecksOk = ["app-config", "app-key", "installation", "installation-linked", "installation-token", "repo-access", "branch"].every((id) =>
+      result.checks.some((check) => check.id === id && check.status === "ok"),
+    );
+    if (!repoChecksOk) {
       return { ok: true, allPassed: false, checks: result.checks };
     }
 
+    const status = result.allPassed ? "connected" : "needs_setup";
     const repoFields = {
       repo_owner: repoOwner,
       repo_name: repoName,
       branch,
       github_installation_id: result.installation.id,
-      status: "connected",
+      status,
     };
     const { data, error } = existing
       ? await caller.supabase
           .from("sites")
           .update({ ...repoFields, ...(liveUrl ? { live_url: liveUrl } : {}), ...(optionalString(body, "name") ? { name } : {}) })
           .eq("id", existing.id)
-          .select("id, name")
+          .select("id, name, status")
           .single()
       : await caller.supabase
           .from("sites")
           .insert({ agency_id: agencyId, name, live_url: liveUrl ?? null, ...repoFields })
-          .select("id, name")
+          .select("id, name, status")
           .single();
 
     if (error) {
@@ -105,11 +115,13 @@ Deno.serve(
       throw new ArmatureError("github_error", `The checks passed but the site could not be saved: ${error.message}`);
     }
 
+    const savedSite = data as { id: string; name: string; status: "connected" | "needs_setup" };
     return {
       ok: true,
-      allPassed: true,
+      allPassed: result.allPassed,
+      needsSetup: !result.allPassed,
       checks: result.checks,
-      site: { id: (data as { id: string }).id, name: (data as { name: string }).name },
+      site: { id: savedSite.id, name: savedSite.name, status: savedSite.status },
     };
   }),
 );

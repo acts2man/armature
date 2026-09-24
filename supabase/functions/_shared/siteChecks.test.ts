@@ -23,6 +23,7 @@ type Overrides = Partial<Record<string, () => Response>>;
 function fakeGithub(overrides: Overrides = {}, files: Record<string, unknown> = {}) {
   const schema = files["schema"] ?? exampleSchema;
   const content = files["content"] ?? exampleContent;
+  const kitVersion = files["kit"] ?? 'export const KIT_VERSION = "2.8.0";\n';
   return (async (url: string | URL | Request, init?: RequestInit) => {
     const href = String(url);
     const method = init?.method ?? "GET";
@@ -39,6 +40,7 @@ function fakeGithub(overrides: Overrides = {}, files: Record<string, unknown> = 
     if (key === "GET /repos/acme/site/git/ref/heads/main") return json({ object: { sha: "0123456789abcdef0123456789abcdef01234567" } });
     if (key === "GET /repos/acme/site/contents/content/schema.json") return json({ sha: "s", encoding: "base64", content: utf8ToBase64(JSON.stringify(schema)) });
     if (key === "GET /repos/acme/site/contents/content/pages.json") return json({ sha: "c", encoding: "base64", content: utf8ToBase64(JSON.stringify(content)) });
+    if (key === "GET /repos/acme/site/contents/src/lib/armature-kit/version.ts") return json({ sha: "kv", encoding: "base64", content: utf8ToBase64(String(kitVersion)) });
     return json({ message: `unexpected ${key}` }, 500);
   }) as unknown as typeof fetch;
 }
@@ -59,7 +61,7 @@ const find = (checks: ConnectionCheck[], id: string): ConnectionCheck => {
   return check;
 };
 
-const IDS = ["app-config", "app-key", "installation", "installation-linked", "installation-token", "repo-access", "branch", "schema-file", "content-file"];
+const IDS = ["app-config", "app-key", "installation", "installation-linked", "installation-token", "repo-access", "branch", "schema-file", "content-file", "kit-file"];
 
 Deno.test("happy path: every check passes and the head, schema and content come back", async () => {
   const result = await runRepoChecks(base());
@@ -166,18 +168,38 @@ Deno.test("missing branch names the branch", async () => {
 });
 
 Deno.test("missing, malformed and contract-breaking schema files", async () => {
+  // A repo whose schema file is simply not there routes to needs_setup: every
+  // repo-side check passes, only the Armature-side checks fail, and the fix
+  // text points at the in-app setup flow.
   const missing = await runRepoChecks(base({ fetch: fakeGithub({ "GET /repos/acme/site/contents/content/schema.json": () => json({ message: "Not Found" }, 404) }) }));
   assertEquals(find(missing.checks, "schema-file").status, "fail");
-  assertStringIncludes(find(missing.checks, "schema-file").fix ?? "", "SITE_CONTRACT");
+  assertStringIncludes(find(missing.checks, "schema-file").fix ?? "", "Set up this site");
+  assertEquals(missing.needsSetup, true);
+  assertEquals(missing.allPassed, false);
 
+  // Malformed JSON is a real bug; it stays a plain failure and does NOT count as needs_setup.
   const malformed = await runRepoChecks(base({ fetch: fakeGithub({ "GET /repos/acme/site/contents/content/schema.json": () => json({ sha: "s", encoding: "base64", content: utf8ToBase64("{ nope") }) }) }));
   assertStringIncludes(find(malformed.checks, "schema-file").detail, "not valid JSON");
+  assertEquals(malformed.needsSetup, false);
 
   const broken = await runRepoChecks(base({ fetch: fakeGithub({}, { schema: { armatureContract: 1, pages: [{ slug: "Bad", label: "x", path: "x", sections: [] }] } }) }));
   const check = find(broken.checks, "schema-file");
   assertEquals(check.status, "fail");
   assertStringIncludes(check.detail, "slug");
-  assertEquals(find(broken.checks, "content-file").status, "skipped");
+});
+
+Deno.test("needsSetup is true when the kit is missing but everything else passes", async () => {
+  const result = await runRepoChecks(base({ fetch: fakeGithub({ "GET /repos/acme/site/contents/src/lib/armature-kit/version.ts": () => json({ message: "Not Found" }, 404), "GET /repos/acme/site/contents/src/lib/armature-kit/index.ts": () => json({ message: "Not Found" }, 404) }) }));
+  const kit = find(result.checks, "kit-file");
+  assertEquals(kit.status, "fail");
+  assertStringIncludes(kit.fix ?? "", "Set up this site");
+  assertEquals(result.needsSetup, true);
+  assertEquals(result.allPassed, false);
+});
+
+Deno.test("needsSetup is false when the schema JSON is broken (that is a real bug, not a setup step)", async () => {
+  const result = await runRepoChecks(base({ fetch: fakeGithub({ "GET /repos/acme/site/contents/content/schema.json": () => json({ sha: "s", encoding: "base64", content: utf8ToBase64("{ nope") }) }) }));
+  assertEquals(result.needsSetup, false);
 });
 
 Deno.test("content that does not match the schema fails the last check with the field named", async () => {

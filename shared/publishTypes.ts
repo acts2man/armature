@@ -223,8 +223,15 @@ export type SiteConnectResponse = {
   ok: true;
   allPassed: boolean;
   checks: ConnectionCheck[];
-  /** Present only when every check passed and the site row was created. */
-  site?: { id: string; name: string };
+  /**
+   * True when the GitHub-side checks all passed (App installed, linked, writable,
+   * branch exists) but the Armature files are missing. When this is true, `site`
+   * is present and its status is 'needs_setup'; the agency runs the in-app Set
+   * up this site flow before publishing.
+   */
+  needsSetup?: boolean;
+  /** Present when the site was saved: allPassed=true (status "connected") or needsSetup=true (status "needs_setup"). */
+  site?: { id: string; name: string; status?: "connected" | "needs_setup" };
 };
 
 // --- github-setup ---------------------------------------------------------------

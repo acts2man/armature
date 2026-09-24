@@ -15,12 +15,13 @@ import { SidebarTour } from "@/components/SidebarTour.tsx";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
 import { useRecentMessages } from "@/hooks/useMessages.ts";
 import { BUILT, siteNavItems } from "@/components/siteNav.ts";
+import { NeedsSetupCard } from "@/components/NeedsSetupCard.tsx";
 import { StatsSnapshotCard } from "@/components/StatsSnapshotCard.tsx";
 import { EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
 import { formatDateTime, plural, relativeTime, shortSha } from "@/lib/format.ts";
 import { formLabel, isUnread, messagePreview, senderLabel } from "@/lib/messages.ts";
 import { displayName, firstName, greeting } from "@/lib/people.ts";
-import { SITE_STATUS_TONES, isHostingOnly, siteStatusLabel } from "@/lib/services.ts";
+import { SITE_STATUS_TONES, isHostingOnly, needsSetup, siteStatusLabel } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { OPEN_CHANGE_REQUEST_STATUSES, PUBLISH_STATUS_LABELS, type ChangeRequest, type Publish, type PublishStatus, type Site } from "@/lib/types.ts";
 
@@ -213,6 +214,13 @@ export function SiteHome() {
           {isStaff
             ? "No repository is connected, so there are no pages to edit or publish yet. Hosting, domain and email are recorded under Site settings; connect the repository whenever the site is ready to be edited here."
             : "Its pages are not edited here yet. Change requests still reach the agency."}
+        </Notice>
+      )}
+
+      {needsSetup(site) && isStaff && <NeedsSetupCard site={site} supabaseUrl={import.meta.env["VITE_SUPABASE_URL"] ?? ""} />}
+      {needsSetup(site) && !isStaff && (
+        <Notice kind="info" title={`${portal} is finishing your site's setup`}>
+          You'll be able to edit as soon as they finish. Ask them if you're waiting more than a day.
         </Notice>
       )}
 

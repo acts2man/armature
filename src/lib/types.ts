@@ -4,7 +4,7 @@
  */
 export type AgencyRole = "owner" | "staff";
 export type SiteRole = "client_owner" | "client_editor";
-export type SiteStatus = "connected" | "needs_attention" | "hosting_only";
+export type SiteStatus = "connected" | "needs_attention" | "hosting_only" | "needs_setup";
 export type PublishStatus = "committed" | "conflict" | "failed";
 export type ChangeRequestStatus = "new" | "in_progress" | "ready_for_review" | "done" | "declined";
 
