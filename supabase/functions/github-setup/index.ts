@@ -13,11 +13,11 @@
  * Authorisation: agency membership under RLS. Rows are inserted with the caller's
  * own client. No service role.
  */
-import type { GithubInstallationSummary, GithubSetupResponse } from "../../../shared/publishTypes.ts";
-import { requireAgencyMember, resolveCaller } from "../_shared/auth.ts";
+import type { GithubInstallationSummary, GithubRepositorySummary, GithubSetupResponse } from "../../../shared/publishTypes.ts";
+import { linkedInstallationIds, requireAgencyMember, resolveCaller } from "../_shared/auth.ts";
 import { denoEnv } from "../_shared/env.ts";
 import { ArmatureError } from "../_shared/errors.ts";
-import { getInstallation, installUrl, loadAppConfig } from "../_shared/githubApp.ts";
+import { getInstallation, GITHUB_API, GITHUB_API_VERSION, installUrl, loadAppConfig, requestUnscopedInstallationToken, USER_AGENT } from "../_shared/githubApp.ts";
 import { readJsonBody, requireString, requireUuid, serveJson } from "../_shared/http.ts";
 
 Deno.serve(
@@ -101,6 +101,70 @@ Deno.serve(
         throw new ArmatureError("github_error", `Could not save the installation: ${error.message}`);
       }
       return { ok: true, action, installation: summary };
+    }
+
+    if (action === "list_repositories") {
+      const app = loadAppConfig(env);
+      const installationIds = await linkedInstallationIds(caller.supabase, agencyId);
+      const repositories: GithubRepositorySummary[] = [];
+      for (const installationId of installationIds) {
+        let account: { login: string; type: string } | null = null;
+        try {
+          const info = await getInstallation(app, installationId);
+          account = info.installation ? info.installation.account : null;
+        } catch {
+          /* keep going with the other installations */
+        }
+        if (!account) continue;
+        let token: string | null = null;
+        try {
+          const tokenResult = await requestUnscopedInstallationToken(app, installationId);
+          if (tokenResult.token) token = tokenResult.token.token;
+        } catch {
+          continue;
+        }
+        if (!token) continue;
+        // GitHub returns at most 100 repositories per page; agencies with more than
+        // that get the first page (agencies of that size are rare, and the manual
+        // owner/name fallback still works). We do NOT try to paginate 10+ pages.
+        try {
+          const response = await fetch(`${GITHUB_API}/installation/repositories?per_page=100`, {
+            headers: {
+              Accept: "application/vnd.github+json",
+              Authorization: `Bearer ${token}`,
+              "X-GitHub-Api-Version": GITHUB_API_VERSION,
+              "User-Agent": USER_AGENT,
+            },
+          });
+          if (!response.ok) continue;
+          const body = (await response.json()) as { repositories?: { owner: { login?: string }; name: string; full_name: string; private: boolean; default_branch: string }[] };
+          for (const repo of body.repositories ?? []) {
+            const owner = repo.owner?.login ?? account.login;
+            repositories.push({
+              installation_id: installationId,
+              account_login: account.login,
+              owner,
+              name: repo.name,
+              full_name: repo.full_name,
+              private: repo.private,
+              default_branch: repo.default_branch,
+              configure_url: `https://github.com/${account.type === "Organization" ? "organizations/" + account.login + "/" : ""}settings/installations/${installationId}`,
+            });
+          }
+        } catch {
+          continue;
+        }
+      }
+      // Deduplicate (an owner + name should only appear once even if two installations claim it).
+      const seen = new Set<string>();
+      const unique = repositories.filter((repo) => {
+        const key = `${repo.owner}/${repo.name}`.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      unique.sort((a, b) => a.full_name.localeCompare(b.full_name));
+      return { ok: true, action, repositories: unique };
     }
 
     throw new ArmatureError("invalid", `Unknown action "${action}".`);

@@ -239,7 +239,8 @@ export type SiteConnectResponse = {
 export type GithubSetupRequest =
   | { action: "install_url"; agency_id: string }
   | { action: "record_installation"; agency_id: string; installation_id: number }
-  | { action: "list_installations"; agency_id: string };
+  | { action: "list_installations"; agency_id: string }
+  | { action: "list_repositories"; agency_id: string };
 
 export type GithubInstallationSummary = {
   installation_id: number;
@@ -247,10 +248,22 @@ export type GithubInstallationSummary = {
   account_type: string;
 };
 
+export type GithubRepositorySummary = {
+  installation_id: number;
+  account_login: string;
+  owner: string;
+  name: string;
+  full_name: string;
+  private: boolean;
+  default_branch: string;
+  configure_url: string;
+};
+
 export type GithubSetupResponse =
   | { ok: true; action: "install_url"; url: string }
   | { ok: true; action: "record_installation"; installation: GithubInstallationSummary }
-  | { ok: true; action: "list_installations"; installations: GithubInstallationSummary[] };
+  | { ok: true; action: "list_installations"; installations: GithubInstallationSummary[] }
+  | { ok: true; action: "list_repositories"; repositories: GithubRepositorySummary[] };
 
 // --- invites --------------------------------------------------------------------
 

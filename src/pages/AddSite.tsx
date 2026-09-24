@@ -18,6 +18,7 @@ import type { GithubSetupResponse, SiteConnectRequest, SiteConnectResponse } fro
 
 type InstallationsResponse = Extract<GithubSetupResponse, { action: "list_installations" }>;
 type InstallUrlResponse = Extract<GithubSetupResponse, { action: "install_url" }>;
+type RepositoriesResponse = Extract<GithubSetupResponse, { action: "list_repositories" }>;
 
 const NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
@@ -166,6 +167,19 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
     },
   });
 
+  const repositories = useQuery({
+    queryKey: ["github-repositories", agencyId],
+    enabled: agencyId.length > 0 && (installations.data?.length ?? 0) > 0,
+    // Refetch when the tab is focused so newly-granted repositories show up.
+    refetchOnWindowFocus: true,
+    retry: false,
+    queryFn: async () => {
+      const result = await callFunction<RepositoriesResponse>("github-setup", { action: "list_repositories", agency_id: agencyId });
+      if (!result.ok) throw new Error(result.message);
+      return result.repositories;
+    },
+  });
+
   const connect = useMutation({
     mutationFn: async (request: SiteConnectRequest) => {
       const result = await callFunction<SiteConnectResponse>("site-connect", request);
@@ -184,7 +198,21 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
 
   const update = (key: keyof FormState) => (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
-    setForm((previous) => ({ ...previous, [key]: value }));
+    setForm((previous) => {
+      const next = { ...previous, [key]: value };
+      // When the person picks (or types) a repository that matches one the App
+      // sees, seed the default branch from GitHub so they don't have to guess.
+      if (key === "repo") {
+        const parsedPick = parseRepo(value);
+        if (parsedPick && repositories.data) {
+          const match = repositories.data.find((repo) => repo.full_name.toLowerCase() === `${parsedPick.owner}/${parsedPick.name}`.toLowerCase());
+          if (match && (previous.branch === "main" || previous.branch === "")) {
+            next.branch = match.default_branch;
+          }
+        }
+      }
+      return next;
+    });
   };
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -369,11 +397,43 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
                   Owner <span className="font-mono text-text">{parsed.owner}</span>, repository <span className="font-mono text-text">{parsed.name}</span>
                 </>
               ) : (
-                'Either "owner/name" or the repository\'s GitHub URL.'
+                'Pick one from the list, type "owner/name", or paste a GitHub URL.'
               )
             }
           >
-            <Input id="add-site-repo" value={form.repo} onChange={update("repo")} placeholder="acme/acme-site or https://github.com/acme/acme-site" autoComplete="off" spellCheck={false} required />
+            <Input id="add-site-repo" value={form.repo} onChange={update("repo")} placeholder="acme/acme-site or https://github.com/acme/acme-site" autoComplete="off" spellCheck={false} list="add-site-repo-options" required />
+            {repositories.data && repositories.data.length > 0 && (
+              <datalist id="add-site-repo-options" data-testid="repo-datalist">
+                {repositories.data.map((repo) => (
+                  <option key={repo.full_name} value={repo.full_name}>
+                    {repo.private ? "Private" : "Public"} · default branch {repo.default_branch}
+                  </option>
+                ))}
+              </datalist>
+            )}
+            {repositories.isPending && (
+              <p className="mt-1 text-[12px] text-muted">Looking up repositories the App can see…</p>
+            )}
+            {repositories.data && repositories.data.length === 0 && (
+              <p className="mt-1 text-[12px] text-muted" data-testid="repo-list-empty">The App can't see any repositories yet. Give it access on GitHub, then press "Check again" below.</p>
+            )}
+            {repositories.data && repositories.data.length > 0 && (
+              <p className="mt-1 text-[12px] text-muted" data-testid="repo-list-count">
+                {repositories.data.length} repository{repositories.data.length === 1 ? "" : "ies"} available.{" "}
+                <button type="button" onClick={() => void repositories.refetch()} className="text-primary underline" data-testid="repos-refresh">Check again</button>
+              </p>
+            )}
+            {repositories.data && parsed && !repositories.data.some((repo) => repo.full_name.toLowerCase() === `${parsed.owner}/${parsed.name}`.toLowerCase()) && (
+              <div className="mt-2 rounded-card border border-line bg-panel p-3 text-[12px] text-text" data-testid="repo-not-listed">
+                <p className="font-semibold">Don't see <span className="font-mono">{parsed.owner}/{parsed.name}</span>?</p>
+                <p className="mt-1 text-muted">Give Armature access on GitHub: open your GitHub App installation, tick this repository under Repository access, save, then press "Check again" above.</p>
+                {repositories.data[0] && (
+                  <p className="mt-1">
+                    <a href={repositories.data[0].configure_url} target="_blank" rel="noreferrer" className="text-primary underline">Open installation on GitHub</a>
+                  </p>
+                )}
+              </div>
+            )}
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">

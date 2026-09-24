@@ -329,6 +329,29 @@ export async function mintInstallationToken(
   return result.token;
 }
 
+/**
+ * A token that covers every repository the installation has access to (no
+ * `repositories` filter). Useful for listing the installation's repositories;
+ * publishing still uses the scoped `requestInstallationToken` below.
+ */
+export async function requestUnscopedInstallationToken(
+  config: AppConfig,
+  installationId: number,
+  fetchImpl: typeof fetch = fetch,
+): Promise<{ status: number; token?: InstallationToken; message: string }> {
+  const jwt = await createAppJwt(config);
+  const result = await githubJson<{ token?: string; expires_at?: string; permissions?: Record<string, unknown> }>(
+    fetchImpl,
+    jwt,
+    `/app/installations/${installationId}/access_tokens`,
+    { method: "POST", body: { permissions: { contents: "read", metadata: "read" } } },
+  );
+  if (!result.ok) return { status: result.status, message: `GitHub refused to issue an installation token (HTTP ${result.status || "no response"}): ${result.message}` };
+  const token = result.body?.token;
+  if (typeof token !== "string" || !token) return { status: result.status, message: "GitHub did not return a token." };
+  return { status: result.status, token: { token, expiresAt: result.body?.expires_at ?? "", permissions: readTokenPermissions(result.body?.permissions) }, message: "ok" };
+}
+
 /** Same as mintInstallationToken but reports instead of throwing, for checklists. */
 export async function requestInstallationToken(
   config: AppConfig,
