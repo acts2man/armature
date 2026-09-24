@@ -63,6 +63,10 @@ export function writeClassName(parsed: ParsedFile, element: t.JSXElement, classN
       expression.arguments = trimmed ? [t.stringLiteral(trimmed), ...dynamic] : dynamic;
       return;
     }
+    if (t.isJSXEmptyExpression(expression)) {
+      value.expression = t.stringLiteral(trimmed);
+      return;
+    }
     // An identifier, a conditional, a member expression: keep it and add the classes around it.
     value.expression = t.templateLiteral([t.templateElement({ raw: `${trimmed} `, cooked: `${trimmed} ` }, false), t.templateElement({ raw: "", cooked: "" }, true)], [expression]);
   }

@@ -13,3 +13,4 @@ playwright-report
 test-results
 .dash.log
 .shots
+.armature-engine-cache/

@@ -10,10 +10,11 @@
  */
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { PreviewStatus, Timings } from "../shared/types.ts";
 
 export type PreviewOptions = {
@@ -40,6 +41,8 @@ export type Preview = {
 };
 
 const here = fileURLToPath(new URL(".", import.meta.url));
+/** tsx resolved from Armature's own dependencies: the child runs with the site's folder as cwd. */
+const tsxLoader = pathToFileURL(createRequire(import.meta.url).resolve("tsx")).href;
 
 function run(command: string, args: string[], cwd: string, log?: (line: string) => void): { ok: boolean; output: string } {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", env: { ...process.env, CI: "1", ADBLOCK: "1", HUSKY: "0" }, maxBuffer: 64 * 1024 * 1024 });
@@ -79,13 +82,18 @@ export function head(dir: string): string {
   return run("git", ["rev-parse", "HEAD"], dir).output.trim();
 }
 
-function lockHash(dir: string): string {
+export function lockHash(dir: string): string {
   const hash = createHash("sha1");
   for (const name of ["package.json", "package-lock.json", "bun.lock", "bun.lockb", "pnpm-lock.yaml", "yarn.lock"]) {
     const path = join(dir, name);
     if (existsSync(path)) hash.update(name).update(readFileSync(path));
   }
   return hash.digest("hex");
+}
+
+/** Mark node_modules as matching the lockfile (tests seed a cache this way). */
+export function stampInstall(dir: string): void {
+  writeFileSync(join(dir, "node_modules", ".armature-install"), lockHash(dir));
 }
 
 /**
@@ -129,7 +137,7 @@ export async function freePort(start = 4500): Promise<number> {
 export function startDevServer(dir: string, port: number, options: { editorOrigins: string[]; env: Record<string, string>; log?: (line: string) => void }): Promise<{ url: string; process: ChildProcess }> {
   return new Promise((resolveStart, reject) => {
     const script = resolve(here, "previewProcess.ts");
-    const child = spawn(process.execPath, ["--import", "tsx", script, dir, String(port), JSON.stringify({ editorOrigins: options.editorOrigins, env: options.env, exitOnStdinEnd: true })], {
+    const child = spawn(process.execPath, ["--import", tsxLoader, script, dir, String(port), JSON.stringify({ editorOrigins: options.editorOrigins, env: options.env, exitOnStdinEnd: true })], {
       cwd: dir,
       env: { ...process.env, ...options.env, NODE_ENV: "development", BROWSER: "none", FORCE_COLOR: "0" },
       stdio: ["pipe", "pipe", "pipe"],

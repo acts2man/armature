@@ -39,24 +39,41 @@ function packageJson(project: Project): { dependencies: Record<string, string>; 
   }
 }
 
-/** CSS files the site actually loads: imported from a source file, linked from index.html, or the root layout's ?url import. */
-function referencedStylesheets(project: Project): string[] {
-  const css = new Set(listCssFiles(project));
+/** CSS files a source file imports (including `?url` imports), repo-relative. */
+function stylesheetsImportedBy(project: Project, file: string, css: Set<string>): string[] {
   const out: string[] = [];
-  const html = project.read("index.html") ?? "";
-  for (const match of html.matchAll(/href="\/?([^"]+\.css)"/g)) {
-    const path = (match[1] ?? "").replace(/^\.?\//, "");
-    if (css.has(path)) out.push(path);
-  }
-  for (const file of project.listSourceFiles()) {
-    const code = project.read(file) ?? "";
-    for (const match of code.matchAll(/import\s+(?:[\w$]+\s+from\s+)?["']([^"']+\.css)(?:\?[^"']*)?["']/g)) {
-      const resolved = project.resolveImport(file, match[1] ?? "");
-      if (resolved && css.has(resolved) && !out.includes(resolved)) out.push(resolved);
-    }
+  const code = project.read(file) ?? "";
+  for (const match of code.matchAll(/import\s+(?:[\w$]+\s+from\s+)?["']([^"']+\.css)(?:\?[^"']*)?["']/g)) {
+    const resolved = project.resolveImport(file, match[1] ?? "");
+    if (resolved && css.has(resolved) && !out.includes(resolved)) out.push(resolved);
   }
   return out;
 }
+
+/** Files every page loads: index.html links, the client entry, the root layout. */
+const ROOT_FILES = ["src/main.tsx", "src/main.jsx", "src/index.tsx", "src/App.tsx", "src/router.tsx", "src/routes/__root.tsx", "app/root.tsx", "src/styles.css"];
+
+/** CSS files the site actually loads, split into the ones every page gets and the ones single routes import. */
+function referencedStylesheets(project: Project): { root: string[]; all: string[]; byFile: Map<string, string[]> } {
+  const css = new Set(listCssFiles(project));
+  const root: string[] = [];
+  const html = project.read("index.html") ?? "";
+  for (const match of html.matchAll(/href="\/?([^"]+\.css)"/g)) {
+    const path = (match[1] ?? "").replace(/^\.?\//, "");
+    if (css.has(path)) root.push(path);
+  }
+  const byFile = new Map<string, string[]>();
+  for (const file of project.listSourceFiles()) {
+    const imported = stylesheetsImportedBy(project, file, css);
+    if (imported.length > 0) byFile.set(file, imported);
+    if (ROOT_FILES.includes(file)) for (const item of imported) if (!root.includes(item)) root.push(item);
+  }
+  const all = [...root];
+  for (const list of byFile.values()) for (const item of list) if (!all.includes(item)) all.push(item);
+  return { root, all, byFile };
+}
+
+const hasTailwind = (project: Project, file: string): boolean => /@import\s+["']tailwindcss|@tailwind\s+(base|utilities)/.test(project.read(file) ?? "");
 
 function labelForPath(path: string): string {
   const clean = path.replace(/^\/|\/$/g, "");
@@ -99,9 +116,11 @@ function tanstackPages(project: Project): PageInfo[] {
     if (!path) continue;
     const routePath: string = path;
     const fullPath = trailing && routePath !== "/" && !routePath.endsWith("/") ? `${routePath}/` : routePath;
-    pages.push({ path: fullPath, label: labelForPath(routePath), file, component: componentFileOf(project, file, parsed, componentName), private: PRIVATE_PATH.test(routePath) || routePath.includes("$") });
+    pages.push({ path: fullPath, label: labelForPath(routePath), file, component: componentFileOf(project, file, parsed, componentName), private: PRIVATE_PATH.test(routePath) || routePath.includes("$"), tailwind: false });
   }
-  return pages.sort((a, b) => (a.path === "/" ? -1 : b.path === "/" ? 1 : a.path.localeCompare(b.path)));
+  const unique = new Map<string, PageInfo>();
+  for (const page of pages) if (!unique.has(page.path)) unique.set(page.path, page);
+  return Array.from(unique.values()).sort((a, b) => (a.path === "/" ? -1 : b.path === "/" ? 1 : a.path.localeCompare(b.path)));
 }
 
 function reactRouterPages(project: Project): PageInfo[] {
@@ -124,7 +143,7 @@ function reactRouterPages(project: Project): PageInfo[] {
             if (t.isIdentifier(expression)) componentName = expression.name;
           }
         }
-        if (path && !path.includes("*") && !path.includes(":")) pages.push({ path, label: labelForPath(path), file, component: componentFileOf(project, file, parsed, componentName), private: PRIVATE_PATH.test(path) });
+        if (path && !path.includes("*") && !path.includes(":")) pages.push({ path, label: labelForPath(path), file, component: componentFileOf(project, file, parsed, componentName), private: PRIVATE_PATH.test(path), tailwind: false });
       }
       if (t.isObjectExpression(node)) {
         let path: string | null = null;
@@ -135,7 +154,7 @@ function reactRouterPages(project: Project): PageInfo[] {
           if ((property.key.name === "element" || property.key.name === "Component") && t.isJSXElement(property.value) && t.isJSXIdentifier(property.value.openingElement.name)) componentName = property.value.openingElement.name.name;
           if (property.key.name === "Component" && t.isIdentifier(property.value)) componentName = property.value.name;
         }
-        if (path && path.startsWith("/") && componentName && !path.includes("*") && !path.includes(":")) pages.push({ path, label: labelForPath(path), file, component: componentFileOf(project, file, parsed, componentName), private: PRIVATE_PATH.test(path) });
+        if (path && path.startsWith("/") && componentName && !path.includes("*") && !path.includes(":")) pages.push({ path, label: labelForPath(path), file, component: componentFileOf(project, file, parsed, componentName), private: PRIVATE_PATH.test(path), tailwind: false });
       }
     });
   }
@@ -213,11 +232,20 @@ export function detectSite(project: Project): Detected {
   const framework: Detected["framework"] = deps["@tanstack/react-start"] ? "tanstack-start" : deps["vite"] && deps["react"] ? "vite-react" : "unknown";
   const packageManager: Detected["packageManager"] = project.exists("bun.lock") || project.exists("bun.lockb") ? "bun" : project.exists("pnpm-lock.yaml") ? "pnpm" : project.exists("yarn.lock") ? "yarn" : "npm";
   const tailwindVersion: 3 | 4 = /^[\^~]?3/.test(deps["tailwindcss"] ?? "") ? 3 : 4;
-  const stylesheets = referencedStylesheets(project);
-  const tailwind = stylesheets.some((file) => /@import\s+["']tailwindcss|@tailwind\s+(base|utilities)/.test(project.read(file) ?? ""));
-  const stylesheet = stylesheets.find((file) => /global|index|app|main|styles/.test(file)) ?? stylesheets[0] ?? null;
+  const referenced = referencedStylesheets(project);
+  const stylesheets = referenced.all;
+  // Tailwind counts as active when a stylesheet every page loads imports it.
+  const tailwind = referenced.root.some((file) => hasTailwind(project, file));
+  const stylesheet = referenced.root.find((file) => /global|index|app|main|styles/.test(file)) ?? referenced.root[0] ?? stylesheets[0] ?? null;
 
-  const pages = framework === "tanstack-start" ? tanstackPages(project) : reactRouterPages(project);
+  const pages = (framework === "tanstack-start" ? tanstackPages(project) : reactRouterPages(project)).map((page) => {
+    // A route that imports its own Tailwind stylesheet (an admin area, say) has Tailwind on that page only.
+    const own = [...(referenced.byFile.get(page.file) ?? []), ...(page.component ? (referenced.byFile.get(page.component) ?? []) : [])];
+    // File-based routes inherit their layouts: src/routes/admin.index.tsx sits under src/routes/admin.tsx.
+    const parts = page.file.replace(/\.tsx?$/, "").split(".");
+    for (let index = 1; index < parts.length; index += 1) own.push(...(referenced.byFile.get(`${parts.slice(0, index).join(".")}.tsx`) ?? []));
+    return { ...page, tailwind: tailwind || own.some((file) => hasTailwind(project, file)) };
+  });
 
   const cssIndex = indexSiteCss(project);
   let theme: SiteTheme;

@@ -5,7 +5,7 @@
  * hot-reloads, so the page follows each step, including undo.
  */
 import * as t from "@babel/types";
-import type { Declarations, Device, EditOp, EditResult, HistoryState, Loc, NodeRef, ResolvedNode } from "../shared/types.ts";
+import type { Declarations, Device, EditOp, EditResult, HistoryState, Loc, NodeRef, ResolvedNode, RichRun } from "../shared/types.ts";
 import { addClasses, applyDeclarations, type TailwindOptions } from "./tailwind.ts";
 import { applyCssRule, fallbackClassFor, type Breakpoints } from "./css.ts";
 import { staticClassName, writeClassName } from "./classnames.ts";
@@ -36,6 +36,8 @@ export class EngineSession {
   readonly project: Project;
   readonly style: SiteStyle;
   pageFile: string | null;
+  /** Whether Tailwind is loaded on the page being edited, when it differs from the site as a whole. */
+  pageTailwind: boolean | null = null;
   private entries: Entry[] = [];
   private cursor = 0;
   private cssIndex: CssIndex | null = null;
@@ -47,8 +49,13 @@ export class EngineSession {
     this.pageFile = pageFile;
   }
 
+  /** Tailwind for the page being edited: the page's own answer when known, else the site's. */
+  tailwindActive(): boolean {
+    return this.pageTailwind ?? this.style.tailwind;
+  }
+
   resolve(ref: NodeRef): ResolvedNode {
-    return resolveNode({ project: this.project, ref, pageFile: this.pageFile, tailwind: this.style.tailwind });
+    return resolveNode({ project: this.project, ref, pageFile: this.pageFile, tailwind: this.tailwindActive() });
   }
 
   history(): HistoryState {
@@ -169,7 +176,7 @@ export class EngineSession {
     return this.commit("Edit text", [{ path: node.text.where.file, content: printed.code }], printed.loc ?? node.text.where);
   }
 
-  private setRichText(target: NodeRef, runs: EditOp extends { op: "richText"; runs: infer R } ? R : never): EditResult {
+  private setRichText(target: NodeRef, runs: RichRun[]): EditResult {
     const node = this.resolve(target);
     if (!node.text) throw new EditError("This element has no text of its own.");
     if (!node.text.editable) throw new EditError(node.text.reason.message);
@@ -199,7 +206,7 @@ export class EngineSession {
     const { parsed, element, loc } = this.primaryElement(node);
     const current = staticClassName(element);
     const label = `Style ${Object.keys(declarations).join(", ")}`;
-    if (this.style.tailwind) {
+    if (this.tailwindActive()) {
       const index = this.cssIndex ?? (this.cssIndex = indexSiteCss(this.project));
       const ownClasses = current.split(/\s+/).filter(Boolean);
       const important = Object.keys(declarations).some((property) => siteCssSets(index, ownClasses, property));
@@ -329,7 +336,7 @@ export class EngineSession {
     if (!parentNode.structure.canReceiveChildren) throw new EditError(`New elements cannot go inside ${parentNode.label}: its contents are drawn by code.`);
     const loc = parentNode.classes.where;
     const parsed = this.parsedOrFail(loc.file);
-    const result = insertElement(parsed, loc.file, loc, index, kind, this.style.tailwind);
+    const result = insertElement(parsed, loc.file, loc, index, kind, this.tailwindActive());
     if (!result) throw new EditError("The element could not be added there.");
     return this.commit(`Add ${kind}`, [{ path: loc.file, content: result.code }], result.loc);
   }

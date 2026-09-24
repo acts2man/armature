@@ -59,7 +59,7 @@ function unwrap(node: Node): Node {
   return current;
 }
 
-function isLiveDataCall(node: t.CallExpression, ancestors: Path): boolean {
+function isLiveDataCall(node: t.CallExpression | t.OptionalCallExpression, ancestors: Path): boolean {
   const callee = unwrap(node.callee);
   if (t.isIdentifier(callee)) {
     if (LIVE_DATA_CALLEES.test(callee.name)) return true;

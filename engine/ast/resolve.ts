@@ -110,6 +110,8 @@ function stringLoc(file: string, node: Node): Loc {
   return { file, line: node.loc?.start.line ?? 0, col: node.loc?.start.column ?? 0 };
 }
 
+const NO_OWN_TEXT: TextSource = { editable: false, reason: { kind: "code", message: "This element has no text of its own." } };
+
 export function textFromTraced(result: Traced, ctx: TraceContext, depth = 0): TextSource {
   if (depth > 5) return { editable: false, reason: { kind: "code", message: "This text is passed through too many layers of code to edit here." } };
   switch (result.kind) {
@@ -121,9 +123,9 @@ export function textFromTraced(result: Traced, ctx: TraceContext, depth = 0): Te
       return source;
     }
     case "children":
-      return textOfElement(result.element, result.ancestors, result.file, ctx, depth + 1);
+      return textOfElement(result.element, result.ancestors, result.file, ctx, depth + 1) ?? NO_OWN_TEXT;
     case "jsx":
-      return t.isJSXElement(result.node) ? textOfElement(result.node, result.ancestors, result.file, ctx, depth + 1) : { editable: false, reason: { kind: "code", message: "This is a group of elements built by code." } };
+      return t.isJSXElement(result.node) ? (textOfElement(result.node, result.ancestors, result.file, ctx, depth + 1) ?? NO_OWN_TEXT) : { editable: false, reason: { kind: "code", message: "This is a group of elements built by code." } };
     case "blocked":
       return { editable: false, reason: result.reason };
     case "object":

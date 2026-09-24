@@ -116,7 +116,18 @@ function start(): void {
     return out;
   };
 
+  /** Empty boxes have no height to click on; in edit mode they get a little room, as page builders do. */
+  const giveEmptyBoxesRoom = () => {
+    for (const element of Array.from(document.querySelectorAll<HTMLElement>(`[${TAG}]`))) {
+      if (element.childNodes.length === 0 && !MEDIA.has(element.tagName) && element.tagName !== "BR" && element.tagName !== "HR" && element.tagName !== "INPUT" && getComputedStyle(element).display !== "none" && element.getBoundingClientRect().height < 8) {
+        element.style.minHeight = "32px";
+        element.setAttribute("data-ae-empty", "");
+      }
+    }
+  };
+
   const assignIds = () => {
+    if (mode === "edit") giveEmptyBoxesRoom();
     byId.clear();
     const seen = new Map<string, number>();
     for (const element of Array.from(document.querySelectorAll(`[${TAG}],[${USAGE}]`))) {

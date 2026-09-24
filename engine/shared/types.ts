@@ -135,7 +135,16 @@ export type EditResult =
 
 export type ChangedFile = { path: string; status: "modified" | "added" | "deleted"; additions: number; deletions: number; binary: boolean };
 
-export type PageInfo = { path: string; label: string; file: string; /** The page component file, when the route imports one. */ component: string | null; private: boolean };
+export type PageInfo = {
+  path: string;
+  label: string;
+  file: string;
+  /** The page component file, when the route imports one. */
+  component: string | null;
+  private: boolean;
+  /** Tailwind is loaded on this page (by the root layout or by the route's own stylesheet). */
+  tailwind: boolean;
+};
 
 export type SiteTheme = {
   /** Where the theme came from. */
