@@ -14,3 +14,4 @@ test-results
 .dash.log
 .shots
 .armature-engine-cache/
+.claude/worktrees/
