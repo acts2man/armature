@@ -22,6 +22,9 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@babel/parser@^7.29.9",
+        "npm:@babel/traverse@^7.29.8",
+        "npm:@babel/types@^7.29.8",
         "npm:@eslint/js@^10.0.1",
         "npm:@playwright/test@^1.63.0",
         "npm:@supabase/supabase-js@^2.116.0",
@@ -29,6 +32,7 @@
         "npm:@tanstack/react-query@^5.103.2",
         "npm:@testing-library/dom@^10.4.2",
         "npm:@testing-library/react@^16.3.3",
+        "npm:@types/babel__traverse@^7.28.0",
         "npm:@types/node@24",
         "npm:@types/react-dom@^19.3.0",
         "npm:@types/react@^19.3.0",
@@ -42,9 +46,12 @@
         "npm:jsdom@^30.1.1",
         "npm:lucide-react@^1.47.0",
         "npm:lucide@^1.47.0",
+        "npm:magic-string@^1.4.2",
         "npm:react-dom@^19.3.0",
         "npm:react-router@^7.9.0",
         "npm:react@^19.3.0",
+        "npm:recast@0.24",
+        "npm:tailwind-merge@^3.7.0",
         "npm:tailwindcss@^4.3.3",
         "npm:tsx@^4.23.15",
         "npm:typescript-eslint@^8.70.1",

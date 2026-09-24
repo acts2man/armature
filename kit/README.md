@@ -231,6 +231,105 @@ function ArmatureCatchAll() {
 Register the router for the editor's page switcher from the root component in an effect
 (`registerArmatureNavigate((path) => router.navigate({ href: path }))`).
 
+## SEO: head tags Google actually sees
+
+Every page has its own SEO fields in the editor's Page settings (search title,
+description, canonical URL, noindex/nofollow, Open Graph and X/Twitter share fields,
+and structured data presets — LocalBusiness, Organization, Article, FAQ from an
+accordion on the page, BreadcrumbList). The site-wide defaults live in Site settings ›
+SEO (site name, site URL, default share picture, title pattern, Google Search Console
+code, business details). Every publish also writes `public/sitemap.xml` (every page
+that isn't noindex) and `public/robots.txt` (with the `Sitemap:` line) in the same
+commit, so the search-engine files stay in step with the pages that exist.
+
+The kit ships one pure function, `computePageHead(layout, siteKit, opts)`, that turns a
+layout and the site kit's SEO block into the exact head tags Google should see — the
+`<title>`, meta description, robots, canonical, Open Graph, Twitter card, Google
+verification and JSON-LD script for structured data. Use it in the way that fits your
+framework:
+
+### An SPA (React Router, Vite, plain React)
+
+Import `ArmatureHead` from the kit and render it near your page component. It writes
+the tags into `document.head` via useEffect. Google reads what its crawler sees when it
+executes JavaScript, so an SPA reaches Google — but adding the tags to the initial
+HTML always beats leaving them to run-time. If you can, upgrade to SSR.
+
+```tsx
+import { ArmatureHead, ArmaturePage, useKitSnapshot } from "@/lib/armature-kit";
+
+function BuilderPage({ slug }: { slug: string }) {
+  const { layouts } = useKitSnapshot();
+  const layout = layouts[slug];
+  if (!layout) return null;
+  return (
+    <>
+      <ArmatureHead layout={layout} pageUrl={typeof window !== "undefined" ? window.location.href : undefined} />
+      <ArmaturePage slug={slug} layout={layout} />
+    </>
+  );
+}
+```
+
+### An SSR site: TanStack Start
+
+TanStack Start routes take a `head()` function whose return value the framework
+inserts into the served HTML. Compute the tags with the kit and hand them back:
+
+```tsx
+// src/routes/$.tsx
+import { createFileRoute, useRouterState } from "@tanstack/react-router";
+import { ArmatureRoute, computePageHead, useKitSnapshot } from "@/lib/armature-kit";
+import { NotFound } from "@/components/NotFound";
+import { armature } from "@/lib/armature";
+import siteKit from "../../content/site-kit.json";
+
+export const Route = createFileRoute("/$")({
+  component: ArmatureCatchAll,
+  head({ params }) {
+    // The framework reads content/layouts/*.json at build time.
+    const layout = armature.getSnapshot().layouts?.[params._splat ?? "home"];
+    if (!layout) return {};
+    const tags = computePageHead(layout, siteKit, { pageUrl: `${siteKit.seo?.siteUrl ?? ""}${layout.path ?? "/"}` });
+    return {
+      title: tags.find((tag) => tag.tag === "title")?.content,
+      meta: tags.filter((tag) => tag.tag === "meta").map((tag) => ({ ...tag.attrs })),
+      links: tags.filter((tag) => tag.tag === "link").map((tag) => ({ ...tag.attrs })),
+      scripts: tags.filter((tag) => tag.tag === "script").map((tag) => ({ type: "application/ld+json", children: (tag as { content: string }).content })),
+    };
+  },
+});
+```
+
+### An SSR site: Next.js
+
+`computePageHead` also works from Next's Metadata API (or the app router `generateMetadata`)
+— read the layout you need, compute the tags, and shape them into Metadata.
+
+### A plain HTML template
+
+`renderHeadHtml(tags)` returns the tags as one HTML string, ready to inject into any
+server template that has an `<head>` section.
+
+### How Google sees a non-SSR site
+
+Google's crawler executes JavaScript, so an SPA using `ArmatureHead` reaches Google —
+but the initial HTML the crawler downloads has none of the SEO tags. On sites that need
+the strongest signal (marketing landing pages, blog posts you promote heavily), upgrade
+to SSR (TanStack Start, Next.js) and use `computePageHead()` inside `head()` /
+`generateMetadata()` so the tags are already in the HTML.
+
+### Verifying with Google Search Console (no Google Cloud setup)
+
+1. Get the verification code from Google Search Console (Settings › Ownership
+   verification › HTML tag), paste the `content=""` value into **Site settings › SEO
+   › Google Search Console code** and publish.
+2. Google opens the site, sees the meta tag, and marks ownership verified.
+3. Submit the sitemap once at Search Console › Sitemaps › `https://your-site.com/sitemap.xml`.
+
+Nothing else in Google Cloud is needed. From here on Armature keeps the sitemap in step
+with every publish.
+
 ## Validation: one set of rules for the site and the dashboard
 
 `validate.ts` holds every rule for layout files and the site kit, with no dependencies. The

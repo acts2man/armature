@@ -899,8 +899,86 @@ export function checkElement(raw: unknown): CheckReport<Element> {
 
 const PATH_ALLOWED = "a page address that starts with / and has no spaces or quotes, such as /about-us/";
 const pagePath = str(200, { pattern: /^\/[^\s"'<>\\]*$/, allowed: PATH_ALLOWED });
-const pageSeo = obj({ title: str(200), description: str(500), ogImage: mediaSrc, noindex: bool() }, "page SEO settings");
+const absoluteUrl: Check<string> = {
+  allowed: "an https:// or http:// address up to 2000 characters",
+  empty: () => "",
+  run: (value, ctx, path) => (typeof value === "string" && value.length <= 2000 && /^https?:\/\/[^\s]+$/i.test(value) ? value : fail(ctx, path, "an https:// or http:// address up to 2000 characters", value)),
+};
+const breadcrumbItem = obj({ name: req(str(200)), url: req(union([absoluteUrl, href], "an address on this site (/...) or a full https URL")) }, "a breadcrumb item with a name and address");
+const articleData = obj(
+  {
+    headline: str(300),
+    description: str(1000),
+    image: mediaSrc,
+    author: str(200),
+    datePublished: str(60),
+    dateModified: str(60),
+  },
+  "article structured data",
+);
+const localBusinessData = obj(
+  {
+    name: str(200),
+    type: str(80, { pattern: /^[A-Za-z][A-Za-z0-9]*$/, allowed: "a schema.org type such as LocalBusiness, Restaurant, HomeAndConstructionBusiness" }),
+    telephone: str(60),
+    email: str(200),
+    streetAddress: str(300),
+    addressLocality: str(200),
+    addressRegion: str(200),
+    postalCode: str(40),
+    addressCountry: str(80),
+    logo: mediaSrc,
+    latitude: num(-90, 90),
+    longitude: num(-180, 180),
+    openingHours: str(500),
+    sameAs: arr(absoluteUrl, 20),
+    priceRange: str(20),
+  },
+  "the business details for structured data",
+);
+const structuredData = union(
+  [
+    obj({ kind: req(lit("none")) }, "no structured data"),
+    obj({ kind: req(lit("LocalBusiness")), override: localBusinessData }, "LocalBusiness structured data"),
+    obj({ kind: req(lit("Organization")), override: localBusinessData }, "Organization structured data"),
+    obj({ kind: req(lit("Article")), article: req(articleData) }, "Article structured data with the article fields"),
+    obj({ kind: req(lit("FAQ")), fromAccordionId: str(20, { pattern: /^[a-z0-9]{8}$/, allowed: "an element id (eight characters)" }) }, "FAQ structured data from an accordion on the page"),
+    obj({ kind: req(lit("BreadcrumbList")), items: req(arr(breadcrumbItem, 20, 1)) }, "BreadcrumbList structured data with at least one item"),
+  ],
+  'structured data: { kind: "none" | "LocalBusiness" | "Organization" | "Article" | "FAQ" | "BreadcrumbList", … }',
+);
+const pageSeo = obj(
+  {
+    title: str(200),
+    description: str(500),
+    ogImage: mediaSrc,
+    ogTitle: str(200),
+    ogDescription: str(500),
+    twitterTitle: str(200),
+    twitterDescription: str(500),
+    twitterImage: mediaSrc,
+    canonical: absoluteUrl,
+    noindex: bool(),
+    nofollow: bool(),
+    structuredData: structuredData,
+  },
+  "page SEO settings",
+);
 const pageSettings = obj({ hideTitle: bool(), bodyBackground: nullable(color), fullCanvas: bool() }, "page settings");
+
+const siteSeoCheck = obj(
+  {
+    siteName: str(200),
+    siteUrl: absoluteUrl,
+    defaultShareImage: mediaSrc,
+    titlePattern: str(200),
+    googleVerification: str(200, { pattern: /^[A-Za-z0-9_-]{20,200}$/, allowed: "a Google Search Console verification code (letters, digits, - and _)" }),
+    defaultDescription: str(500),
+    business: localBusinessData,
+    robotsExtras: str(2000),
+  },
+  "site-wide SEO settings",
+);
 
 /**
  * Check a parsed layout file. `value` is null only when the file is not a layout at all;
@@ -978,6 +1056,7 @@ const siteKitCheck = obj(
     imageRadius: req(size),
     pageBackground: req(color),
     menus: arr(menuCheck, 20),
+    seo: siteSeoCheck,
   },
   "a site kit",
 );
@@ -1046,6 +1125,35 @@ const SETTING_WORDS: Record<string, string> = {
   fullCanvas: "Full canvas",
   hideTitle: "Hide title",
   ogImage: "Share image",
+  ogTitle: "Share title (Open Graph)",
+  ogDescription: "Share description (Open Graph)",
+  twitterTitle: "Share title (X/Twitter)",
+  twitterDescription: "Share description (X/Twitter)",
+  twitterImage: "Share picture (X/Twitter)",
+  canonical: "Canonical URL",
+  noindex: "Hide from search engines",
+  nofollow: "Don't follow links",
+  structuredData: "Structured data",
+  siteName: "Site name",
+  siteUrl: "Site URL",
+  defaultShareImage: "Default share picture",
+  titlePattern: "Title pattern",
+  googleVerification: "Google verification code",
+  defaultDescription: "Default description",
+  business: "Business details",
+  robotsExtras: "Extra robots.txt lines",
+  streetAddress: "Street address",
+  addressLocality: "City",
+  addressRegion: "Region or state",
+  postalCode: "Postal code",
+  addressCountry: "Country",
+  openingHours: "Opening hours",
+  sameAs: "Also known as",
+  priceRange: "Price range",
+  headline: "Article headline",
+  datePublished: "Date published",
+  dateModified: "Date modified",
+  fromAccordionId: "From accordion",
   pageBackground: "Page background",
   imageRadius: "Picture corners",
   fieldBackground: "Field background",

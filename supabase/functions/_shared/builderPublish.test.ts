@@ -207,7 +207,8 @@ Deno.test("the bin: a trashed page's file moves byte for byte, restores, and can
   // Delete for good, from the bin only.
   const gone = await runBuilderPublish({ repo: binned.repo, input: input({ baseCommitSha: HEAD, trash: { "about-us": "delete" } }), userEmail: "x", permissions: staff });
   assertEquals(gone.trash, ["about-us"]);
-  assertEquals(binned.commits[1]!.files, [{ path: trashPath("about-us"), content: "", encoding: "utf-8", delete: true }]);
+  const bodyFiles = binned.commits[1]!.files.filter((file) => !file.path.startsWith("public/sitemap") && !file.path.startsWith("public/robots"));
+  assertEquals(bodyFiles, [{ path: trashPath("about-us"), content: "", encoding: "utf-8", delete: true }]);
   await assertRejects(() => runBuilderPublish({ repo, input: input({ trash: { "about-us": "delete" } }), userEmail: "x", permissions: staff }), ArmatureError, "in the bin");
 });
 
@@ -259,4 +260,44 @@ Deno.test("a header built in the editor publishes as content/layouts/_header.jso
   assertEquals(withMenus.kit, true);
   assertEquals(committed(commits[1], SITE_KIT_PATH).menus[0].items[1].children[0].label, "Sub");
   await assertRejects(() => runBuilderPublish({ repo, input: input({ kit: { ...kit, menus: [{ id: "bad id", name: "x", items: [] }] } }), userEmail: "x", permissions: staff }), ArmatureError, "an id of lowercase letters");
+});
+
+Deno.test("every publish writes sitemap.xml and robots.txt with the site URL from the kit's SEO block", async () => {
+  const { repo, commits } = fakeRepo({ [BASE]: {} }, BASE);
+  const kit = { ...defaultSiteKit(), seo: { siteName: "Acme Homes", siteUrl: "https://acmehomes.com", titlePattern: "%page% | %site%" } };
+  const noindexPage: LayoutDoc = { ...about, seo: { noindex: true } };
+  const outcome = await runBuilderPublish({ repo, input: input({ layouts: { "about-us": noindexPage }, kit }), userEmail: "x", permissions: staff });
+  assertEquals(outcome.layouts, ["about-us"]);
+  const sitemap = commits[0]?.files.find((file) => file.path === "public/sitemap.xml");
+  const robots = commits[0]?.files.find((file) => file.path === "public/robots.txt");
+  assert(sitemap, "sitemap.xml missing from the commit");
+  assert(robots, "robots.txt missing from the commit");
+  assertStringIncludes(sitemap!.content, '<?xml version="1.0"');
+  // The noindex about-us page is skipped; only the home path "/" is left (the coded pages
+  // in the fixture share paths and dedupe to one entry).
+  assertEquals((sitemap!.content.match(/<loc>/g) ?? []).length, 1);
+  assert(!sitemap!.content.includes("/about-us/"), "the noindex page should not be listed");
+  assertStringIncludes(sitemap!.content, "https://acmehomes.com/");
+  assertStringIncludes(robots!.content, "User-agent: *");
+  assertStringIncludes(robots!.content, "Sitemap: https://acmehomes.com/sitemap.xml");
+});
+
+Deno.test("sitemap.xml and robots.txt are only rewritten when the file would change", async () => {
+  // Two publishes with the same pages on the same day: the second commit should not carry
+  // the SEO files. The lastmod is a calendar day (UTC), so a fixed `now` on both keeps
+  // them identical.
+  const fixedNow = () => Date.UTC(2026, 4, 1, 12, 0);
+  const kit = { ...defaultSiteKit(), seo: { siteName: "Acme", siteUrl: "https://acme.example.com" } };
+  const publishOnce = async (state: Record<string, Files>, head: string) => {
+    const { repo, commits } = fakeRepo(state, head);
+    await runBuilderPublish({ repo, input: input({ layouts: { "about-us": about }, kit }), userEmail: "x", permissions: staff, now: fixedNow });
+    return commits[0]!;
+  };
+  const first = await publishOnce({ [BASE]: {} }, BASE);
+  const sitemapText = first.files.find((file) => file.path === "public/sitemap.xml")?.content ?? "";
+  const robotsText = first.files.find((file) => file.path === "public/robots.txt")?.content ?? "";
+  assert(sitemapText && robotsText);
+  const second = await publishOnce({ [HEAD]: { [layoutPath("about-us")]: serializeBuilderFile(about), [SITE_KIT_PATH]: serializeBuilderFile(kit), "public/sitemap.xml": sitemapText, "public/robots.txt": robotsText } }, HEAD);
+  assertEquals(second.files.filter((file) => file.path === "public/sitemap.xml").length, 0);
+  assertEquals(second.files.filter((file) => file.path === "public/robots.txt").length, 0);
 });

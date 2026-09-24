@@ -8,6 +8,7 @@ import { createElement, useEffect, useMemo, useRef, useSyncExternalStore, type C
 import { pageCss } from "./css.ts";
 import { installEntranceAnimations, installParallax } from "./motion.ts";
 import { safeAttributeName } from "./sanitize.ts";
+import { computePageHead, type HeadTag } from "./seo.ts";
 import type { KitSnapshot, KitStore } from "./store.ts";
 import { chromeSlug, isChromeSlug, type ChromePart, type Element, type LayoutDoc, type SiteSectionProps } from "./types.ts";
 import { cssIdent, googleFontsHref } from "./values.ts";
@@ -154,30 +155,69 @@ function warnOnce(type: string): void {
 
 // --- pages ------------------------------------------------------------------------------------
 
-function usePageSeo(layout: LayoutDoc | undefined, builderPage: boolean) {
+/**
+ * Every head tag the layout and site kit ask for, applied to `document.head` on the
+ * client. SSR sites should use `computePageHead(layout, siteKit)` in their route.head()
+ * (see kit/README.md) so Google receives the tags in the initial HTML.
+ */
+function usePageSeo(layout: LayoutDoc | undefined) {
+  const snapshot = useKitSnapshot();
   useEffect(() => {
     if (!layout || typeof document === "undefined") return;
-    const seo = layout.seo ?? {};
-    const title = seo.title || (builderPage ? layout.label : undefined);
-    if (title) document.title = title;
-    const setMeta = (selector: string, attributes: Record<string, string>, content: string | undefined) => {
-      let tag = document.head.querySelector<HTMLMetaElement>(selector);
-      if (!content) {
-        if (tag?.dataset["armature"]) tag.remove();
-        return;
+    const tags = computePageHead(layout, snapshot.kit, { pageLabel: layout.label });
+    applyHeadTags(tags);
+  }, [layout, snapshot.kit]);
+}
+
+/**
+ * Insert the tags into document.head, replacing the ones we wrote last time so nothing
+ * accumulates when the visitor navigates from page to page.
+ */
+export function applyHeadTags(tags: HeadTag[]): void {
+  if (typeof document === "undefined") return;
+  // Remove tags we owned last time (marked with data-armature-head).
+  document.head.querySelectorAll("[data-armature-head]").forEach((node) => node.remove());
+  for (const tag of tags) {
+    if (tag.tag === "title") {
+      // Title is a special case: replace textContent of the existing <title>, adding it if missing.
+      let element = document.head.querySelector("title");
+      if (!element) {
+        element = document.createElement("title");
+        element.setAttribute("data-armature-head", "");
+        document.head.appendChild(element);
       }
-      if (!tag) {
-        tag = document.createElement("meta");
-        for (const [name, value] of Object.entries(attributes)) tag.setAttribute(name, value);
-        tag.dataset["armature"] = "1";
-        document.head.appendChild(tag);
-      }
-      tag.setAttribute("content", content);
-    };
-    setMeta('meta[name="description"]', { name: "description" }, seo.description);
-    setMeta('meta[property="og:image"]', { property: "og:image" }, seo.ogImage);
-    setMeta('meta[name="robots"]', { name: "robots" }, seo.noindex ? "noindex" : undefined);
-  }, [layout, builderPage]);
+      element.textContent = tag.content;
+      continue;
+    }
+    if (tag.tag === "script") {
+      const element = document.createElement("script");
+      element.type = tag.type;
+      element.setAttribute("data-armature-head", "");
+      element.textContent = tag.content;
+      document.head.appendChild(element);
+      continue;
+    }
+    const element = document.createElement(tag.tag);
+    for (const [key, value] of Object.entries(tag.attrs)) element.setAttribute(key, value);
+    element.setAttribute("data-armature-head", "");
+    document.head.appendChild(element);
+  }
+}
+
+/**
+ * React component for SPA sites: renders no visible output but keeps the head tags for
+ * the given layout up to date. Place it near <ArmaturePage> or inside your page components
+ * to have SEO fields applied on the client. SSR sites should prefer computePageHead()
+ * inside route.head() so Google sees the tags in the initial HTML.
+ */
+export function ArmatureHead({ layout, pageUrl, pageLabel }: { layout: LayoutDoc; pageUrl?: string; pageLabel?: string }): null {
+  const snapshot = useKitSnapshot();
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const tags = computePageHead(layout, snapshot.kit, { pageUrl, pageLabel: pageLabel ?? layout.label });
+    applyHeadTags(tags);
+  }, [layout, snapshot.kit, pageUrl, pageLabel]);
+  return null;
 }
 
 /**
@@ -211,7 +251,8 @@ export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: L
   const css = useMemo(() => (layout ? pageCss(layout, snapshot.kit, { editMode: snapshot.editMode }) : ""), [layout, snapshot.kit, snapshot.editMode]);
   useKitFonts(snapshot.kit);
   const root = useRef<HTMLDivElement>(null);
-  usePageSeo(layout, builderPage);
+  usePageSeo(layout);
+  void builderPage;
   // Page settings the site's own frame responds to: <html data-armature-canvas="full"> for a
   // full-canvas page (hide the header and footer) and data-armature-hide-title.
   const canvas = layout?.pageSettings?.fullCanvas ? "full" : null;

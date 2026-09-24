@@ -1,7 +1,7 @@
 {
   "label": "Contact",
-  "path": "/contact/",
   "pageSlug": "contact",
+  "path": "/contact/",
   "root": [
     {
       "advanced": {},
@@ -101,33 +101,26 @@
             "createdBy": "demo",
             "updatedAt": "2026-09-22T00:00:00.000Z"
           },
-          "style": {},
-          "type": "form",
           "props": {
-            "name": "Contact",
-            "submitText": "Send",
-            "success": "Thanks, we'll call you within one business day.",
-            "labels": true,
             "fields": [
               {
                 "id": "fname",
-                "type": "text",
                 "label": "Your name",
                 "name": "full_name",
                 "required": true,
+                "type": "text",
                 "width": 50
               },
               {
                 "id": "femail",
-                "type": "email",
                 "label": "Email",
                 "name": "email",
                 "required": true,
+                "type": "email",
                 "width": 50
               },
               {
                 "id": "fproject",
-                "type": "select",
                 "label": "Project",
                 "name": "project",
                 "options": [
@@ -135,18 +128,25 @@
                   "Remodel",
                   "Lot evaluation"
                 ],
+                "type": "select",
                 "width": 100
               },
               {
                 "id": "fmessage",
-                "type": "textarea",
                 "label": "Tell us about it",
                 "name": "message",
                 "required": true,
+                "type": "textarea",
                 "width": 100
               }
-            ]
-          }
+            ],
+            "labels": true,
+            "name": "Contact",
+            "submitText": "Send",
+            "success": "Thanks, we'll call you within one business day."
+          },
+          "style": {},
+          "type": "form"
         },
         {
           "advanced": {},
@@ -155,25 +155,25 @@
             "createdBy": "demo",
             "updatedAt": "2026-09-22T00:00:00.000Z"
           },
-          "style": {},
-          "type": "accordion",
           "props": {
-            "open": "first",
-            "titleTag": "h3",
             "iconPosition": "right",
             "items": [
               {
+                "content": "Most projects start design within four weeks of the first visit.",
                 "id": "q1",
-                "title": "How soon can you start?",
-                "content": "Most projects start design within four weeks of the first visit."
+                "title": "How soon can you start?"
               },
               {
+                "content": "Yes: Placer, El Dorado and Yolo counties too.",
                 "id": "q2",
-                "title": "Do you work outside Sacramento?",
-                "content": "Yes: Placer, El Dorado and Yolo counties too."
+                "title": "Do you work outside Sacramento?"
               }
-            ]
-          }
+            ],
+            "open": "first",
+            "titleTag": "h3"
+          },
+          "style": {},
+          "type": "accordion"
         },
         {
           "advanced": {},
@@ -182,30 +182,30 @@
             "createdBy": "demo",
             "updatedAt": "2026-09-22T00:00:00.000Z"
           },
-          "style": {},
-          "type": "social-icons",
           "props": {
-            "shape": "circle",
-            "colors": "brand",
             "align": "left",
+            "colors": "brand",
             "items": [
               {
+                "href": "https://instagram.com/",
                 "id": "s1",
-                "network": "instagram",
-                "href": "https://instagram.com/"
+                "network": "instagram"
               },
               {
+                "href": "https://facebook.com/",
                 "id": "s2",
-                "network": "facebook",
-                "href": "https://facebook.com/"
+                "network": "facebook"
               },
               {
+                "href": "hello@alderstone.example",
                 "id": "s3",
-                "network": "email",
-                "href": "hello@alderstone.example"
+                "network": "email"
               }
-            ]
-          }
+            ],
+            "shape": "circle"
+          },
+          "style": {},
+          "type": "social-icons"
         },
         {
           "advanced": {},
@@ -239,8 +239,10 @@
     }
   ],
   "seo": {
-    "description": "Get in touch with Alder & Stone about your custom home.",
-    "title": "Contact | Alder & Stone"
+    "canonical": "https://alderandstone.example.com/contact/",
+    "description": "Reach the Alder & Stone studio for your next custom home.",
+    "ogImage": "/assets/hero.svg",
+    "title": "Get in touch"
   },
   "version": 1
 }

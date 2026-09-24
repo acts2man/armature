@@ -211,7 +211,7 @@ describe("one bad value never takes a page down", () => {
     const seo = checkLayout({ version: 1, pageSlug: "x", path: "/x/", label: 42, seo: { title: "ok", noindex: "yes" }, root: [] });
     expect(seo.value).toMatchObject({ pageSlug: "x", seo: { title: "ok" } });
     expect(seo.value?.label).toBeUndefined();
-    expect(seo.problems.map((problem) => problem.setting)).toEqual(["Label", "SEO › Noindex"]);
+    expect(seo.problems.map((problem) => problem.setting)).toEqual(["Label", "SEO › Hide from search engines"]);
   });
   it("keeps unknown element types and unknown keys as they are", () => {
     const raw = element({ type: "hologram", props: { anything: true }, style: { future: 1 }, advanced: {} });

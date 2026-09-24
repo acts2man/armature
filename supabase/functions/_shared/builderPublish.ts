@@ -14,6 +14,7 @@
 import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta, MediaUpload, PageCopy, TrashAction } from "../../../shared/publishTypes.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
 import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
+import { robotsTxt, sitemapXml, type SitemapEntry } from "../../../kit/seo.ts";
 import { mergeLayouts, mergeValues, stableJson, type MergeConflict, type Resolution } from "../../../shared/builder/merge.ts";
 import { kitPermissionErrors, layoutPermissionErrors, type Permissions } from "../../../shared/builder/permissions.ts";
 import { checkLayout, checkSiteKit, describeProblem, isLayoutSlug, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, trashPath, type Problem } from "../../../shared/builder/schema.ts";
@@ -470,6 +471,41 @@ export async function runBuilderPublish(opts: {
   }
   files.push(...uploads.values());
   if (files.length === 0) throw new ArmatureError("invalid", "There are no changes to publish.");
+
+  // --- sitemap.xml and robots.txt ---------------------------------------------------------
+  // Written on every publish so the site's search-engine files stay in step with the pages
+  // that exist. Both live under public/ so a static host serves them at /sitemap.xml and
+  // /robots.txt without any extra route.
+  const seoLayouts = new Map<string, LayoutDoc>(allLayouts);
+  // Coded pages need a layout entry too, else they are absent from the sitemap. Use the
+  // schema's label as the pseudo layout for them.
+  for (const page of site.pages) if (!seoLayouts.has(page.slug)) seoLayouts.set(page.slug, { version: 1, pageSlug: page.slug, path: page.path, label: page.label, root: [] });
+  // Use the calendar day (UTC) for lastmod so re-running the same publish doesn't spam a
+  // new sitemap commit every time — search engines don't care about sub-day precision.
+  const publishedIso = new Date(opts.now ? opts.now() : Date.now()).toISOString().slice(0, 10);
+  const sitemapPaths = new Map<string, SitemapEntry>();
+  for (const [slug, layout] of seoLayouts) {
+    if (isChromeSlug(slug)) continue;
+    if (layout.seo?.noindex) continue;
+    const key = normalizePath(layout.path || "/");
+    // Dedupe by path — several slugs may map to the same URL (a coded chrome page's
+    // "shared" pseudo-page, for example). Keep the first (they hold the same URL).
+    if (!sitemapPaths.has(key)) sitemapPaths.set(key, { path: layout.path || "/", lastmod: publishedIso });
+  }
+  const sitemapEntries: SitemapEntry[] = Array.from(sitemapPaths.values()).sort((a, b) => a.path.localeCompare(b.path));
+  // Read the kit that will actually be committed (either the freshly written one, or the
+  // committed one when nothing about the kit changed in this publish) so the sitemap URL
+  // comes from siteSeo.siteUrl.
+  const kitForSeo: SiteKit | null = kitWritten
+    ? (checkSiteKit(JSON.parse(files.find((file) => file.path === SITE_KIT_PATH)?.content ?? "null") ?? {}).value ?? null)
+    : (checkSiteKit(await readJson(repo, SITE_KIT_PATH, head)).value ?? null);
+  const siteUrl = kitForSeo?.seo?.siteUrl ?? "";
+  const nextSitemap = sitemapXml(siteUrl, sitemapEntries);
+  const nextRobots = robotsTxt(siteUrl, kitForSeo?.seo?.robotsExtras);
+  const existingSitemap = await readText(repo, "public/sitemap.xml", head);
+  const existingRobots = await readText(repo, "public/robots.txt", head);
+  if (existingSitemap !== nextSitemap) files.push({ path: "public/sitemap.xml", content: nextSitemap, encoding: "utf-8" });
+  if (existingRobots !== nextRobots) files.push({ path: "public/robots.txt", content: nextRobots, encoding: "utf-8" });
 
   const result = await repo.commit({
     message: `Pages: ${Array.from(new Set(labels)).join(", ") || "site"} updated by ${opts.userEmail}`,

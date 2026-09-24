@@ -39,7 +39,7 @@ import { createKitStore, type ContentTree, type LinkValue, type ListValue } from
 import type { LayoutDoc, SiteKit } from "./types.ts";
 import { CORE_WIDGETS, registerWidgets, type WidgetRender } from "./widgets.tsx";
 
-export const KIT_VERSION = "2.5.0";
+export const KIT_VERSION = "2.6.0";
 export { PROTOCOL_VERSION };
 
 /** Every widget the kit ships, by type: the core widgets, then the library. */
@@ -163,7 +163,8 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
   };
 }
 
-export { ArmaturePage, ArmatureRoute, ArmatureSlot, ArmatureChrome, useBuilderPages, useKitSnapshot } from "./renderer.tsx";
+export { ArmaturePage, ArmatureRoute, ArmatureSlot, ArmatureChrome, ArmatureHead, applyHeadTags, useBuilderPages, useKitSnapshot } from "./renderer.tsx";
+export { computePageHead, renderHeadHtml, sitemapXml, robotsTxt, absoluteUrl, applyTitlePattern, structuredDataLd, type HeadTag, type PageHeadOpts, type SitemapEntry } from "./seo.ts";
 export { CHROME_SLUGS, isChromeSlug, chromeSlug } from "./types.ts";
 export { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
 export { Icon } from "./icon.tsx";

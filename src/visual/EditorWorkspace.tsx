@@ -1552,6 +1552,7 @@ export function EditorWorkspace({
                 page={page}
                 layout={builderView.layouts[pageSlug]}
                 isBuilderPage={builderPages.some((item) => item.slug === pageSlug)}
+                siteKit={builderView.kit}
                 taken={takenAddresses(allPages, pageSlug)}
                 onClose={() => setPanelView("auto")}
                 onSave={(patch) => {

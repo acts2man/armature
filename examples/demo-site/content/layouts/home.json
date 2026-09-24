@@ -1,12 +1,17 @@
 {
-  "path": "/",
   "pageSlug": "home",
+  "path": "/",
   "root": [
     {
       "advanced": {},
       "id": "sechero1",
-      "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-      "props": { "key": "hero" },
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-22T00:00:00.000Z"
+      },
+      "props": {
+        "key": "hero"
+      },
       "style": {},
       "type": "site-section"
     },
@@ -16,97 +21,236 @@
         {
           "advanced": {},
           "id": "hdbuilds",
-          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-          "props": { "tag": "h2", "text": "Recent builds" },
-          "style": { "typography": { "preset": "kit:type.h2" } },
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "tag": "h2",
+            "text": "Recent builds"
+          },
+          "style": {
+            "typography": {
+              "preset": "kit:type.h2"
+            }
+          },
           "type": "heading"
         },
         {
           "advanced": {},
           "children": [
             {
-              "advanced": { "width": { "desktop": "custom", "mobile": "full" }, "customWidth": { "desktop": { "unit": "%", "value": 50 } } },
+              "advanced": {
+                "customWidth": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 50
+                  }
+                },
+                "width": {
+                  "desktop": "custom",
+                  "mobile": "full"
+                }
+              },
               "children": [
                 {
                   "advanced": {},
                   "id": "imgbuild",
-                  "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-                  "props": { "alt": "A finished custom home", "naturalHeight": 420, "naturalWidth": 640, "src": "/assets/hero.svg" },
+                  "meta": {
+                    "createdBy": "demo",
+                    "updatedAt": "2026-09-22T00:00:00.000Z"
+                  },
+                  "props": {
+                    "alt": "A finished custom home",
+                    "naturalHeight": 420,
+                    "naturalWidth": 640,
+                    "src": "/assets/hero.svg"
+                  },
                   "style": {},
                   "type": "image"
                 }
               ],
               "id": "colleft1",
-              "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-              "props": { "layout": "full" },
+              "meta": {
+                "createdBy": "demo",
+                "updatedAt": "2026-09-22T00:00:00.000Z"
+              },
+              "props": {
+                "layout": "full"
+              },
               "style": {},
               "type": "container"
             },
             {
-              "advanced": { "width": { "desktop": "custom", "mobile": "full" }, "customWidth": { "desktop": { "unit": "%", "value": 50 } } },
+              "advanced": {
+                "customWidth": {
+                  "desktop": {
+                    "unit": "%",
+                    "value": 50
+                  }
+                },
+                "width": {
+                  "desktop": "custom",
+                  "mobile": "full"
+                }
+              },
               "children": [
                 {
                   "advanced": {},
                   "id": "txtbuild",
-                  "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
+                  "meta": {
+                    "createdBy": "demo",
+                    "updatedAt": "2026-09-22T00:00:00.000Z"
+                  },
                   "props": {
                     "doc": {
                       "content": [
-                        { "content": [{ "text": "Every home starts with a walk of the lot and a long conversation about how you live. ", "type": "text" }, { "marks": [{ "type": "bold" }], "text": "Then we draw.", "type": "text" }], "type": "paragraph" },
-                        { "content": [{ "text": "Recent projects include a hillside home in Auburn, a courtyard house in Land Park and a second-storey addition in East Sacramento.", "type": "text" }], "type": "paragraph" }
+                        {
+                          "content": [
+                            {
+                              "text": "Every home starts with a walk of the lot and a long conversation about how you live. ",
+                              "type": "text"
+                            },
+                            {
+                              "marks": [
+                                {
+                                  "type": "bold"
+                                }
+                              ],
+                              "text": "Then we draw.",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        },
+                        {
+                          "content": [
+                            {
+                              "text": "Recent projects include a hillside home in Auburn, a courtyard house in Land Park and a second-storey addition in East Sacramento.",
+                              "type": "text"
+                            }
+                          ],
+                          "type": "paragraph"
+                        }
                       ],
                       "type": "doc"
                     }
                   },
-                  "style": { "typography": { "preset": "kit:type.body" } },
+                  "style": {
+                    "typography": {
+                      "preset": "kit:type.body"
+                    }
+                  },
                   "type": "text"
                 },
                 {
                   "advanced": {},
                   "id": "btnbuild",
-                  "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-                  "props": { "link": { "href": "/contact/" }, "preset": "kit:button.primary", "size": "md", "text": "Start a conversation" },
+                  "meta": {
+                    "createdBy": "demo",
+                    "updatedAt": "2026-09-22T00:00:00.000Z"
+                  },
+                  "props": {
+                    "link": {
+                      "href": "/contact/"
+                    },
+                    "preset": "kit:button.primary",
+                    "size": "md",
+                    "text": "Start a conversation"
+                  },
                   "style": {},
                   "type": "button"
                 }
               ],
               "id": "colrigh1",
-              "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-              "props": { "layout": "full" },
+              "meta": {
+                "createdBy": "demo",
+                "updatedAt": "2026-09-22T00:00:00.000Z"
+              },
+              "props": {
+                "layout": "full"
+              },
               "style": {},
               "type": "container"
             }
           ],
           "id": "rowbuild",
-          "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-          "props": { "align": "center", "direction": { "desktop": "row", "mobile": "column" }, "gap": { "column": { "unit": "px", "value": 32 }, "row": { "unit": "px", "value": 24 } }, "layout": "full" },
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-22T00:00:00.000Z"
+          },
+          "props": {
+            "align": "center",
+            "direction": {
+              "desktop": "row",
+              "mobile": "column"
+            },
+            "gap": {
+              "column": {
+                "unit": "px",
+                "value": 32
+              },
+              "row": {
+                "unit": "px",
+                "value": 24
+              }
+            },
+            "layout": "full"
+          },
           "style": {},
           "type": "container"
         }
       ],
       "id": "secbuild",
-      "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-      "props": { "layout": "boxed", "tag": "section" },
-      "style": { "background": { "color": "#ffffff", "kind": "color" } },
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-22T00:00:00.000Z"
+      },
+      "props": {
+        "layout": "boxed",
+        "tag": "section"
+      },
+      "style": {
+        "background": {
+          "color": "#ffffff",
+          "kind": "color"
+        }
+      },
       "type": "container"
     },
     {
       "advanced": {},
       "id": "secservi",
-      "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-      "props": { "key": "services" },
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-22T00:00:00.000Z"
+      },
+      "props": {
+        "key": "services"
+      },
       "style": {},
       "type": "site-section"
     },
     {
       "advanced": {},
       "id": "secfaq01",
-      "meta": { "createdBy": "demo", "updatedAt": "2026-09-22T00:00:00.000Z" },
-      "props": { "key": "faq" },
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-22T00:00:00.000Z"
+      },
+      "props": {
+        "key": "faq"
+      },
       "style": {},
       "type": "site-section"
     }
   ],
-  "seo": {},
+  "seo": {
+    "description": "Custom homes in the Pacific Northwest, built to last.",
+    "structuredData": {
+      "kind": "LocalBusiness"
+    },
+    "title": "Alder & Stone Custom Homes"
+  },
   "version": 1
 }

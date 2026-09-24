@@ -244,6 +244,39 @@ export function SiteSettingsPanel({ kit, write, device, onDevice, isStaff }: { k
               { kind: "number", label: "Mobile from (px)", path: ["breakpoints", "mobile"], min: 320, max: 1000, hint: "Screens this wide or narrower use mobile values." },
             ],
           },
+          {
+            kind: "group",
+            label: "SEO",
+            open: false,
+            controls: [
+              { kind: "text", label: "Site name", path: ["seo", "siteName"], hint: "Short name used in <title> and sharing tags." },
+              { kind: "text", label: "Site URL", path: ["seo", "siteUrl"], inputType: "url", hint: "https://your-site.com — used for canonicals and the sitemap." },
+              { kind: "image", label: "Default share picture", path: ["seo", "defaultShareImage"] },
+              { kind: "text", label: "Title pattern", path: ["seo", "titlePattern"], hint: "Use %page% and %site%. Example: %page% | %site%." },
+              { kind: "text", label: "Default description", path: ["seo", "defaultDescription"], multiline: true, hint: "Used where a page has no description of its own." },
+              { kind: "text", label: "Google Search Console code", path: ["seo", "googleVerification"], hint: "The 'content' value from the meta name=google-site-verification tag." },
+              { kind: "text", label: "Extra robots.txt lines", path: ["seo", "robotsExtras"], multiline: true, hint: "One rule per line — added after the standard User-agent / Allow / Sitemap lines." },
+            ],
+          },
+          {
+            kind: "group",
+            label: "Business details (LocalBusiness)",
+            open: false,
+            controls: [
+              { kind: "text", label: "Business name", path: ["seo", "business", "name"] },
+              { kind: "text", label: "Schema.org type", path: ["seo", "business", "type"], hint: "Default LocalBusiness. Try Restaurant, HomeAndConstructionBusiness…" },
+              { kind: "text", label: "Telephone", path: ["seo", "business", "telephone"] },
+              { kind: "text", label: "Email", path: ["seo", "business", "email"], inputType: "email" },
+              { kind: "image", label: "Logo", path: ["seo", "business", "logo"] },
+              { kind: "text", label: "Street address", path: ["seo", "business", "streetAddress"] },
+              { kind: "text", label: "City", path: ["seo", "business", "addressLocality"] },
+              { kind: "text", label: "Region / state", path: ["seo", "business", "addressRegion"] },
+              { kind: "text", label: "Postal code", path: ["seo", "business", "postalCode"] },
+              { kind: "text", label: "Country", path: ["seo", "business", "addressCountry"] },
+              { kind: "text", label: "Opening hours", path: ["seo", "business", "openingHours"], hint: 'Schema shortened form, e.g. "Mo-Fr 09:00-17:00".' },
+              { kind: "text", label: "Price range", path: ["seo", "business", "priceRange"], hint: 'e.g. "$$".' },
+            ],
+          },
         ]}
       />
     </div>

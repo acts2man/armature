@@ -225,7 +225,53 @@ export type Element = {
   meta: ElementMeta;
 };
 
-export type PageSeo = { title?: string; description?: string; ogImage?: string; noindex?: boolean };
+/** Structured data (schema.org) a page can add. Every kind is one plain-fields form the person fills in. */
+export type StructuredDataKind = "LocalBusiness" | "Organization" | "Article" | "FAQ" | "BreadcrumbList";
+export type ArticleData = {
+  headline?: string;
+  description?: string;
+  image?: string;
+  author?: string;
+  datePublished?: string;
+  dateModified?: string;
+};
+export type BreadcrumbItem = { name: string; url: string };
+/**
+ * Structured data on a page. LocalBusiness/Organization use the site-wide business
+ * details (siteKit.seo.business) with these overrides; FAQ reads an accordion widget's
+ * items on the page; BreadcrumbList takes the list on the page.
+ */
+export type PageStructuredData =
+  | { kind: "none" }
+  | { kind: "LocalBusiness"; override?: Partial<LocalBusinessData> }
+  | { kind: "Organization"; override?: Partial<LocalBusinessData> }
+  | { kind: "Article"; article: ArticleData }
+  | { kind: "FAQ"; fromAccordionId?: string }
+  | { kind: "BreadcrumbList"; items: BreadcrumbItem[] };
+
+export type PageSeo = {
+  /** Search-result title, up to about 60 characters. */
+  title?: string;
+  /** Search-result description, up to about 160 characters. */
+  description?: string;
+  /** An https:// address or a picture on this site (/assets/...), shown as the sharing image. */
+  ogImage?: string;
+  /** Overrides for the social share title on Open Graph (Facebook, LinkedIn, iMessage). */
+  ogTitle?: string;
+  ogDescription?: string;
+  /** Overrides for the X/Twitter share card. */
+  twitterTitle?: string;
+  twitterDescription?: string;
+  twitterImage?: string;
+  /** The absolute URL that is the canonical version of this page. Empty uses the site URL + the page's path. */
+  canonical?: string;
+  /** Hide from search engines (adds noindex). */
+  noindex?: boolean;
+  /** Ask search engines not to follow links on this page (adds nofollow). */
+  nofollow?: boolean;
+  /** Structured data (schema.org) to add to the page. */
+  structuredData?: PageStructuredData;
+};
 export type PageSettings = { hideTitle?: boolean; bodyBackground?: Color | null; fullCanvas?: boolean };
 
 export type LayoutDoc = {
@@ -460,6 +506,71 @@ export type SiteKit = {
   pageBackground: Color;
   /** Navigation menus (optional; older kits have none). */
   menus?: Menu[];
+  /** Site-wide SEO defaults (optional; older kits have none). */
+  seo?: SiteSeo;
+};
+
+/**
+ * The business details used for LocalBusiness / Organization structured data. Every
+ * field is optional and empty ones are simply left out of the JSON-LD.
+ */
+export type LocalBusinessData = {
+  /** Legal or trading name. */
+  name?: string;
+  /** More specific schema.org type when it applies (Restaurant, HomeAndConstructionBusiness, ...). */
+  type?: string;
+  telephone?: string;
+  email?: string;
+  streetAddress?: string;
+  addressLocality?: string;
+  addressRegion?: string;
+  postalCode?: string;
+  addressCountry?: string;
+  /** A logo picture on this site (/assets/...) or an https:// address. */
+  logo?: string;
+  /** Latitude / longitude, decimal degrees. */
+  latitude?: number;
+  longitude?: number;
+  /** Comma-separated opening hours in schema.org's shortened form ("Mo-Fr 09:00-17:00"). */
+  openingHours?: string;
+  /** Optional sameAs URLs (social profiles). */
+  sameAs?: string[];
+  /** Price range, e.g. "$$" for LocalBusiness. */
+  priceRange?: string;
+};
+
+export type SiteSeo = {
+  /**
+   * The site's short name, used in the title pattern and as the schema.org name. Empty
+   * uses the schema.json name.
+   */
+  siteName?: string;
+  /**
+   * The full URL of the live site including scheme, e.g. https://acmehomes.com. Used to
+   * build canonical URLs, the sitemap and Open Graph tags. Empty leaves canonical off.
+   */
+  siteUrl?: string;
+  /** Default share picture, used when a page has no ogImage of its own. */
+  defaultShareImage?: string;
+  /**
+   * Pattern applied to <title>, with "%page%" (the page's SEO title or label) and
+   * "%site%" (siteName). Empty uses "%page%" alone.
+   */
+  titlePattern?: string;
+  /** Google Search Console verification code (the meta name="google-site-verification" content). */
+  googleVerification?: string;
+  /**
+   * A short paragraph search engines can show; also becomes the default meta description
+   * where a page has none.
+   */
+  defaultDescription?: string;
+  /** Business details for LocalBusiness / Organization structured data. */
+  business?: LocalBusinessData;
+  /**
+   * Extra lines to add to robots.txt (one per line). The kit always writes the standard
+   * two lines (User-agent: * / Allow: /) and the Sitemap: line; anything here follows.
+   */
+  robotsExtras?: string;
 };
 
 /**
