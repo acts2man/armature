@@ -7,12 +7,14 @@
  */
 import type { Session, User } from "@supabase/supabase-js";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { supabase, supabaseConfigured } from "@/lib/supabase.ts";
+import { setReadOnly, supabase, supabaseConfigured } from "@/lib/supabase.ts";
 import { applyAccent, applyPortalTitle } from "@/lib/theme.ts";
 import type { Agency, AgencyRole, Site, SiteRole } from "@/lib/types.ts";
+import { applyViewAs, readOnlyReason, readStoredViewAs, storeViewAs, type StoredViewAs, type ViewAsClient } from "./viewAs.ts";
 
 export type AgencyMembership = { agency: Agency; role: AgencyRole };
 export type SiteMembership = { site: Site; role: SiteRole };
+export type { ViewAsClient } from "./viewAs.ts";
 
 export type AuthState = {
   /** True until the session and memberships have loaded the first time. */
@@ -31,6 +33,14 @@ export type AuthState = {
   isStaff: boolean;
   /** A readable problem loading memberships, or null. Never swallowed. */
   membershipsError: string | null;
+  /**
+   * "View as client" (src/auth/viewAs.ts): while set, everything above reads as that
+   * client would see it (not staff, only their sites) and every write is refused. The
+   * session and the person's real rights are untouched; `stopViewAs` brings them back.
+   */
+  viewingAs: ViewAsClient | null;
+  startViewAs: (client: ViewAsClient) => void;
+  stopViewAs: () => void;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -81,6 +91,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [memberships, setMemberships] = useState<Memberships>(EMPTY);
   const [membershipsReady, setMembershipsReady] = useState(!supabaseConfigured);
   const loadedForUser = useRef<string | null>(null);
+  // "View as client" (src/auth/viewAs.ts). The write guard flips in the same tick as the
+  // state (and before the first render when a reload restores the view), so no click can
+  // slip a write through between "View as" and the client's view appearing.
+  const [viewAs, setViewAs] = useState<StoredViewAs | null>(() => {
+    const stored = readStoredViewAs();
+    setReadOnly(stored ? readOnlyReason(stored.client) : null);
+    return stored;
+  });
+  const startViewAs = useCallback(
+    (client: ViewAsClient) => {
+      const staffId = session?.user?.id;
+      if (!staffId) return;
+      const entry = { staffId, client };
+      setReadOnly(readOnlyReason(client));
+      storeViewAs(entry);
+      setViewAs(entry);
+    },
+    [session?.user?.id],
+  );
+  const stopViewAs = useCallback(() => {
+    setReadOnly(null);
+    storeViewAs(null);
+    setViewAs(null);
+  }, []);
+
+  // A view belongs to the account that started it: with another account in this tab, or
+  // none, it does not apply and is forgotten. Until the session is known nothing renders
+  // behind RequireAuth, and the guard set above still stands.
+  const activeViewAs = viewAs && sessionReady && session?.user?.id === viewAs.staffId ? viewAs : null;
+  useEffect(() => {
+    if (!sessionReady) return;
+    setReadOnly(activeViewAs ? readOnlyReason(activeViewAs.client) : null);
+    if (viewAs && !activeViewAs) storeViewAs(null);
+  }, [sessionReady, viewAs, activeViewAs]);
 
   useEffect(() => {
     if (!supabaseConfigured) return;
@@ -131,22 +175,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [memberships.agency?.accent_color, memberships.agency?.portal_name]);
 
   const signOut = useCallback(async () => {
+    stopViewAs();
     await supabase.auth.signOut();
     setMemberships(EMPTY);
     loadedForUser.current = null;
-  }, []);
+  }, [stopViewAs]);
 
   const value = useMemo<AuthState>(
     () => ({
       loading: !sessionReady || (Boolean(session) && !membershipsReady),
       session,
       user: session?.user ?? null,
-      ...memberships,
-      isStaff: memberships.agencies.length > 0,
+      ...applyViewAs({ ...memberships, isStaff: memberships.agencies.length > 0 }, activeViewAs?.client ?? null),
+      viewingAs: activeViewAs?.client ?? null,
+      startViewAs,
+      stopViewAs,
       refresh,
       signOut,
     }),
-    [sessionReady, membershipsReady, session, memberships, refresh, signOut],
+    [sessionReady, membershipsReady, session, memberships, activeViewAs, startViewAs, stopViewAs, refresh, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

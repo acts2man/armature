@@ -1,6 +1,7 @@
 /**
- * /agency/team — the agency's own staff and their invitations. Owners invite;
- * staff can look. (Client members are managed on each site's Team tab.)
+ * /agency/team — the agency's own staff (members of agency_members) and their
+ * invitations. Owners invite; staff can look. Client logins never appear here: they are
+ * managed under Clients (/agency/clients) and on each site's Users screen.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent, type ReactNode } from "react";
@@ -292,7 +293,7 @@ export function AgencyTeam() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Team" description="The people at your agency who can manage client sites. Clients are added on each site's Team tab." />
+      <PageHeader title="Team" description="The people at your agency who can manage client sites. The people who sign in to those sites are under Clients." />
       {agencies.length > 1 && (
         <Field label="Agency" htmlFor="agency-select" className="max-w-sm">
           <Select id="agency-select" value={agency.id} onChange={(event) => setSelectedId(event.target.value)}>

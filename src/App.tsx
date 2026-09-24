@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell.tsx";
 import { SiteLayout } from "@/components/SiteLayout.tsx";
 import { Account } from "@/pages/Account.tsx";
 import { AddSite } from "@/pages/AddSite.tsx";
+import { AgencyClients } from "@/pages/AgencyClients.tsx";
 import { AgencyRequests } from "@/pages/AgencyRequests.tsx";
 import { AgencySettings } from "@/pages/AgencySettings.tsx";
 import { AgencyTeam } from "@/pages/AgencyTeam.tsx";
@@ -69,6 +70,7 @@ const router = createBrowserRouter([
                   { path: "/projects", element: <Projects /> },
                   { path: "/sites/new", element: <AddSite /> },
                   { path: "/agency/requests", element: <AgencyRequests /> },
+                  { path: "/agency/clients", element: <AgencyClients /> },
                   { path: "/agency/settings", element: <AgencySettings /> },
                   { path: "/agency/team", element: <AgencyTeam /> },
                 ],

@@ -74,6 +74,8 @@ export type MockOptions = {
    * and a client is a member of them too. Each is the main site with these fields changed.
    */
   moreSites?: { id: string; name: string; status?: "connected" | "needs_attention" | "hosting_only" }[];
+  /** More sites the agency looks after (hosting-only, so nothing tries to read their content), for the Clients screen. */
+  extraSites?: { id: string; name: string }[];
 };
 
 export type MockState = {
@@ -120,9 +122,15 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
   };
 
   const moreSites = (options.moreSites ?? []).map((extra) => ({ ...site, ...extra, status: extra.status ?? "connected" }));
-  const allSites = () => [site, ...moreSites];
+  const extraSites = (options.extraSites ?? []).map((extra) => ({ ...site, ...extra, repo_owner: null, repo_name: null, branch: null, live_url: null, github_installation_id: null, status: "hosting_only", last_published_at: null }));
+  const allSites = () => [site, ...moreSites, ...extraSites];
 
   const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: JSON.parse(JSON.stringify(options.rows ?? {})) as MockState["rows"] };
+  /** Rows the profiles table answers with; client-create adds to it. */
+  const profiles = (state.rows["profiles"] ??= [
+    { id: STAFF_ID, email: "dana@agency.example", full_name: "Dana Whitfield", created_at: "2026-09-01T00:00:00Z", last_sign_in_at: new Date(Date.now() - 3600_000).toISOString() },
+    { id: CLIENT_ID, email: "sam@alderstone.example", full_name: "Sam Alder", created_at: "2026-09-02T00:00:00Z", last_sign_in_at: "2026-09-20T15:00:00Z" },
+  ]);
   // The content "in the repository": a batch publish updates it, as a real one would.
   const schema = real ? realSchema : demoSchema;
   const content = JSON.parse(JSON.stringify(options.content ?? (real ? realContent : demoContent))) as Record<string, Record<string, Record<string, unknown>>>;
@@ -197,7 +205,18 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           // Auth's membership read (no site_id filter) versus the Users screen's table.
           if (!url.searchParams.has("site_id")) return json(route, role === "client" ? [{ role: "client_owner", site }, ...moreSites.map((extra) => ({ role: "client_editor", site: extra }))] : []);
           const rows = (state.rows["site_members"] ??= [{ site_id: SITE_ID, user_id: CLIENT_ID, role: "client_owner", created_at: "2026-09-02T09:00:00Z" }]);
-          const matches = (row: Record<string, unknown>) => [...url.searchParams].every(([column, filter]) => !filter.startsWith("eq.") || String(row[column]) === filter.slice(3));
+          const matches = (row: Record<string, unknown>) =>
+            [...url.searchParams].every(([column, filter]) => {
+              if (filter.startsWith("eq.")) return String(row[column]) === filter.slice(3);
+              if (filter.startsWith("in.(")) return filter.slice(4, -1).split(",").map((part) => part.replace(/^"|"$/g, "")).includes(String(row[column]));
+              return true;
+            });
+          if (request.method() === "POST") {
+            const incoming = JSON.parse(request.postData() ?? "{}") as Record<string, unknown> | Record<string, unknown>[];
+            const added = (Array.isArray(incoming) ? incoming : [incoming]).map((row) => ({ role: "client_editor", created_at: new Date().toISOString(), ...row }));
+            rows.push(...added);
+            return json(route, added, 201);
+          }
           if (request.method() === "PATCH") {
             const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
             for (const row of rows) if (matches(row)) Object.assign(row, patch);
@@ -221,7 +240,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
         case "agencies":
           return json(route, [agency]);
         case "profiles":
-          return json(route, [{ id: STAFF_ID, email: "dana@agency.example", full_name: "Dana Whitfield", created_at: "2026-09-01T00:00:00Z", last_sign_in_at: new Date(Date.now() - 3600_000).toISOString() }, { id: CLIENT_ID, email: "sam@alderstone.example", full_name: "Sam Alder", created_at: "2026-09-02T00:00:00Z", last_sign_in_at: "2026-09-20T15:00:00Z" }]);
+          return json(route, profiles);
         case "sites": {
           if (wantsCount) return countOf(allSites().length);
           if (request.method() === "PATCH") {
@@ -229,8 +248,9 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             (state.rows["sites"] ??= []).push(patch);
             Object.assign(site, patch);
           }
-          const wanted = url.searchParams.get("id");
-          return json(route, wanted?.startsWith("eq.") ? allSites().filter((row) => row.id === wanted.slice(3)) : allSites());
+          const id = url.searchParams.get("id");
+          if (id?.startsWith("eq.")) return json(route, allSites().filter((row) => row.id === id.slice(3)));
+          return json(route, allSites());
         }
         case "publishes":
           return json(route, state.rows["publishes"] ?? []);
@@ -423,6 +443,34 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           const expires = new Date(Date.now() + 7 * 86_400_000).toISOString();
           rows.unshift({ id, agency_id: AGENCY_ID, site_id: body["site_id"] ?? null, email, role: body["role"], expires_at: expires, accepted_at: null, created_by: STAFF_ID, created_at: new Date().toISOString() });
           return json(route, { ok: true, invite_id: id, invite_url: `http://localhost:5173/invite/token-${id}`, expires_at: expires, emailed: false });
+        }
+        case "client-create": {
+          // As the real function: an existing account only gains the membership; a new one is created with the flag.
+          const email = String(body["email"] ?? "").toLowerCase();
+          const target = allSites().find((row) => row.id === body["site_id"]);
+          if (!target) return json(route, { ok: false, code: "forbidden", message: "That site does not exist, or it does not belong to your agency." });
+          let profile = profiles.find((row) => row["email"] === email);
+          const outcome = profile ? "already_existed" : "created";
+          if (!profile) {
+            profile = { id: `cccccccc-0000-4000-8000-${String(profiles.length + 1).padStart(12, "0")}`, email, full_name: body["full_name"], created_at: new Date().toISOString(), last_sign_in_at: null };
+            profiles.push(profile);
+          }
+          const members = (state.rows["site_members"] ??= [{ site_id: SITE_ID, user_id: CLIENT_ID, role: "client_owner", created_at: "2026-09-02T09:00:00Z" }]);
+          const had = members.some((row) => row["site_id"] === target.id && row["user_id"] === profile["id"]);
+          if (!had) members.push({ site_id: target.id, user_id: profile["id"], role: body["role"], created_at: new Date().toISOString() });
+          return json(route, {
+            ok: true,
+            outcome,
+            email,
+            site_name: target.name,
+            sign_in_url: "http://localhost:5173/signin",
+            message: outcome === "created" ? `An account was created for ${email} with access to ${target.name}. They will be asked to choose their own password the first time they sign in.` : `This person already has an account; they were given access to ${target.name}. Their existing password still applies.`,
+          });
+        }
+        case "client-password-reset": {
+          const profile = profiles.find((row) => row["id"] === body["user_id"]);
+          if (!profile) return json(route, { ok: false, code: "forbidden", message: "Only agency staff can reset a client's password, and this person is not a client of a site your agency looks after." });
+          return json(route, { ok: true, email: profile["email"], reset_url: `http://localhost:5173/signin#reset-${String(profile["id"]).slice(-4)}&type=recovery`, emailed: false });
         }
         case "site-embed-check":
           return json(route, { ok: true, url: site.live_url, ...(options.embed ?? { reachable: true, status: 200, xFrameOptions: null, frameAncestors: null }) });

@@ -21,7 +21,8 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 - **Projects**: every client site with its status, last publish, open change requests, billing totals and renewals (its old address, `/fleet`, still works).
 - **Add a site**: install the GitHub App, type the repository (`owner/name` or its GitHub URL) and branch, and run the connection checklist.
 - **Change requests** across every site, with a status and a note back to the client.
-- **Team**: invite clients to a site by email and see who has access.
+- **Clients**: every client across your sites in one place: add one (a login you create, or an invite link), which sites they can open, reset a password, remove them, and "View as client" to see a site exactly as they do, read-only.
+- **Team**: the agency's own staff and their invitations.
 - **Agency settings**: portal name, logo and accent colour. Clients see the agency's brand and never the word Armature.
 - **Publish history** for every site, with a link to each commit.
 

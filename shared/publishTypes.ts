@@ -303,6 +303,20 @@ export type PasswordSetRequest = { password: string };
 
 export type PasswordSetResponse = { ok: true };
 
+// --- client-password-reset ------------------------------------------------------------
+
+/** Agency staff ask for a password reset link for one of their clients (the Clients screen). */
+export type ClientPasswordResetRequest = { user_id: string };
+
+export type ClientPasswordResetResponse = {
+  ok: true;
+  email: string;
+  /** The recovery link the client opens; it lands on the sign-in page to choose a new password. */
+  reset_url: string;
+  /** True when a real email was sent; false means the link was only returned, for the agency to pass on. */
+  emailed: boolean;
+};
+
 // --- builder-publish (the page builder) -------------------------------------------
 
 /**

@@ -34,6 +34,9 @@ verify_jwt = true
 [functions.password-set]
 verify_jwt = true
 
+[functions.client-password-reset]
+verify_jwt = true
+
 [functions.builder-publish]
 verify_jwt = true
 

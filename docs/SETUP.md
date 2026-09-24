@@ -120,14 +120,14 @@ This repository includes a workflow called **Deploy edge functions**. It needs t
 
 From now on, every change to the functions that lands on the `main` branch deploys automatically.
 
-To confirm: in Supabase press **Edge Functions**. You should see thirteen functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `content-publish-batch`, `builder-publish`, `site-diagnose`, `site-embed-check`, `invite-create`, `invite-accept`, `client-create`, `password-set` and `form-submit`. `form-submit` is the only one that accepts callers who are not signed in (website visitors sending a form); `supabase/config.toml` turns off its sign-in check.
+To confirm: in Supabase press **Edge Functions**. You should see fourteen functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `content-publish-batch`, `builder-publish`, `site-diagnose`, `site-embed-check`, `invite-create`, `invite-accept`, `client-create`, `client-password-reset`, `password-set` and `form-submit`. `form-submit` is the only one that accepts callers who are not signed in (website visitors sending a form); `supabase/config.toml` turns off its sign-in check.
 
 ### C2. The terminal way (if you prefer)
 
 1. Install Node.js (the **LTS** download at https://nodejs.org) and, on GitHub, download this repository (**Code → Download ZIP**) or clone it. Open a terminal in the repository folder.
 2. `npx supabase login` opens a browser window; approve it. This lets the tool act as you.
 3. `npx supabase link --project-ref PROJECT_REF` (use your value from A2) connects the folder to your project. It may ask for the database password from A1.
-4. `npx supabase functions deploy --use-api` uploads all thirteen functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
+4. `npx supabase functions deploy --use-api` uploads all fourteen functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
 
 ---
 

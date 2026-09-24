@@ -7,8 +7,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { SITE_ID, installMocks } from "./mocks.ts";
 
 const shots = process.env["AUDIT_SHOTS"];
-const STAFF_ROUTES = ["/", "/projects", "/fleet", "/sites/new", "/agency/requests", "/agency/settings", "/agency/team", "/account", "/github/setup", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/pages?view=trash`, `/sites/${SITE_ID}/media`, `/sites/${SITE_ID}/contact`, `/sites/${SITE_ID}/contact?tab=settings`, `/sites/${SITE_ID}/appearance`, `/sites/${SITE_ID}/appearance/header`, `/sites/${SITE_ID}/appearance/footer`, `/sites/${SITE_ID}/appearance/menus`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/pages/shared`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/users`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, `/sites/${SITE_ID}/settings`, `/sites/${SITE_ID}/settings/services`, `/sites/${SITE_ID}/settings/editing`, `/sites/${SITE_ID}/settings/history`, `/sites/${SITE_ID}/nothing-here`, "/nothing-here"];
-const CLIENT_ROUTES = ["/", "/account", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/media`, `/sites/${SITE_ID}/contact`, `/sites/${SITE_ID}/contact?tab=settings`, `/sites/${SITE_ID}/appearance`, `/sites/${SITE_ID}/appearance/menus`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/users`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, `/sites/${SITE_ID}/settings`, "/projects", "/fleet", "/github/setup"];
+const STAFF_ROUTES = ["/", "/projects", "/fleet", "/sites/new", "/agency/requests", "/agency/clients", "/agency/settings", "/agency/team", "/account", "/github/setup", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/pages?view=trash`, `/sites/${SITE_ID}/media`, `/sites/${SITE_ID}/contact`, `/sites/${SITE_ID}/contact?tab=settings`, `/sites/${SITE_ID}/appearance`, `/sites/${SITE_ID}/appearance/header`, `/sites/${SITE_ID}/appearance/footer`, `/sites/${SITE_ID}/appearance/menus`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/pages/shared`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/users`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, `/sites/${SITE_ID}/settings`, `/sites/${SITE_ID}/settings/services`, `/sites/${SITE_ID}/settings/editing`, `/sites/${SITE_ID}/settings/history`, `/sites/${SITE_ID}/nothing-here`, "/nothing-here"];
+const CLIENT_ROUTES = ["/", "/account", `/sites/${SITE_ID}`, `/sites/${SITE_ID}/pages`, `/sites/${SITE_ID}/media`, `/sites/${SITE_ID}/contact`, `/sites/${SITE_ID}/contact?tab=settings`, `/sites/${SITE_ID}/appearance`, `/sites/${SITE_ID}/appearance/menus`, `/sites/${SITE_ID}/pages/home`, `/sites/${SITE_ID}/requests`, `/sites/${SITE_ID}/requests/new`, `/sites/${SITE_ID}/users`, `/sites/${SITE_ID}/team`, `/sites/${SITE_ID}/history`, `/sites/${SITE_ID}/settings`, "/projects", "/fleet", "/github/setup", "/agency/clients"];
 const WIDTHS = [
   { name: "desktop", width: 1440, height: 900 },
   { name: "phone", width: 390, height: 844 },
@@ -48,6 +48,8 @@ for (const role of ["staff", "client"] as const) {
         if (result.errors.length) problems.push(`${route}: ${result.errors.join(" | ")}`);
         if (result.overflow > 1) problems.push(`${route}: scrolls sideways by ${result.overflow}px`);
         if (result.armature) problems.push(`${route}: a client can see the word Armature`);
+        // Agency-only screens send a client to their site rather than rendering.
+        if (role === "client" && route.startsWith("/agency/") && result.heading === "Clients") problems.push(`${route}: a client reached an agency screen`);
       }
       console.log(`\n[${role} ${width.name}]\n${report.join("\n")}`);
       expect(problems, problems.join("\n")).toEqual([]);

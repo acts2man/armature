@@ -24,7 +24,7 @@ type MemberRow = Person & { role: SiteRole };
 type StaffRow = Person & { role: AgencyMember["role"] };
 type PendingInvite = Invite & { expired: boolean };
 type CreatedInvite = { url: string; email: string; expires_at: string; emailed: boolean };
-type CreatedLogin = ClientCreateResponse & { temporaryPassword: string; fullName: string };
+export type CreatedLogin = ClientCreateResponse & { temporaryPassword: string; fullName: string };
 type SiteOption = { id: string; name: string };
 
 async function loadProfiles(userIds: string[]): Promise<Map<string, ProfileLite>> {
@@ -127,7 +127,8 @@ function InviteForm({ siteId, agencyId }: { siteId: string; agencyId: string }) 
   );
 }
 
-function LoginDetailsCard({ login, portalName, onDismiss }: { login: CreatedLogin; portalName: string; onDismiss: () => void }) {
+/** The login the agency just created, with a ready-to-send message. Also used by the agency Clients screen. */
+export function LoginDetailsCard({ login, portalName, onDismiss }: { login: CreatedLogin; portalName: string; onDismiss: () => void }) {
   const toast = useToast();
   const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const textId = `login-details-${login.email.replace(/[^a-z0-9]/gi, "-")}`;

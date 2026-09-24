@@ -23,6 +23,7 @@ export type FunctionName =
   | "invite-accept"
   | "client-create"
   | "password-set"
+  | "client-password-reset"
   | "content-publish-batch"
   | "site-embed-check"
   | "builder-publish";

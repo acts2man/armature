@@ -2,8 +2,10 @@
  * The frame around every signed-in screen: a dark ink sidebar on the left, the screen on
  * the right, WordPress-admin style.
  *
- *   - Outside a site, agency staff get the agency menu (Projects, Change requests, Team,
- *     Settings) under the Armature wordmark.
+ *   - Outside a site, agency staff get the agency menu (Projects, Change requests, Clients,
+ *     Team, Settings) under the Armature wordmark.
+ *   - While staff "view as" a client (src/auth/viewAs.ts) the shell is the client's, with a
+ *     banner across the top (src/components/ViewAsBanner.tsx) and an Exit back to Clients.
  *   - Inside a site (/sites/:id/*) everyone gets that site's menu (src/components/siteNav.ts)
  *     with the site's name and a site switcher (src/components/SiteSwitcher.tsx) at the
  *     top; staff also get "Back to Projects" above them. Agency-only things live under
@@ -23,11 +25,12 @@ import { isHostingOnly } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { OPEN_CHANGE_REQUEST_STATUSES, SITE_ROLE_LABELS, type Agency } from "@/lib/types.ts";
 import type { IconProps } from "./icons.tsx";
-import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconLogout, IconMenu, IconSettings, IconTeam, WireA } from "./icons.tsx";
+import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconLogout, IconMenu, IconSettings, IconTeam, IconUser, WireA } from "./icons.tsx";
 import { useIsStaffFor, useSiteQuery } from "./SiteLayout.tsx";
 import { siteNavItems } from "./siteNav.ts";
 import { SiteSwitcher } from "./SiteSwitcher.tsx";
 import type { SiteOption } from "./siteSwitch.ts";
+import { ViewAsBanner } from "./ViewAsBanner.tsx";
 import { useUnreadCount } from "@/hooks/useMessages.ts";
 import { CountBadge, Drawer, Monogram, Notice, Skeleton } from "./ui.tsx";
 
@@ -192,6 +195,7 @@ function AgencySidebarContent({ collapsed, onNavigate }: SidebarProps) {
   const items: NavItem[] = [
     { key: "projects", to: "/projects", label: "Projects", icon: IconGlobe },
     { key: "agency-requests", to: "/agency/requests", label: "Change requests", icon: IconBranch, badge: openCount },
+    { key: "agency-clients", to: "/agency/clients", label: "Clients", icon: IconUser },
     { key: "agency-team", to: "/agency/team", label: "Team", icon: IconTeam },
     { key: "agency-settings", to: "/agency/settings", label: "Settings", icon: IconSettings },
   ];
@@ -430,6 +434,8 @@ export function AppShell() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-control focus:bg-panel focus:px-3 focus:py-2">
         Skip to content
       </a>
+
+      <ViewAsBanner />
 
       {/* Top bar, below 900px only */}
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 bg-ink px-3 text-white shell:hidden">
