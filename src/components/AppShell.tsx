@@ -25,7 +25,7 @@ import { isHostingOnly } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { OPEN_CHANGE_REQUEST_STATUSES, SITE_ROLE_LABELS, type Agency } from "@/lib/types.ts";
 import type { IconProps } from "./icons.tsx";
-import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconHelp, IconLogout, IconMenu, IconSettings, IconTeam, IconUser, WireA } from "./icons.tsx";
+import { IconArrowLeft, IconBranch, IconCheck, IconChevronDown, IconGlobe, IconHelp, IconLogout, IconMenu, IconSettings, IconTeam, IconUser, WireA } from "./icons.tsx";
 import { useIsStaffFor, useSiteQuery } from "./SiteLayout.tsx";
 import { siteNavItems } from "./siteNav.ts";
 import { SiteSwitcher } from "./SiteSwitcher.tsx";
@@ -194,6 +194,7 @@ function AgencySidebarContent({ collapsed, onNavigate }: SidebarProps) {
 
   const items: NavItem[] = [
     { key: "projects", to: "/projects", label: "Projects", icon: IconGlobe },
+    { key: "getting-started", to: "/getting-started", label: "Getting started", icon: IconCheck },
     { key: "agency-requests", to: "/agency/requests", label: "Change requests", icon: IconBranch, badge: openCount },
     { key: "agency-clients", to: "/agency/clients", label: "Clients", icon: IconUser },
     { key: "agency-team", to: "/agency/team", label: "Team", icon: IconTeam },

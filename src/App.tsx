@@ -11,6 +11,7 @@ import { AgencyRequests } from "@/pages/AgencyRequests.tsx";
 import { AgencySettings } from "@/pages/AgencySettings.tsx";
 import { AgencyTeam } from "@/pages/AgencyTeam.tsx";
 import { AgencyHelp, ClientHelp } from "@/pages/Help.tsx";
+import { GettingStarted } from "@/pages/GettingStarted.tsx";
 import { ChangeRequestDetail } from "@/pages/ChangeRequestDetail.tsx";
 import { ChangeRequests } from "@/pages/ChangeRequests.tsx";
 import { ChoosePassword } from "@/pages/ChoosePassword.tsx";
@@ -72,6 +73,7 @@ const router = createBrowserRouter([
                 element: <RequireStaff />,
                 children: [
                   { path: "/projects", element: <Projects /> },
+                  { path: "/getting-started", element: <GettingStarted /> },
                   { path: "/sites/new", element: <AddSite /> },
                   { path: "/agency/requests", element: <AgencyRequests /> },
                   { path: "/agency/clients", element: <AgencyClients /> },
