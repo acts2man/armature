@@ -35,6 +35,7 @@
 import { createBridge, PROTOCOL_VERSION, type SiteSchemaLike } from "./bridge.ts";
 import { LIBRARY_WIDGETS, registerLibrary } from "./library/index.ts";
 import { setKitRuntime, type KitRuntime } from "./renderer.tsx";
+import { installStatsBeacon } from "./stats.ts";
 import { createKitStore, type ContentTree, type LinkValue, type ListValue } from "./store.ts";
 import type { LayoutDoc, PostDoc, PostIndex, SiteKit } from "./types.ts";
 import { CORE_WIDGETS, registerWidgets, type WidgetRender } from "./widgets.tsx";
@@ -81,6 +82,12 @@ export type ArmatureKitConfig = {
    * show a note instead of sending.
    */
   forms?: { endpoint: string; siteId: string };
+  /**
+   * Turn on the cookie-free visitor beacon. Sends one payload per page load and per
+   * client-side navigation to the stats-ingest edge function. No cookies, no IP
+   * storage; respects Do Not Track and Global Privacy Control.
+   */
+  stats?: { endpoint: string; siteId: string };
 };
 
 export type ArmatureKit = {
@@ -112,6 +119,12 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
   };
   setKitRuntime(runtime);
   const bridge = createBridge({ allowedOrigins: config.allowedOrigins, schema: config.schema, store, kitVersion: KIT_VERSION, navigate: config.navigate, slots: runtime.slots, onSlotsChange: runtime.onSlotsChange });
+
+  // Cookie-free visitor beacon. Off unless the site opts in with a stats config, and
+  // never runs in edit mode (the bridge sets that once the editor connects).
+  if (config.stats && /^https:\/\/[^\s]+$/i.test(config.stats.endpoint) && /^[0-9a-f-]{36}$/i.test(config.stats.siteId)) {
+    installStatsBeacon(config.stats);
+  }
 
   const itemTypes = new Map<string, Record<string, string>>();
   for (const page of config.schema?.pages ?? []) {
@@ -171,6 +184,7 @@ export { ArmaturePage, ArmatureRoute, ArmatureSlot, ArmatureChrome, ArmatureHead
 export { ArmaturePost, ArmaturePostList, useBuilderPosts } from "./posts.tsx";
 export { computePageHead, renderHeadHtml, sitemapXml, robotsTxt, absoluteUrl, applyTitlePattern, structuredDataLd, type HeadTag, type PageHeadOpts, type SitemapEntry } from "./seo.ts";
 export { rssXml } from "./rss.ts";
+export { installStatsBeacon, sendBeacon, buildBeaconPayload, shouldSkipBeacon, type StatsConfig, type BeaconPayload } from "./stats.ts";
 export { CHROME_SLUGS, isChromeSlug, chromeSlug } from "./types.ts";
 export { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
 export { Icon } from "./icon.tsx";

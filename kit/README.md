@@ -272,6 +272,39 @@ five minutes; when the moment arrives it re-commits the file (identical
 bytes), Netlify rebuilds, and the site starts showing it. The kit filters
 scheduled posts out of `ArmaturePost` and `ArmaturePostList` until then.
 
+## Stats: cookie-free visitor numbers (kit 2.7+)
+
+Off by default; on with one config line:
+
+```ts
+createArmatureKit({
+  /* … */
+  stats: {
+    endpoint: "https://<project>.supabase.co/functions/v1/stats-ingest",
+    siteId: "<site id from Armature Projects>",
+  },
+});
+```
+
+The beacon sends one payload per page load and per client-side navigation — the
+path, the referrer's domain (only when it isn't your own), the device (mobile /
+tablet / desktop) and a screen-size bucket (xs / sm / md / lg / xl). No cookies
+are set; no personal data is stored. Bots, the editor preview (`?armature=edit`),
+prerendering, Do Not Track and Global Privacy Control are all skipped
+automatically.
+
+On the server the edge function checks the request's origin against the site's
+`live_url`, rate-limits each visitor (120 per minute per site) and stores the
+event with a **daily-rotating salted hash of IP + user-agent** — the IP itself
+is never stored. A nightly `pg_cron` job (`rollup_site_stats_daily`) rolls raw
+events up into per-day totals and prunes raw events older than 30 days, so the
+database stays small.
+
+The dashboard's **Stats** screen (in the site menu, right after Dashboard) reads
+`public.site_stats_daily` under RLS and shows totals, top pages, top referrers
+and devices. Each site's stats are visible only to that site's members and the
+agency.
+
 ## SEO: head tags Google actually sees
 
 Every page has its own SEO fields in the editor's Page settings (search title,
