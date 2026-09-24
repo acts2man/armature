@@ -60,9 +60,14 @@ export function NeedsSetupCard({ site, supabaseUrl }: { site: Site; supabaseUrl:
         <p className="text-[14px] leading-relaxed text-text">
           The repository is connected, but the Armature files (content, schema and kit) aren't there yet. That's a one-time step. Copy the prompt below, open <a href="https://claude.ai/code" target="_blank" rel="noreferrer" className="text-primary underline">Claude Code on the web</a>, pick this repo and paste it in.
         </p>
-        <p className="text-[13px] text-muted">
-          Claude Code works directly on <span className="font-mono">{site.branch}</span>. Before it pushes it builds the site, takes screenshots of every page, does the setup, takes screenshots again and compares them page by page. Nothing gets pushed unless every page matches. If anything looks wrong on the live site once it lands, Site settings → Undo setup restores the pre-setup state as one revert commit.
-        </p>
+        <div className="rounded-card border border-line bg-panel p-3 text-[13px] leading-relaxed text-text" data-testid="needs-setup-heads-up">
+          <p className="font-semibold">Heads up before you paste:</p>
+          <ul className="mt-1 list-disc space-y-1 pl-5">
+            <li>This is a big Claude Code session — similar in size to converting a whole site. Give it room and don't cancel it partway.</li>
+            <li>Nothing changes on the live site until every page passes. Claude builds the site as it is today, takes screenshots and DOM snapshots of every page, does the setup, rebuilds and compares — no push until everything matches. Claude works directly on <span className="font-mono">{site.branch}</span>.</li>
+            <li>If anything looks wrong on the live site once it lands, Site settings → Undo setup restores the pre-setup state as one revert commit.</li>
+          </ul>
+        </div>
         <div className="flex flex-col gap-2" data-testid="setup-prompt">
           <textarea
             readOnly

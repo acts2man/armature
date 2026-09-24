@@ -149,41 +149,53 @@ export const GETTING_STARTED_SECTIONS: readonly Section[] = [
     key: "set-up-site",
     title: "3. Set up the site with the 'Set up this site' prompt",
     what:
-      "One-time per site. Claude Code writes the Armature files (schema, pages, kit) directly on the site's connected branch. There is no test branch: before it pushes, Claude builds the site as it is today, takes screenshots of every page, does the setup, takes screenshots again, and compares them page-by-page (pixels, visible text, links, image alts and head tags). Nothing gets pushed unless every page matches. If anything goes wrong once it lands, Site settings → Undo setup restores the pre-setup state as one revert commit.",
+      "One-time per site. The prompt is a big Claude Code session (similar in size to converting a whole site), and it does everything itself: clones the real Armature repository into a temp folder outside the site repo, copies the kit folder VERBATIM (it never writes kit files itself), writes content/schema.json, content/pages.json, content/site-kit.json mirroring the site's brand, converts every coded section into builder elements under content/layouts/, wires <ArmatureChrome> for the header and footer, adds <ArmatureRoute> before the 404 and turns on the kit's SEO output. Before it pushes, Claude builds the site as it is today, takes screenshots and DOM snapshots of every page, does the setup, rebuilds and compares them page by page — pixels, visible text, links, image alts, head tags — and runs a local edit-mode handshake. Nothing gets pushed unless every check passes. If anything looks wrong once it lands, Site settings → Undo setup restores the pre-setup state as one revert commit.",
     steps: [
       {
         text:
-          "Open the site with the Needs setup pill. Its Dashboard shows a 'Set up this site' card with a ready-to-paste prompt.",
+          "Open the site with the Needs setup pill. Its Dashboard shows a 'Set up this site' card with a heads-up (this is a big session — give it room) and a ready-to-paste prompt.",
         screenshot: "03-setup-card",
-        caption: "The site Dashboard with the 'Set up this site' card and its Copy prompt button.",
+        caption: "The site Dashboard with the 'Set up this site' card, the heads-up notice and the Copy prompt button.",
       },
       {
         text:
-          "Press 'Copy prompt'. Then open Claude Code on the web, pick this same repository, and paste. Claude works directly on the connected branch and takes BEFORE screenshots of every page before it changes anything.",
+          "Press 'Copy prompt'. Then open Claude Code on the web, pick this same repository, and paste. Claude first runs `git clone` against the real Armature repo into /tmp/armature-source and reads kit/README.md, docs/SITE_CONTRACT.md and docs/AUDIT.md so it follows the right path for the site's framework.",
         screenshot: "03-setup-claude-code",
-        caption: "The Claude Code screen with the pasted prompt; the terminal below shows the BEFORE screenshots being captured page by page.",
+        caption: "The Claude Code terminal showing the git clone of Armature into /tmp/armature-source, and the README being opened.",
       },
       {
         text:
-          "Claude does the setup, rebuilds, and takes AFTER screenshots. It compares them: no more than 0.5% pixel difference per page, and the visible text, links, image alt attributes and head tags must match exactly. Only when every page passes does it push.",
+          "Claude works directly on the connected branch. It copies the kit folder from the clone verbatim (never rewriting a kit file by hand), then writes the content files, converts each coded section into builder elements, adds ArmatureChrome, ArmatureRoute and the SEO helpers. Live-data sections stay coded and register as site sections.",
+        screenshot: "03-setup-full",
+        caption: "The list of files Claude has changed: the kit folder, content/schema.json, content/pages.json, content/site-kit.json, content/layouts/*.json and the src wiring.",
+      },
+      {
+        text:
+          "Claude rebuilds the production version, takes AFTER screenshots, and compares them page by page (≤ 0.5% pixel difference per page, visible text / links / alt / head tags match exactly). It also runs a local edit-mode handshake with a temporarily allowlisted localhost parent (reverted before the push). Only when every check passes does it push.",
         screenshot: "03-setup-verify",
-        caption: "The BEFORE / AFTER comparison in Claude Code's terminal, page by page.",
+        caption: "The BEFORE / AFTER comparison in Claude Code's terminal, page by page, ending with the edit-mode handshake pass.",
       },
       {
         text:
-          "Once Claude pushes and Netlify rebuilds, Armature reads the new data-armature-kit attribute on the site's HTML and flips the site from Needs setup to Connected on its own — no button to press. If anything looks wrong, open Site settings → Undo setup to restore the pre-setup state as one revert commit.",
+          "If Claude runs low on context BEFORE every check passes, it pushes to a wip branch (armature/wip-setup) and stops — the connected branch never sees a partial setup. Type 'continue' in a fresh session and Claude picks up from that branch. When everything finally passes it merges into the connected branch.",
+        screenshot: "03-setup-wip",
+        caption: "Claude's message: 'Setup isn't finished. Type continue and I'll pick up where I stopped.' The wip branch is visible on GitHub.",
+      },
+      {
+        text:
+          "Once Claude pushes to the connected branch and Netlify rebuilds, Armature reads the new data-armature-kit attribute on the site's HTML and flips the site from Needs setup to Connected on its own — no button to press. If anything looks wrong, open Site settings → Undo setup to restore the pre-setup state as one revert commit.",
         screenshot: "03-setup-connected",
         caption: "The Kit card on Site settings turning green as the site flips from Needs setup to Connected, with Undo setup right below.",
       },
     ],
     cost:
-      "One Netlify build per push. Netlify's Starter and free plans include a fixed number of build minutes each month; paid plans include unlimited builds. The BEFORE / AFTER screenshots run locally on the machine running Claude Code — no Netlify build is used for them.",
+      "One Netlify build per push. Netlify's Starter and free plans include a fixed number of build minutes each month; paid plans include unlimited builds. The BEFORE / AFTER screenshots and the edit-mode handshake run locally on the machine running Claude Code — no Netlify build is used for them.",
     troubleshoot:
-      "Claude stopped without pushing and said a page didn't match. That's working as intended. Read the diff line it printed (the pixel difference percentage, or the first line of the text / link / alt / head diff), tell Claude what to fix (usually a still-coded section wrapper that changed a class, or a head tag the kit hasn't been asked to render yet), and re-run the prompt. Something looks wrong on the live site after Claude pushed. Open Site settings → Undo setup: one confirmation and Armature commits the pre-setup files back to the connected branch as a single revert. Netlify rebuilds once and the live site is back to how it was.",
+      "Claude said it can't clone Armature. Check that /tmp/armature-source is writable and that the Armature repository URL in the prompt is reachable from the machine running Claude Code (a private mirror would need credentials). Claude stopped without pushing and said a page didn't match. That's working as intended. Read the diff line it printed (the pixel difference percentage, or the first line of the text / link / alt / head diff), tell Claude what to fix (usually a still-coded section wrapper that changed a class, or a head tag the kit hasn't been asked to render yet), and re-run the prompt. Claude pushed to armature/wip-setup and stopped. That's the running-out-of-room safety net — the connected branch is untouched. Open Claude Code again on the same repo, type 'continue', and Claude picks up from the wip branch. Something looks wrong on the live site after Claude pushed. Open Site settings → Undo setup: one confirmation and Armature commits the pre-setup files back to the connected branch as a single revert. Netlify rebuilds once and the live site is back to how it was.",
     video: {
       placeholder: "Set up a site with Claude Code, direct-to-connected-branch with BEFORE / AFTER verification.",
       captions:
-        "Copy prompt, paste into Claude Code, watch BEFORE screenshots capture every page, the setup run, AFTER screenshots capture the same pages, the comparison pass and the push land.",
+        "Copy prompt, paste into Claude Code, watch the git clone of the real Armature, the kit folder copied verbatim, the content files written, the layouts converted, BEFORE screenshots captured, the setup rebuilt, AFTER screenshots compared and the push land.",
     },
   },
   {
