@@ -29,7 +29,9 @@ export type FunctionName =
   | "builder-publish"
   | "kit-status"
   | "update-kit"
-  | "finish-setup";
+  | "undo-kit-update"
+  | "finish-setup"
+  | "agency-getting-started";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });
 

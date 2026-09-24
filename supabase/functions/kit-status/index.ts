@@ -2,6 +2,11 @@
  * kit-status — for a site, returns what kit version is in the repo, what's live,
  * and the verdict the UI uses to draw the Kit panel. Agency staff only (a client
  * has no reason to know or care what version their site's kit is on).
+ *
+ * On success, the snapshot columns on public.sites (kit_version_in_repo,
+ * kit_version_live, kit_verdict, kit_probed_at) are written back so the
+ * Projects Kit column stays current without every render hitting GitHub +
+ * the live URL again.
  */
 import { adminClient, loadAccessibleSite, requireAgencyMember, resolveCaller } from "../_shared/auth.ts";
 import { denoEnv } from "../_shared/env.ts";
@@ -42,6 +47,24 @@ Deno.serve(
       }
     };
     const status = await resolveKitStatus({ kitPath, liveUrl: site.live_url, read });
+
+    // Snapshot the result back on public.sites so Projects can render the Kit column without
+    // hitting GitHub for every row. The write is best-effort — if RLS or the network refuses,
+    // the caller still gets the fresh status.
+    try {
+      await admin
+        .from("sites")
+        .update({
+          kit_version_in_repo: status.inRepo,
+          kit_version_live: status.live,
+          kit_verdict: status.verdict,
+          kit_probed_at: new Date().toISOString(),
+        })
+        .eq("id", site.id);
+    } catch (err) {
+      console.error("[kit-status] could not update site snapshot columns:", err instanceof Error ? err.message : err);
+    }
+
     return { ok: true, status };
   }),
 );

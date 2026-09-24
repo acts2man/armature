@@ -7,6 +7,9 @@
 #   - run-scheduled-posts: called by pg_cron via pg_net with a random Vault token
 #     in X-Armature-Token, not a JWT. The function verifies the token against
 #     Vault before doing anything and short-circuits otherwise.
+#   - check-kit-live: same Vault-token pattern as run-scheduled-posts; called
+#     every two minutes by pg_cron to poll the live-URL data-armature-kit for
+#     rows still in commit_pushed/undo_pushed.
 # The functions import the repo-root shared/ folder, which needs the API-based
 # bundler: deploy with `supabase functions deploy --use-api` (CLI 2.13.3 or newer).
 
@@ -47,4 +50,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.run-scheduled-posts]
+verify_jwt = false
+
+[functions.check-kit-live]
 verify_jwt = false

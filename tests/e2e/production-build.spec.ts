@@ -205,4 +205,59 @@ test.describe("a production build with \"sideEffects\": false", () => {
       rmSync(site, { recursive: true, force: true });
     }
   });
+
+  /**
+   * The Update kit guarantee: any site whose developer wired the OLD `stats` option in an
+   * earlier kit release must keep building on the new kit without a code change. This test
+   * lays the demo site out as a real site with that wiring, runs a production build, opens
+   * the home page and asserts data-armature-kit is stamped by the current kit — proving the
+   * stats no-ops in kit/stats.ts still keep old sites building and rendering.
+   */
+  test("an old site wired for the removed `stats` option still builds and stamps data-armature-kit", async ({ page }) => {
+    test.setTimeout(240_000);
+    layOutAsRealSite();
+    let server: Server | null = null;
+    try {
+      const armaturePath = join(site, "src", "armature.ts");
+      const original = readFileSync(armaturePath, "utf8");
+      const withStats = original.replace(
+        "export const armature = createArmatureKit({",
+        `export const armature = createArmatureKit({
+  // Old wiring, from kit 2.5.0 through 2.8.x. The kit now no-ops this: nothing
+  // is sent, nothing is stored, but the build must not fail on the extra option.
+  stats: { endpoint: (import.meta.env.VITE_ARMATURE_STATS_ENDPOINT as string | undefined) ?? "https://example.test/stats", siteId: (import.meta.env.VITE_ARMATURE_STATS_SITE_ID as string | undefined) ?? "22222222-2222-4222-8222-222222222222" },`,
+      );
+      expect(withStats).not.toEqual(original);
+      writeFileSync(armaturePath, withStats);
+
+      try {
+        execFileSync(process.execPath, [viteBin, "build", "--outDir", "dist", "--emptyOutDir", "--logLevel", "warn"], { cwd: site, stdio: "pipe" });
+      } catch (error) {
+        const failed = error as { stdout?: Buffer; stderr?: Buffer };
+        throw new Error(`vite build failed with the old stats wiring:\n${failed.stdout?.toString() ?? ""}\n${failed.stderr?.toString() ?? ""}`, { cause: error });
+      }
+      const dist = join(site, "dist");
+      expect(existsSync(join(dist, "index.html"))).toBe(true);
+
+      server = await serve(dist);
+      const origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+      // Refuse every outbound request (Google Fonts, the map, the stats endpoint that no
+      // longer exists). The page must render without a working network for it.
+      await page.route(/^https?:\/\//, (route) => (route.request().url().startsWith(origin) ? route.continue() : route.abort()));
+
+      const pageErrors: string[] = [];
+      page.on("pageerror", (error) => pageErrors.push(String(error)));
+
+      await page.goto(`${origin}/`, { waitUntil: "domcontentloaded" });
+      // data-armature-kit stamp proves ArmaturePage ran with the current kit.
+      const stamped = await page.evaluate(() => document.documentElement.getAttribute("data-armature-kit"));
+      expect(stamped, "the current kit must stamp data-armature-kit on the live HTML").toMatch(/^\d+\.\d+\.\d+/);
+      // The bridge in kit/bridge.ts must still connect (posts an armature:ready message to
+      // its own window, without a parent — verifies the runtime code path).
+      expect(pageErrors).toEqual([]);
+    } finally {
+      server?.close();
+      rmSync(site, { recursive: true, force: true });
+    }
+  });
 });

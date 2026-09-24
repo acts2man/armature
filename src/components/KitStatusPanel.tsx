@@ -1,20 +1,34 @@
 /**
  * The Kit status panel for a site's Site settings › Connection tab. Shows what
- * kit version is in the site's repo, what is actually live, and the current
+ * kit version is in the site's repo, what's actually live, and the current
  * release; the verdict decides which action shows (Set up this site, Update
- * kit, or nothing). Agency staff only — a client never opens this screen.
+ * kit, or nothing).
+ *
+ * After an Update kit or Undo commit lands, the panel:
+ *   - Polls kit_updates (via Supabase) every ten seconds so the "watching the
+ *     live version…" tile progresses without a page reload.
+ *   - Kicks kit-status once every minute to refresh the live probe (up to
+ *     fifteen minutes). The server-side cron takes over between page loads.
+ *
+ * Undo restores the previous version's commit as a new commit — never a
+ * force-push. It is offered on any kit_updates row that has not already been
+ * undone AND has a stored previous_commit_sha.
+ *
+ * Agency staff only — a client never opens this screen.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KIT_RELEASES } from "@kit/index.ts";
 import { IconCheck, IconAlert, IconChart, IconExternal, IconGithub } from "@/components/icons.tsx";
 import { Button, Modal, Notice, Panel, Pill } from "@/components/ui.tsx";
+import { relativeTime } from "@/lib/format.ts";
 import { callFunction, isFailure } from "@/lib/functions.ts";
 import { buildSetupPrompt } from "@/lib/kitSetupPrompt.ts";
 import { supabase } from "@/lib/supabase.ts";
-import type { Site } from "@/lib/types.ts";
+import type { KitUpdateRow, Site } from "@/lib/types.ts";
 
-type UpdateKitResult = { ok: true; from: string | null; to: string; commit: { sha: string; url: string }; changed: { added: number; changed: number; removed: number } };
+type UpdateKitResult = { ok: true; from: string | null; to: string; commit: { sha: string; url: string }; changed: { added: number; changed: number; removed: number }; update_id: string | null };
+type UndoResult = { ok: true; commit: { sha: string; url: string }; restored_version: string | null; update_id: string | null };
 
 type KitStatusVerdict = "not_installed" | "needs_setup" | "update_available" | "up_to_date";
 
@@ -41,10 +55,20 @@ const VERDICT_LABEL: Record<KitStatusVerdict, string> = {
   not_installed: "Not installed",
 };
 
-function useKitStatus(siteId: string, enabled: boolean) {
+const KIT_UPDATE_STATUS_LABEL: Record<KitUpdateRow["status"], { label: string; tone: "amber" | "green" | "danger" | "blue" | "grey" }> = {
+  commit_pushed: { label: "Watching the live version…", tone: "amber" },
+  live_confirmed: { label: "Up to date", tone: "green" },
+  needs_attention: { label: "Needs attention", tone: "danger" },
+  undo: { label: "Undone", tone: "grey" },
+  undo_pushed: { label: "Watching the Undo…", tone: "amber" },
+  undo_confirmed: { label: "Restored", tone: "green" },
+};
+
+function useKitStatus(siteId: string, enabled: boolean, refetchInterval: number | false) {
   return useQuery({
     queryKey: ["kit-status", siteId],
     enabled,
+    refetchInterval,
     queryFn: async () => {
       const result = await callFunction<{ ok: true; status: KitStatus }>("kit-status", { site_id: siteId });
       if (isFailure(result)) throw new Error(result.message);
@@ -54,14 +78,38 @@ function useKitStatus(siteId: string, enabled: boolean) {
   });
 }
 
+/**
+ * Live view of kit_updates for a site. Rows tell the panel whether the last
+ * update is still being watched or has finished, and drive the Undo button.
+ */
+function useKitUpdates(siteId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["kit-updates", siteId],
+    enabled,
+    refetchInterval: 10_000,
+    queryFn: async (): Promise<KitUpdateRow[]> => {
+      const { data, error } = await supabase.from("kit_updates").select("*").eq("site_id", siteId).order("created_at", { ascending: false }).limit(10);
+      if (error) throw new Error(error.message);
+      return (data ?? []) as KitUpdateRow[];
+    },
+    staleTime: 5_000,
+  });
+}
+
 export function KitStatusPanel({ site }: { site: Site }) {
-  const status = useKitStatus(site.id, site.status !== "hosting_only");
   const [pathDraft, setPathDraft] = useState(site.kit_path ?? "src/lib/armature-kit");
   const [setupOpen, setSetupOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [overwrite, setOverwrite] = useState(false);
   const [copied, setCopied] = useState<"idle" | "copied">("idle");
+  const [confirmUndoId, setConfirmUndoId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // While a commit is being watched the panel polls kit-status once a minute so the "live" number
+  // catches up as soon as Netlify rebuilds; otherwise it goes back to a lazy read.
+  const updates = useKitUpdates(site.id, site.status !== "hosting_only");
+  const anyWatching = (updates.data ?? []).some((row) => row.status === "commit_pushed" || row.status === "undo_pushed");
+  const status = useKitStatus(site.id, site.status !== "hosting_only", anyWatching ? 60_000 : false);
 
   const savePath = useMutation({
     mutationFn: async () => {
@@ -80,8 +128,34 @@ export function KitStatusPanel({ site }: { site: Site }) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["kit-status", site.id] });
+      void queryClient.invalidateQueries({ queryKey: ["kit-updates", site.id] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
+
+  const undo = useMutation({
+    mutationFn: async (updateId: string) => {
+      const result = await callFunction<UndoResult>("undo-kit-update", { update_id: updateId });
+      if (isFailure(result)) throw new Error(result.message);
+      return result;
+    },
+    onSuccess: () => {
+      // The modal keeps the confirmation open so the reader can see the "Undone" line
+      // (and the commit link) before pressing Close. Cache invalidations fire straight
+      // away so the panel below shows the new Undo row.
+      void queryClient.invalidateQueries({ queryKey: ["kit-status", site.id] });
+      void queryClient.invalidateQueries({ queryKey: ["kit-updates", site.id] });
+      void queryClient.invalidateQueries({ queryKey: ["projects"] });
+    },
+  });
+
+  useEffect(() => {
+    if (copied === "copied") {
+      const timer = setTimeout(() => setCopied("idle"), 2500);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [copied]);
 
   const prompt = status.data
     ? buildSetupPrompt({
@@ -103,7 +177,6 @@ export function KitStatusPanel({ site }: { site: Site }) {
     try {
       await navigator.clipboard.writeText(prompt);
       setCopied("copied");
-      setTimeout(() => setCopied("idle"), 2500);
     } catch {
       /* ignore */
     }
@@ -182,12 +255,63 @@ export function KitStatusPanel({ site }: { site: Site }) {
             </div>
           </div>
         )}
+
+        {(updates.data ?? []).length > 0 && (
+          <div className="mt-6 border-t border-line pt-4" data-testid="kit-updates-history">
+            <div className="text-[12px] font-semibold uppercase tracking-wide text-muted">Update history</div>
+            <ul className="mt-2 flex flex-col gap-2">
+              {(updates.data ?? []).map((row) => {
+                const label = KIT_UPDATE_STATUS_LABEL[row.status] ?? { label: row.status, tone: "grey" as const };
+                const canUndo = row.previous_commit_sha && !["undo", "undo_pushed", "undo_confirmed"].includes(row.status);
+                return (
+                  <li key={row.id} data-testid={`kit-update-${row.id}`} className="rounded-card border border-line bg-panel px-3 py-2 text-[13px]">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="flex items-center gap-2">
+                        <Pill tone={label.tone}>{label.label}</Pill>
+                        <span className="font-mono text-[12px] text-text">
+                          {row.from_version || "—"} → {row.to_version}
+                        </span>
+                        <span className="text-[12px] text-muted">{relativeTime(row.created_at)}</span>
+                      </span>
+                      <span className="flex items-center gap-2">
+                        {row.commit_url && (
+                          <a href={row.commit_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] text-primary underline">
+                            View the commit <IconExternal size={12} />
+                          </a>
+                        )}
+                        {canUndo && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setConfirmUndoId(row.id)}
+                            data-testid={`undo-kit-update-${row.id}`}
+                          >
+                            Undo
+                          </Button>
+                        )}
+                      </span>
+                    </div>
+                    {row.status === "needs_attention" && row.needs_attention_reason && (
+                      <p className="mt-2 text-[12px] text-danger" data-testid={`needs-attention-${row.id}`}>{row.needs_attention_reason}</p>
+                    )}
+                    {row.status === "commit_pushed" && row.attempts > 0 && (
+                      <p className="mt-2 text-[12px] text-muted">
+                        Checked {row.attempts} time{row.attempts === 1 ? "" : "s"}; last saw{" "}
+                        <span className="font-mono">{row.live_version_seen ?? "no data-armature-kit"}</span>.
+                      </p>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
 
       {updateOpen && status.data && (
         <Modal open={updateOpen} title={`Update ${site.name} kit ${status.data.inRepo ?? "?"} → ${status.data.current}`} onClose={() => { setUpdateOpen(false); update.reset(); }}>
           <div className="flex flex-col gap-3 p-5" data-testid="update-kit-modal">
-            {!update.data && !update.isError && (
+            {!update.data && (
               <>
                 <p className="text-[13px] text-text">
                   This replaces every file under <span className="font-mono">{site.kit_path ?? "src/lib/armature-kit"}</span> on branch <span className="font-mono">{site.branch}</span> in ONE commit. It never touches anything outside that folder.
@@ -237,6 +361,38 @@ export function KitStatusPanel({ site }: { site: Site }) {
                 </Button>
               )}
               <Button size="sm" variant="secondary" onClick={() => { setUpdateOpen(false); update.reset(); }}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {confirmUndoId && (
+        <Modal open={!!confirmUndoId} title="Undo this update?" onClose={() => { setConfirmUndoId(null); undo.reset(); }}>
+          <div className="flex flex-col gap-3 p-5" data-testid="undo-kit-modal">
+            <p className="text-[13px] text-text">
+              Undo restores the exact kit files that were on <span className="font-mono">{site.branch}</span> before this update, as a new commit on top of the current branch. Nothing is force-pushed; the update's commit stays in git history so you can Undo the Undo if you change your mind.
+            </p>
+            {undo.isError && (
+              <Notice kind="danger" title="The Undo did not go through">
+                {undo.error.message}
+              </Notice>
+            )}
+            {undo.data && (
+              <div className="text-[13px] text-green" data-testid="undo-kit-done">
+                Undone. New commit:{" "}
+                <a href={undo.data.commit.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">
+                  view <IconExternal size={12} />
+                </a>
+                . Restored version {undo.data.restored_version ?? "(unknown)"}.
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {!undo.data && (
+                <Button size="sm" onClick={() => undo.mutate(confirmUndoId)} loading={undo.isPending} data-testid="confirm-undo-kit">
+                  Undo
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => { setConfirmUndoId(null); undo.reset(); }}>Cancel</Button>
             </div>
           </div>
         </Modal>

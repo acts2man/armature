@@ -8,9 +8,11 @@ import { clsx } from "clsx";
 import { useMemo, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
-import { IconArrowDown, IconArrowUp, IconBranch, IconClock, IconGlobe, IconPlus, IconSearch } from "@/components/icons.tsx";
+import { IconArrowDown, IconArrowUp, IconBranch, IconChart, IconClock, IconGlobe, IconPlus, IconSearch } from "@/components/icons.tsx";
 import { RequestStatusPill } from "@/components/RequestStatus.tsx";
+import { UpdateAllKitsModal } from "@/components/UpdateAllKitsModal.tsx";
 import {
+  Button,
   Card,
   Cell,
   DataRow,
@@ -24,12 +26,14 @@ import {
   Panel,
   Pill,
   QuoteBlock,
+  Segmented,
   Skeleton,
   SkeletonRows,
   StatCard,
   Timeline,
 } from "@/components/ui.tsx";
 import { formatDate, formatDateTime, plural, relativeTime } from "@/lib/format.ts";
+import { KIT_VERDICT_LABEL, KIT_VERDICT_ORDER, KIT_VERDICT_TONE, kitColumnFor, type KitColumnData } from "@/lib/kitColumn.ts";
 import { formatCents } from "@/lib/money.ts";
 import { requestSteps } from "@/lib/requests.ts";
 import { SITE_STATUS_TONES, isHostingOnly, renewalState, siteStatusLabel, type RenewalState } from "@/lib/services.ts";
@@ -48,12 +52,13 @@ type ProjectsData = {
   newest: NewestRequest | null;
 };
 
-export type ProjectRow = { site: Site; openCount: number; billing: SiteBilling | undefined; renewal: RenewalState | null };
+export type ProjectRow = { site: Site; openCount: number; billing: SiteBilling | undefined; renewal: RenewalState | null; kit: KitColumnData };
 
-type SortKey = "name" | "total" | "renewal";
+type SortKey = "name" | "total" | "renewal" | "kit";
 type SortDir = "asc" | "desc";
+export type KitFilter = "all" | "update_available" | "needs_setup" | "not_installed" | "up_to_date";
 
-const COLUMNS = "2.2fr 1.1fr 1.1fr 0.9fr 1.2fr";
+const COLUMNS = "2.2fr 1.0fr 1.0fr 0.9fr 0.9fr 1.1fr";
 
 async function loadProjects(): Promise<ProjectsData> {
   const [sitesResult, requestsResult, billingResult, newestResult] = await Promise.all([
@@ -119,6 +124,22 @@ function siteLine(row: ProjectRow): string {
   return site.last_published_at ? `${repo}. Published ${relativeTime(site.last_published_at)}` : `${repo}. Not published yet`;
 }
 
+function KitCell({ row }: { row: ProjectRow }) {
+  const kit = row.kit;
+  if (!kit.verdict) return <span className="text-[13px] text-muted">n/a</span>;
+  return (
+    <Link
+      to={`/sites/${row.site.id}/settings/connection`}
+      onClick={(event) => event.stopPropagation()}
+      className="inline-flex flex-col gap-1"
+      data-testid={`projects-kit-cell-${row.site.id}`}
+    >
+      <Pill tone={KIT_VERDICT_TONE[kit.verdict]}>{KIT_VERDICT_LABEL[kit.verdict]}</Pill>
+      <span className="font-mono text-[11px] text-muted">{kit.version ?? "unknown"}</span>
+    </Link>
+  );
+}
+
 function OpenRequestsCell({ row }: { row: ProjectRow }) {
   if (row.openCount === 0) return <span className="text-[13px] text-muted">None</span>;
   return (
@@ -147,6 +168,7 @@ function SitesTable({ rows, sort, onSort }: { rows: ProjectRow[]; sort: { key: S
   const head = [
     <SortHeader key="name" label="Site" active={sort.key === "name"} dir={sort.dir} onClick={() => onSort("name")} />,
     "Status",
+    <SortHeader key="kit" label="Kit" active={sort.key === "kit"} dir={sort.dir} onClick={() => onSort("kit")} />,
     "Open requests",
     <SortHeader key="total" label="Yearly total" active={sort.key === "total"} dir={sort.dir} onClick={() => onSort("total")} />,
     <SortHeader key="renewal" label="Next renewal" active={sort.key === "renewal"} dir={sort.dir} onClick={() => onSort("renewal")} />,
@@ -170,6 +192,9 @@ function SitesTable({ rows, sort, onSort }: { rows: ProjectRow[]; sort: { key: S
                 <SiteStatusPill site={row.site} />
               </Cell>
               <Cell>
+                <KitCell row={row} />
+              </Cell>
+              <Cell>
                 <OpenRequestsCell row={row} />
               </Cell>
               <Cell className="text-[14px] font-semibold">{row.billing ? formatCents(row.billing.yearly_total_cents) : <span className="font-normal text-muted">Not set</span>}</Cell>
@@ -191,6 +216,12 @@ function SitesTable({ rows, sort, onSort }: { rows: ProjectRow[]; sort: { key: S
                   <SiteStatusPill site={row.site} />
                 </span>
                 <span className="mt-0.5 block text-[12px] text-muted">{siteLine(row)}</span>
+                {row.kit.verdict && (
+                  <span className="mt-1 inline-flex items-center gap-1.5 text-[12px]">
+                    <Pill tone={KIT_VERDICT_TONE[row.kit.verdict]}>Kit · {KIT_VERDICT_LABEL[row.kit.verdict]}</Pill>
+                    {row.kit.version && <span className="font-mono text-muted">{row.kit.version}</span>}
+                  </span>
+                )}
                 <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-muted">
                   <span className="font-semibold text-text">{row.billing ? `${formatCents(row.billing.yearly_total_cents)} / year` : "No services set"}</span>
                   <span>·</span>
@@ -312,6 +343,14 @@ function ProjectsSkeleton() {
 function compare(a: ProjectRow, b: ProjectRow, key: SortKey): number {
   if (key === "name") return a.site.name.localeCompare(b.site.name);
   if (key === "total") return (a.billing?.yearly_total_cents ?? -1) - (b.billing?.yearly_total_cents ?? -1);
+  if (key === "kit") {
+    // Sort most-urgent first when the caller asks for ascending — matches the
+    // rest of the columns, where ascending means "the thing on top wants your
+    // attention". Hosting-only rows (no kit) always sink to the bottom.
+    const av = a.kit.verdict ? KIT_VERDICT_ORDER[a.kit.verdict] : -1;
+    const bv = b.kit.verdict ? KIT_VERDICT_ORDER[b.kit.verdict] : -1;
+    return bv - av || a.site.name.localeCompare(b.site.name);
+  }
   // Renewal: dated rows first (earliest first), undated last.
   const da = a.renewal?.date ?? "9999-12-31";
   const db = b.renewal?.date ?? "9999-12-31";
@@ -324,12 +363,19 @@ function matchesSearch(row: ProjectRow, needle: string): boolean {
   return hay.includes(needle);
 }
 
+function matchesKit(row: ProjectRow, filter: KitFilter): boolean {
+  if (filter === "all") return true;
+  return row.kit.verdict === filter;
+}
+
 export function Projects() {
   const { agencies } = useAuth();
   const agencyIds = [...agencies.map((membership) => membership.agency.id)].sort();
   const query = useQuery({ queryKey: ["projects", agencyIds], queryFn: loadProjects });
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
+  const [kitFilter, setKitFilter] = useState<KitFilter>("all");
+  const [updateAllOpen, setUpdateAllOpen] = useState(false);
 
   const onSort = (key: SortKey) => setSort((current) => (current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "total" ? "desc" : "asc" }));
 
@@ -340,7 +386,8 @@ export function Projects() {
       .filter((site) => agencyIds.includes(site.agency_id))
       .map((site) => {
         const billing = data.billing[site.id];
-        return { site, openCount: data.openCounts[site.id] ?? 0, billing, renewal: billing ? renewalState(billing.next_renewal_date, billing.overdue_renewal_date) : null };
+        const kit = kitColumnFor(site);
+        return { site, openCount: data.openCounts[site.id] ?? 0, billing, renewal: billing ? renewalState(billing.next_renewal_date, billing.overdue_renewal_date) : null, kit };
       });
     // agencyIds is derived from `agencies`, which is stable per session.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -363,7 +410,15 @@ export function Projects() {
     );
   } else {
     const needle = search.trim().toLowerCase();
-    const visible = rows.filter((row) => matchesSearch(row, needle)).sort((a, b) => (sort.dir === "asc" ? 1 : -1) * compare(a, b, sort.key));
+    const visible = rows.filter((row) => matchesSearch(row, needle) && matchesKit(row, kitFilter)).sort((a, b) => (sort.dir === "asc" ? 1 : -1) * compare(a, b, sort.key));
+    const kitCounts = rows.reduce<Record<KitFilter, number>>(
+      (acc, row) => {
+        acc.all += 1;
+        if (row.kit.verdict) acc[row.kit.verdict] = (acc[row.kit.verdict] ?? 0) + 1;
+        return acc;
+      },
+      { all: 0, update_available: 0, needs_setup: 0, not_installed: 0, up_to_date: 0 },
+    );
     const groups =
       agencies.length > 1
         ? [...agencies]
@@ -372,12 +427,43 @@ export function Projects() {
         : [{ title: "Client sites", rows: visible }];
 
     const searchBox = (
-      <div className="relative">
-        <label htmlFor="projects-search" className="sr-only">
-          Search sites
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <label htmlFor="projects-search" className="sr-only">
+            Search sites
+          </label>
+          <IconSearch size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <Input id="projects-search" type="search" placeholder="Search sites" value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 w-44 pl-9 text-[13px] sm:w-56" />
+        </div>
+        <div className="hidden md:block" data-testid="projects-kit-filter">
+          <Segmented
+            label="Filter by kit status"
+            value={kitFilter}
+            onChange={setKitFilter}
+            options={[
+              { value: "all", label: `All (${kitCounts.all})` },
+              { value: "update_available", label: `Update available (${kitCounts.update_available ?? 0})` },
+              { value: "needs_setup", label: `Needs setup (${kitCounts.needs_setup ?? 0})` },
+              { value: "not_installed", label: `Not installed (${kitCounts.not_installed ?? 0})` },
+            ]}
+          />
+        </div>
+        <label className="md:hidden inline-flex items-center gap-1 text-[12px] text-muted">
+          <IconChart size={14} /> Kit
+          <select
+            className="h-9 rounded-control border border-line bg-panel px-2 text-[13px]"
+            value={kitFilter}
+            onChange={(event) => setKitFilter(event.target.value as KitFilter)}
+            aria-label="Filter by kit status"
+            data-testid="projects-kit-filter-mobile"
+          >
+            <option value="all">All ({kitCounts.all})</option>
+            <option value="update_available">Update available ({kitCounts.update_available ?? 0})</option>
+            <option value="needs_setup">Needs setup ({kitCounts.needs_setup ?? 0})</option>
+            <option value="not_installed">Not installed ({kitCounts.not_installed ?? 0})</option>
+            <option value="up_to_date">Up to date ({kitCounts.up_to_date ?? 0})</option>
+          </select>
         </label>
-        <IconSearch size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-        <Input id="projects-search" type="search" placeholder="Search sites" value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 w-44 pl-9 text-[13px] sm:w-56" />
       </div>
     );
 
@@ -391,15 +477,31 @@ export function Projects() {
                 Connect a site's GitHub repository, or add a hosting-only client, and it will appear here with its status, billing and renewals.
               </EmptyState>
             ) : (
-              groups.map((group) => (
-                <Panel key={group.title} title={group.title} aside={searchBox}>
-                  {group.rows.length === 0 ? (
-                    <p className="px-5 py-4 text-[13px] text-muted">{needle ? `No sites match "${search.trim()}".` : "No sites yet for this agency."}</p>
-                  ) : (
-                    <SitesTable rows={group.rows} sort={sort} onSort={onSort} />
-                  )}
-                </Panel>
-              ))
+              groups.map((group) => {
+                const groupUpdatable = group.rows.filter((row) => row.kit.verdict === "update_available");
+                return (
+                  <Panel
+                    key={group.title}
+                    title={group.title}
+                    aside={
+                      <div className="flex flex-wrap items-center gap-2">
+                        {groupUpdatable.length > 0 && (
+                          <Button size="sm" variant="secondary" onClick={() => setUpdateAllOpen(true)} data-testid="update-all-open">
+                            Update all ({groupUpdatable.length})
+                          </Button>
+                        )}
+                        {searchBox}
+                      </div>
+                    }
+                  >
+                    {group.rows.length === 0 ? (
+                      <p className="px-5 py-4 text-[13px] text-muted">{needle ? `No sites match "${search.trim()}".` : "No sites yet for this agency."}</p>
+                    ) : (
+                      <SitesTable rows={group.rows} sort={sort} onSort={onSort} />
+                    )}
+                  </Panel>
+                );
+              })
             )}
           </div>
           <RequestPanel newest={query.data.newest} />
@@ -408,10 +510,15 @@ export function Projects() {
     );
   }
 
+  const updatable = rows.filter((row) => row.kit.verdict === "update_available").map((row) => row.site);
+
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="Projects" description="Every client site you manage, what you charge for it, and what needs you first." action={addAction} />
       {body}
+      {updateAllOpen && (
+        <UpdateAllKitsModal open={updateAllOpen} onClose={() => setUpdateAllOpen(false)} candidates={updatable} />
+      )}
     </div>
   );
 }

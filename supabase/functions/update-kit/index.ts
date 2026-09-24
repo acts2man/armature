@@ -8,7 +8,11 @@
  *
  * Refuses when the site's current kit files differ from the previous version's
  * package (local edits), unless the caller passes overwrite=true. Records the
- * outcome in public.kit_updates for the history tab.
+ * outcome in public.kit_updates for the history tab, along with:
+ *   - `previous_commit_sha`: the branch head SHA before the commit landed, so
+ *     Undo can restore the kit folder from that commit.
+ *   - The updated `sites.kit_version_in_repo` / `kit_verdict` / `kit_probed_at`
+ *     snapshot columns, so the Projects Kit column flips right away.
  */
 import { adminClient, loadAccessibleSite, requireAgencyMember, requireConnectedSite, resolveCaller } from "../_shared/auth.ts";
 import { denoEnv } from "../_shared/env.ts";
@@ -20,7 +24,7 @@ import { commitFilesFor, planKitUpdate, readCurrentKitFiles, type KitPackage } f
 import kitPackage from "./kit-package.json" with { type: "json" };
 
 Deno.serve(
-  serveJson(async (req): Promise<{ ok: true; from: string | null; to: string; commit: { sha: string; url: string }; changed: { added: number; changed: number; removed: number } }> => {
+  serveJson(async (req): Promise<{ ok: true; from: string | null; to: string; commit: { sha: string; url: string }; changed: { added: number; changed: number; removed: number }; update_id: string | null }> => {
     const env = denoEnv();
     const body = await readJsonBody(req);
     const siteId = requireUuid(body, "site_id");
@@ -73,17 +77,40 @@ Deno.serve(
       parentCommitSha: head,
     });
 
+    // Update sites.kit_version_in_repo / kit_verdict so the Projects Kit column reflects the change
+    // right away. kit_version_live stays as it was — the live watcher will refresh it when the
+    // Netlify build lands.
     try {
-      await admin.from("kit_updates").insert({
-        site_id: site.id,
-        from_version: fromVersion ?? "",
-        to_version: toVersion,
-        commit_sha: commit.commitSha,
-        commit_url: commit.commitUrl,
-        requested_by: caller.userId,
-        status: "commit_pushed",
-        status_detail: `${plan.toAdd.length} added, ${plan.toChange.length} changed, ${plan.toRemove.length} removed`,
-      });
+      await admin
+        .from("sites")
+        .update({
+          kit_version_in_repo: toVersion,
+          kit_verdict: "up_to_date",
+          kit_probed_at: new Date().toISOString(),
+        })
+        .eq("id", site.id);
+    } catch (err) {
+      console.error("[update-kit] could not update site snapshot columns:", err instanceof Error ? err.message : err);
+    }
+
+    let updateId: string | null = null;
+    try {
+      const insert = await admin
+        .from("kit_updates")
+        .insert({
+          site_id: site.id,
+          from_version: fromVersion ?? "",
+          to_version: toVersion,
+          commit_sha: commit.commitSha,
+          commit_url: commit.commitUrl,
+          previous_commit_sha: head,
+          requested_by: caller.userId,
+          status: "commit_pushed",
+          status_detail: `${plan.toAdd.length} added, ${plan.toChange.length} changed, ${plan.toRemove.length} removed`,
+        })
+        .select("id")
+        .maybeSingle();
+      updateId = ((insert.data as { id?: string } | null)?.id) ?? null;
     } catch (err) {
       console.error("[update-kit] could not record kit_updates row:", err instanceof Error ? err.message : err);
     }
@@ -94,6 +121,7 @@ Deno.serve(
       to: toVersion,
       commit: { sha: commit.commitSha, url: commit.commitUrl },
       changed: { added: plan.toAdd.length, changed: plan.toChange.length, removed: plan.toRemove.length },
+      update_id: updateId,
     };
   }),
 );

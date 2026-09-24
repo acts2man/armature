@@ -73,9 +73,29 @@ export type MockOptions = {
    * More sites next to the main one, for the site switcher: the agency looks after them all,
    * and a client is a member of them too. Each is the main site with these fields changed.
    */
-  moreSites?: { id: string; name: string; status?: "connected" | "needs_attention" | "hosting_only" }[];
+  moreSites?: { id: string; name: string; status?: "connected" | "needs_attention" | "hosting_only" | "needs_setup"; kit_version_in_repo?: string | null; kit_version_live?: string | null; kit_verdict?: "not_installed" | "needs_setup" | "update_available" | "up_to_date" | null; kit_probed_at?: string | null }[];
   /** More sites the agency looks after (hosting-only, so nothing tries to read their content), for the Clients screen. */
   extraSites?: { id: string; name: string }[];
+  /** Kit snapshot on the primary site (defaults: current release, `up_to_date`). */
+  kit?: { version_in_repo?: string | null; version_live?: string | null; verdict?: "not_installed" | "needs_setup" | "update_available" | "up_to_date" | null; probed_at?: string | null };
+  /**
+   * What kit-status answers on the wire (overrides the primary site's `kit` snapshot for
+   * the panel view). Useful for driving the Update kit modal from a fresh probe.
+   */
+  kitStatus?: { inRepo?: string | null; live?: string | null; verdict?: "not_installed" | "needs_setup" | "update_available" | "up_to_date"; reason?: string };
+  /** What update-kit returns; on "local-edits" it rejects the first call unless overwrite=true. */
+  updateKit?: "ok" | "local-edits" | "error";
+  /** What undo-kit-update returns; default "ok". */
+  undoKit?: "ok" | "error";
+  /** github-setup responses (installations + list_repositories). */
+  githubSetup?: {
+    installations?: { installation_id: number; account_login: string; account_type: "User" | "Organization" }[];
+    /** Full list of repositories to answer list_repositories with. */
+    repositories?: { installation_id: number; account_login: string; owner: string; name: string; full_name: string; private?: boolean; default_branch?: string }[];
+    /** When true, the response also carries page_cap_hit=true. */
+    pageCapHit?: boolean;
+    pageCap?: number;
+  };
 };
 
 export type MockState = {
@@ -119,9 +139,22 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     status: "connected",
     last_published_at: "2026-09-20T15:00:00Z",
     created_at: "2026-09-01T00:00:00Z",
+    kit_path: "src/lib/armature-kit",
+    kit_version_in_repo: options.kit?.version_in_repo ?? "2.9.0",
+    kit_version_live: options.kit?.version_live ?? "2.9.0",
+    kit_verdict: options.kit?.verdict ?? "up_to_date",
+    kit_probed_at: options.kit?.probed_at ?? new Date().toISOString(),
   };
 
-  const moreSites = (options.moreSites ?? []).map((extra) => ({ ...site, ...extra, status: extra.status ?? "connected" }));
+  const moreSites = (options.moreSites ?? []).map((extra) => ({
+    ...site,
+    ...extra,
+    status: extra.status ?? "connected",
+    kit_version_in_repo: extra.kit_version_in_repo === undefined ? site.kit_version_in_repo : extra.kit_version_in_repo,
+    kit_version_live: extra.kit_version_live === undefined ? site.kit_version_live : extra.kit_version_live,
+    kit_verdict: extra.kit_verdict === undefined ? site.kit_verdict : extra.kit_verdict,
+    kit_probed_at: extra.kit_probed_at === undefined ? site.kit_probed_at : extra.kit_probed_at,
+  }));
   const extraSites = (options.extraSites ?? []).map((extra) => ({ ...site, ...extra, repo_owner: null, repo_name: null, branch: null, live_url: null, github_installation_id: null, status: "hosting_only", last_published_at: null }));
   const allSites = () => [site, ...moreSites, ...extraSites];
 
@@ -297,6 +330,19 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           if (method === "DELETE") {
             state.rows["form_submissions"] = rows.filter((row) => !matches(row));
             return json(route, []);
+          }
+          return json(route, []);
+        }
+        case "kit_updates": {
+          const rows = (state.rows["kit_updates"] ??= []);
+          const method = request.method();
+          if (method === "GET") {
+            let shown = rows;
+            for (const [column, filter] of url.searchParams) {
+              if (column === "select" || column === "order" || column === "limit") continue;
+              if (filter.startsWith("eq.")) shown = shown.filter((row) => String(row[column]) === filter.slice(3));
+            }
+            return json(route, shown);
           }
           return json(route, []);
         }
@@ -486,6 +532,97 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
         }
         case "site-embed-check":
           return json(route, { ok: true, url: site.live_url, ...(options.embed ?? { reachable: true, status: 200, xFrameOptions: null, frameAncestors: null }) });
+        case "github-setup": {
+          const action = String(body["action"] ?? "");
+          if (action === "list_installations") {
+            const installs = options.githubSetup?.installations ?? [
+              { installation_id: 123, account_login: "acts2man", account_type: "Organization" as const },
+            ];
+            return json(route, { ok: true, action, installations: installs });
+          }
+          if (action === "list_repositories") {
+            const repos = (options.githubSetup?.repositories ?? [
+              { installation_id: 123, account_login: "acts2man", owner: "acts2man", name: site.repo_name ?? "armature", full_name: `${site.repo_owner ?? "acts2man"}/${site.repo_name ?? "armature"}`, private: false, default_branch: site.branch ?? "main" },
+            ]).map((repo) => ({
+              installation_id: repo.installation_id,
+              account_login: repo.account_login,
+              owner: repo.owner,
+              name: repo.name,
+              full_name: repo.full_name,
+              private: repo.private ?? false,
+              default_branch: repo.default_branch ?? "main",
+              configure_url: `https://github.com/organizations/${repo.account_login}/settings/installations/${repo.installation_id}`,
+            }));
+            return json(route, { ok: true, action, repositories: repos, page_cap_hit: options.githubSetup?.pageCapHit ?? false, page_cap: options.githubSetup?.pageCap ?? 50 });
+          }
+          if (action === "install_url") {
+            return json(route, { ok: true, action, url: "https://github.com/apps/armature/installations/new" });
+          }
+          return json(route, { ok: false, code: "invalid", message: `No mock for github-setup action ${action}` }, 400);
+        }
+        case "kit-status": {
+          const inRepo = options.kitStatus?.inRepo === undefined ? "2.8.0" : options.kitStatus.inRepo;
+          const live = options.kitStatus?.live === undefined ? "2.8.0" : options.kitStatus.live;
+          const verdict = options.kitStatus?.verdict ?? "update_available";
+          const current = "2.9.0";
+          const reason = options.kitStatus?.reason ?? `Update available: ${inRepo ?? "unknown"} → ${current}. No new setup step; the update is a one-click job.`;
+          return json(route, { ok: true, status: { current, inRepo, live, verdict, probed: [], pendingSteps: [], reason } });
+        }
+        case "update-kit": {
+          if (options.updateKit === "error") return json(route, { ok: false, code: "github_error", message: "GitHub answered with HTTP 502." });
+          if (options.updateKit === "local-edits" && body["overwrite"] !== true) {
+            return json(route, { ok: false, code: "invalid", message: "The site's kit folder has local edits in 1 file: src/lib/armature-kit/index.ts. Choose Overwrite to replace them." });
+          }
+          const commitSha = "e11e11e1e11e11e1e11e11e1e11e11e1e11e11e1";
+          const rows = (state.rows["kit_updates"] ??= []);
+          const id = `ku-${rows.length + 1}`;
+          rows.unshift({
+            id,
+            site_id: body["site_id"],
+            from_version: "2.8.0",
+            to_version: "2.9.0",
+            commit_sha: commitSha,
+            commit_url: `https://github.com/${site.repo_owner}/${site.repo_name}/commit/${commitSha}`,
+            previous_commit_sha: "1234567abcdef",
+            requested_by: STAFF_ID,
+            status: "commit_pushed",
+            status_detail: "12 added, 3 changed, 1 removed",
+            live_checked_at: null,
+            live_version_seen: null,
+            attempts: 0,
+            needs_attention_reason: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          return json(route, { ok: true, from: "2.8.0", to: "2.9.0", commit: { sha: commitSha, url: `https://github.com/${site.repo_owner}/${site.repo_name}/commit/${commitSha}` }, changed: { added: 12, changed: 3, removed: 1 }, update_id: id });
+        }
+        case "undo-kit-update": {
+          if (options.undoKit === "error") return json(route, { ok: false, code: "invalid", message: "This update was recorded before Armature started saving the previous commit." });
+          const commitSha = "d0dd0dd0dd0dd0dd0dd0dd0dd0dd0dd0dd0dd0dd";
+          const rows = (state.rows["kit_updates"] ??= []);
+          const idx = rows.findIndex((row) => row["id"] === body["update_id"]);
+          if (idx >= 0) rows[idx]!["status"] = "undo";
+          const newId = `ku-${rows.length + 1}`;
+          rows.unshift({
+            id: newId,
+            site_id: (rows[idx]?.["site_id"] ?? site.id) as string,
+            from_version: "2.9.0",
+            to_version: "2.8.0",
+            commit_sha: commitSha,
+            commit_url: `https://github.com/${site.repo_owner}/${site.repo_name}/commit/${commitSha}`,
+            previous_commit_sha: "e11e11e1",
+            requested_by: STAFF_ID,
+            status: "undo_pushed",
+            status_detail: "Undo",
+            live_checked_at: null,
+            live_version_seen: null,
+            attempts: 0,
+            needs_attention_reason: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          return json(route, { ok: true, commit: { sha: commitSha, url: `https://github.com/${site.repo_owner}/${site.repo_name}/commit/${commitSha}` }, restored_version: "2.8.0", update_id: newId });
+        }
         default:
           return json(route, { ok: false, code: "not_found", message: `No mock for ${name}` }, 404);
       }

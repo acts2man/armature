@@ -56,6 +56,38 @@ export type Site = {
   editing_level?: "content" | "style" | "builder";
   /** Where the Armature kit folder lives inside the site's repository. */
   kit_path?: string;
+  /**
+   * Snapshot of the last kit-status probe (migration 20260924000800). Populated
+   * by every call to the `kit-status` edge function so the Projects Kit column
+   * can render without hitting GitHub on every render. Null / missing before
+   * the first probe.
+   */
+  kit_version_in_repo?: string | null;
+  kit_version_live?: string | null;
+  kit_verdict?: KitVerdict | null;
+  kit_probed_at?: string | null;
+};
+
+export type KitVerdict = "not_installed" | "needs_setup" | "update_available" | "up_to_date";
+
+/** One row in public.kit_updates. Agency staff and site members can read; only staff writes. */
+export type KitUpdateRow = {
+  id: string;
+  site_id: string;
+  from_version: string;
+  to_version: string;
+  commit_sha: string | null;
+  commit_url: string | null;
+  previous_commit_sha: string | null;
+  requested_by: string | null;
+  status: "commit_pushed" | "live_confirmed" | "needs_attention" | "undo" | "undo_pushed" | "undo_confirmed";
+  status_detail: string | null;
+  live_checked_at: string | null;
+  live_version_seen: string | null;
+  attempts: number;
+  needs_attention_reason: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 /** What the agency charges a site for. Agency staff only; clients cannot read it. */
