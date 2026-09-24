@@ -552,6 +552,124 @@ do $$ begin
 end $$;
 reset role;
 
+-- ---------------------------------------------------------------------------
+-- 9. site-files bucket: no anonymous listing, only the site's people see rows,
+--    the totals view is scoped, and only postgres can call the nightly rollup.
+-- ---------------------------------------------------------------------------
+-- The database owner drops one file into each of A, B and C so the row visibility
+-- can be checked from every caller.
+insert into storage.objects (bucket_id, name, owner, metadata) values
+  ('site-files', '00000000-0000-0000-0000-0000000000aa/00000000-0000-0000-0000-00000000000a/media/one.webp', null, '{"size":1000}'::jsonb),
+  ('site-files', '00000000-0000-0000-0000-0000000000aa/00000000-0000-0000-0000-00000000000b/media/two.webp', null, '{"size":2000}'::jsonb),
+  ('site-files', '00000000-0000-0000-0000-0000000000bb/00000000-0000-0000-0000-00000000000c/media/three.webp', null, '{"size":3000}'::jsonb);
+
+-- Client A: sees only site A's files, and only site A's totals row.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from storage.objects where bucket_id = 'site-files') = 1, 'client A lists only their site''s files';
+  assert (select name from storage.objects where bucket_id = 'site-files') like '%/00000000-0000-0000-0000-00000000000a/%', 'client A sees the site A file';
+  assert (select count(*) from public.site_storage_totals) = 1, 'client A sees exactly one totals row (site A)';
+  assert (select total_bytes from public.site_storage_totals where site_id = '00000000-0000-0000-0000-00000000000a') = 1000, 'the totals view sums the visible file(s)';
+  -- Uploading into their own site is fine; uploading into site B is refused.
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values ('site-files', '00000000-0000-0000-0000-0000000000aa/00000000-0000-0000-0000-00000000000a/media/mine.webp', auth.uid(), '{"size":500}'::jsonb);
+  begin
+    insert into storage.objects (bucket_id, name, owner, metadata)
+    values ('site-files', '00000000-0000-0000-0000-0000000000aa/00000000-0000-0000-0000-00000000000b/media/forged.webp', auth.uid(), '{"size":500}'::jsonb);
+    raise exception 'client A was able to upload into site B''s folder';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- Agency X staff: sees both A and B files (and totals), never Y's.
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  assert (select count(*) from storage.objects where bucket_id = 'site-files') = 3, 'agency X staff list site A and site B files (A now has two rows)';
+  assert (select count(*) from public.site_storage_totals) = 2, 'agency X staff see totals for A and B only';
+  assert (select count(*) from storage.objects where bucket_id = 'site-files' and name like '%/00000000-0000-0000-0000-00000000000c/%') = 0, 'agency X staff cannot list site C files';
+end $$;
+reset role;
+
+-- Anonymous callers: no listing at all, no totals row.
+do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
+set local role anon;
+do $$ begin
+  begin
+    perform count(*) from storage.objects where bucket_id = 'site-files';
+    raise exception 'anon was able to list storage.objects (should be refused for lack of privilege)';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform count(*) from public.site_storage_totals;
+    raise exception 'anon was able to read site_storage_totals';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- The nightly rollup cannot be called by anon, authenticated, or a client.
+do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
+set local role anon;
+do $$ begin
+  begin
+    perform public.rollup_site_stats_daily();
+    raise exception 'anon was able to call rollup_site_stats_daily';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.rollup_site_stats_daily();
+    raise exception 'a client was able to call rollup_site_stats_daily';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  begin
+    perform public.rollup_site_stats_daily();
+    raise exception 'agency staff were able to call rollup_site_stats_daily';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+-- ---------------------------------------------------------------------------
+-- 10. armature_settings: RLS on, revoked from client roles; the pg_cron rollup
+--     job runs as postgres, but no service_role key is ever stored here.
+-- ---------------------------------------------------------------------------
+do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
+set local role anon;
+do $$ begin
+  begin
+    perform count(*) from public.armature_settings;
+    raise exception 'anon was able to read armature_settings';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
+do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
+set local role authenticated;
+do $$ begin
+  begin
+    perform count(*) from public.armature_settings;
+    raise exception 'agency staff were able to read armature_settings';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 -- Last login (migration 20260923000300): a sign-in on auth.users reaches the profile.
 update auth.users set last_sign_in_at = '2026-09-23T10:00:00Z' where id = (select id from public.profiles order by email limit 1);
 do $$ begin

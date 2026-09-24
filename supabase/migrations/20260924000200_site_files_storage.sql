@@ -1,12 +1,13 @@
 -- =============================================================================
--- Armature v0.1 — a public Supabase Storage bucket for site files
+-- Armature v0.1 — a Supabase Storage bucket for site files
 --
 -- One bucket for every site's uploaded pictures, PDFs and documents. Paths are
--- <agency_id>/<site_id>/<folder>/<file>. The bucket is public (Read allowed to
--- everyone) so the site can render the file straight from Supabase's CDN. Write
--- access is gated by RLS: only agency staff of the site's agency, or a member of
--- the site itself, may upload, replace or delete a file inside their site's
--- folder. The <site_id> part of the path is the authorisation key.
+-- <agency_id>/<site_id>/<folder>/<file>. The bucket is public (Supabase's CDN
+-- will serve any file by URL to anyone with the URL, so pages that embed a file
+-- load it straight from the CDN) but nothing is listable: every operation on
+-- storage.objects, select included, is gated by RLS on the site id in the path.
+-- Only agency staff of the site's agency, or a member of the site itself, may
+-- list, upload, replace or delete a file inside their site's folder.
 --
 -- Long cache headers (Cache-Control: public, max-age=31536000, immutable) are
 -- set by the uploader (see supabase/functions/_shared/storage.ts and the browser
@@ -38,14 +39,18 @@ on conflict (id) do update set
   file_size_limit = excluded.file_size_limit,
   allowed_mime_types = excluded.allowed_mime_types;
 
--- Public read: the bucket is public, but a policy is required so authenticated
--- callers hit the CDN cache too. Anonymous reads already flow through the CDN.
-create policy "site-files: public read"
-  on storage.objects for select to public
-  using (bucket_id = 'site-files');
+-- Every row in storage.objects for this bucket is gated by can_access_site on
+-- the second path segment (the site id). Anonymous callers see nothing at all,
+-- so nobody can list one client's files by iterating another client's folder.
+-- Public reads of a specific file still work — a public bucket serves files by
+-- URL without hitting storage.objects at all.
+create policy "site-files: site access read"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'site-files'
+    and public.can_access_site(public.try_uuid((storage.foldername(name))[2]))
+  );
 
--- Uploads: agency staff of the site's agency, OR a member of the site itself.
--- The second folder in the path is the site id.
 create policy "site-files: site access upload"
   on storage.objects for insert to authenticated
   with check (
@@ -72,8 +77,11 @@ create policy "site-files: site access delete"
   );
 
 -- A tiny view for the Media library and the Projects list: bytes per site, so we
--- can say "N MB used" without loading every file's metadata.
-create or replace view public.site_storage_totals as
+-- can say "N MB used" without loading every file's metadata. security_invoker
+-- means the view is filtered by the caller's own RLS on storage.objects, so the
+-- totals only cover sites the caller can access.
+create or replace view public.site_storage_totals
+  with (security_invoker = true) as
 select
   (storage.foldername(name))[2] as site_id,
   count(*)::bigint as file_count,
@@ -83,4 +91,7 @@ where bucket_id = 'site-files'
   and (storage.foldername(name))[2] is not null
 group by (storage.foldername(name))[2];
 
-comment on view public.site_storage_totals is 'File count and total bytes per site in the site-files bucket. RLS on storage.objects governs which rows a caller sees.';
+revoke all on public.site_storage_totals from anon;
+grant select on public.site_storage_totals to authenticated;
+
+comment on view public.site_storage_totals is 'File count and total bytes per site in the site-files bucket. Filtered by the caller''s RLS on storage.objects (security_invoker), so only accessible sites show up.';

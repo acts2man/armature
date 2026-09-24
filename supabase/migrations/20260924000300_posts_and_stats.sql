@@ -3,10 +3,13 @@
 --
 -- Posts:
 --   - scheduled_posts holds a row per post whose publishedAt is in the future.
---     A pg_cron job fires the run-scheduled-posts edge function every 5 minutes,
---     which picks any row whose fire_at has arrived and asks builder-publish to
---     rewrite the post file (identical bytes, just committed now so Netlify
---     rebuilds and the site starts showing it). The row is deleted after.
+--     A pg_cron job fires the run-scheduled-posts edge function every 5 minutes
+--     (scheduled separately, in the follow-up migration that enables pg_net and
+--     the Vault-based caller token, so this migration stays SQL-only and stores
+--     no secrets), which picks any row whose fire_at has arrived and asks
+--     builder-publish to rewrite the post file (identical bytes, just committed
+--     now so Netlify rebuilds and the site starts showing it). The row is
+--     deleted after.
 --
 -- Stats:
 --   - site_stats_events (raw, short-lived): every accepted beacon lands here.
@@ -29,6 +32,7 @@ create table public.scheduled_posts (
 create index scheduled_posts_fire_at_idx on public.scheduled_posts (fire_at);
 
 alter table public.scheduled_posts enable row level security;
+revoke all on public.scheduled_posts from anon;
 
 create policy "scheduled_posts: site access read"
   on public.scheduled_posts for select to authenticated
@@ -53,6 +57,7 @@ create table public.site_stats_events (
 create index site_stats_events_site_time_idx on public.site_stats_events (site_id, received_at desc);
 
 alter table public.site_stats_events enable row level security;
+revoke all on public.site_stats_events from anon;
 
 -- Rows are visible to the site's members and agency staff.
 create policy "site_stats_events: site access read"
@@ -80,6 +85,7 @@ create table public.site_stats_daily (
 create index site_stats_daily_site_day_idx on public.site_stats_daily (site_id, day desc);
 
 alter table public.site_stats_daily enable row level security;
+revoke all on public.site_stats_daily from anon;
 
 create policy "site_stats_daily: site access read"
   on public.site_stats_daily for select to authenticated
@@ -91,32 +97,10 @@ create policy "site_stats_daily: no client updates"
   on public.site_stats_daily for update to authenticated
   using (false);
 
--- --- pg_cron schedules ---------------------------------------------------------
--- These live in the "cron" schema installed by the pg_cron extension. The extension
--- is included with Supabase Pro. Uncomment the create extension line if a fresh
--- project doesn't already have it.
--- create extension if not exists pg_cron with schema public;
-
-do $$
-begin
-  if exists (select 1 from pg_extension where extname = 'pg_cron') then
-    -- Every 5 minutes: fire scheduled posts whose time has come.
-    perform cron.schedule(
-      'armature-run-scheduled-posts',
-      '*/5 * * * *',
-      'select net.http_post(url := (select value from public.armature_settings where key = ''run_scheduled_posts_url'' limit 1), headers := jsonb_build_object(''Content-Type'', ''application/json'', ''Authorization'', ''Bearer '' || (select value from public.armature_settings where key = ''service_role_key'' limit 1)))'
-    );
-    -- Every night at 02:15 UTC: roll raw events up into daily totals and prune old raw events.
-    perform cron.schedule(
-      'armature-rollup-stats',
-      '15 2 * * *',
-      'select public.rollup_site_stats_daily()'
-    );
-  end if;
-end $$;
-
 -- The nightly rollup: read yesterday's raw events, compute totals, upsert the day row,
--- then delete raw events older than 30 days.
+-- then delete raw events older than 30 days. security definer runs it as the owner so
+-- the pg_cron job (which runs as postgres) can call it; execute is revoked from every
+-- caller role so no client can invoke it via RPC.
 create or replace function public.rollup_site_stats_daily()
 returns void
 language plpgsql
@@ -181,14 +165,30 @@ begin
 end
 $$;
 
--- A tiny key/value table for the pg_cron job to find the edge function's URL and a
--- caller token. Populate it after applying the migration:
---   insert into public.armature_settings (key, value) values
---     ('run_scheduled_posts_url', 'https://<project>.supabase.co/functions/v1/run-scheduled-posts'),
---     ('service_role_key', '<service-role-jwt>');
+revoke execute on function public.rollup_site_stats_daily() from public;
+revoke execute on function public.rollup_site_stats_daily() from anon, authenticated;
+
+-- --- pg_cron: the nightly rollup only. The scheduled-posts fire schedule ships in
+-- the follow-up migration (20260924000400_scheduled_posts_dispatch.sql), which
+-- enables pg_net and stores the caller token in Supabase Vault. Nothing about
+-- scheduled-post firing depends on this key/value table, so no secrets go here.
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule(
+      'armature-rollup-stats',
+      '15 2 * * *',
+      'select public.rollup_site_stats_daily()'
+    );
+  end if;
+end $$;
+
+-- A tiny key/value table kept for internal knobs the app or future migrations
+-- may need. RLS is on and every caller role is revoked, so only postgres and
+-- the service role reach it. It ships empty: no secrets are stored here.
 create table if not exists public.armature_settings (
   key text primary key,
   value text not null
 );
 alter table public.armature_settings enable row level security;
--- Only the postgres role reads or writes it; the pg_cron job runs as postgres.
+revoke all on public.armature_settings from anon, authenticated;

@@ -45,7 +45,7 @@ A migration is a text file of database instructions. You paste each one into the
 4. In Supabase, press **SQL Editor** in the left sidebar, then **New query** (or the **+** button).
 5. Paste, then press **Run** (bottom right, or Ctrl/Cmd+Enter).
 6. Wait for the message **Success. No rows returned**. If you see an error instead, read Part G below; the usual cause is running the same file twice.
-7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then `20260922000100_hosting_and_services.sql`, then `20260923000100_forms.sql`, then `20260923000200_page_builder.sql`, then `20260923000300_profiles_last_sign_in.sql`.
+7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then `20260922000100_hosting_and_services.sql`, then `20260923000100_forms.sql`, then `20260923000200_page_builder.sql`, then `20260923000300_profiles_last_sign_in.sql`, then `20260924000100_agency_email.sql`, then `20260924000200_site_files_storage.sql` (adds the site-files bucket used by the Media library; the bucket is public so a file loads by URL, but nothing is listable — every operation on the bucket is checked against the site id in the path), then `20260924000300_posts_and_stats.sql` (Posts and Stats tables, and the nightly `armature-rollup-stats` cron job; it schedules the rollup only when `pg_cron` is already installed on the project), then `20260924000400_scheduled_posts_dispatch.sql` (installs `pg_net`, mints a random token in Supabase Vault, and schedules the every-5-minute cron that calls `run-scheduled-posts` for you — no secrets to paste).
 
 To confirm: press **Table Editor** in the left sidebar. You should see tables named `agencies`, `sites`, `publishes`, `change_requests` and a few more.
 
@@ -120,14 +120,14 @@ This repository includes a workflow called **Deploy edge functions**. It needs t
 
 From now on, every change to the functions that lands on the `main` branch deploys automatically.
 
-To confirm: in Supabase press **Edge Functions**. You should see fourteen functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `content-publish-batch`, `builder-publish`, `site-diagnose`, `site-embed-check`, `invite-create`, `invite-accept`, `client-create`, `client-password-reset`, `password-set` and `form-submit`. `form-submit` is the only one that accepts callers who are not signed in (website visitors sending a form); `supabase/config.toml` turns off its sign-in check.
+To confirm: in Supabase press **Edge Functions**. You should see seventeen functions: `github-setup`, `site-connect`, `content-get`, `content-publish`, `content-publish-batch`, `builder-publish`, `site-diagnose`, `site-embed-check`, `invite-create`, `invite-accept`, `client-create`, `client-password-reset`, `password-set`, `form-submit`, `email-test`, `run-scheduled-posts` and `stats-ingest`. `form-submit`, `stats-ingest` and `run-scheduled-posts` are the only ones that accept callers who are not signed in (`form-submit` and `stats-ingest` from website visitors; `run-scheduled-posts` from the pg_cron dispatcher, which verifies a Vault token on every call); `supabase/config.toml` turns off their sign-in checks.
 
 ### C2. The terminal way (if you prefer)
 
 1. Install Node.js (the **LTS** download at https://nodejs.org) and, on GitHub, download this repository (**Code → Download ZIP**) or clone it. Open a terminal in the repository folder.
 2. `npx supabase login` opens a browser window; approve it. This lets the tool act as you.
 3. `npx supabase link --project-ref PROJECT_REF` (use your value from A2) connects the folder to your project. It may ask for the database password from A1.
-4. `npx supabase functions deploy --use-api` uploads all fourteen functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
+4. `npx supabase functions deploy --use-api` uploads all seventeen functions. The `--use-api` flag is needed because the functions share code with the rest of this repository (the `shared/` folder); it requires Supabase CLI 2.13.3 or newer, which `npx` fetches for you.
 
 ---
 

@@ -16,6 +16,12 @@ Armature stores things in three places, each with its own limits.
   Vimeo or Wistia with the Video widget.
 - Uploads are served straight from Supabase's CDN with a long Cache-Control, so
   visitors on the same file rarely hit Supabase again.
+- **The bucket is public for reads by URL** — a page can embed a file straight
+  from the CDN — but **nothing is listable**. Only agency staff of the site's
+  agency, or a member of the site itself, can list what is in a folder. Anonymous
+  visitors, and staff of another agency, see no file names at all. The Media
+  library and the storage-total view are filtered by the same rule, so the
+  bytes-per-site count only covers sites the caller can access.
 - **Supabase Pro's included Storage** is 100 GB. The **Media library shows the
   storage each site uses** and the total across the agency, so you can spot a
   runaway site. Image transformations are OFF (they cost extra and no client
