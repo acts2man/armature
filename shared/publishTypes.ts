@@ -263,7 +263,20 @@ export type GithubSetupResponse =
   | { ok: true; action: "install_url"; url: string }
   | { ok: true; action: "record_installation"; installation: GithubInstallationSummary }
   | { ok: true; action: "list_installations"; installations: GithubInstallationSummary[] }
-  | { ok: true; action: "list_repositories"; repositories: GithubRepositorySummary[] };
+  | {
+      ok: true;
+      action: "list_repositories";
+      repositories: GithubRepositorySummary[];
+      /**
+       * True when GitHub had more pages of results than the pagination safety
+       * cap allowed (default 50 pages = 5,000 repositories). The dropdown
+       * warns the reader that a manual owner/name entry is the only way to
+       * pick a repository beyond the cap.
+       */
+      page_cap_hit: boolean;
+      /** Cap in effect for this response, for the "up to N repositories" copy. */
+      page_cap: number;
+    };
 
 // --- invites --------------------------------------------------------------------
 

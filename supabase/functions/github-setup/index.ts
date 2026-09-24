@@ -17,7 +17,8 @@ import type { GithubInstallationSummary, GithubRepositorySummary, GithubSetupRes
 import { linkedInstallationIds, requireAgencyMember, resolveCaller } from "../_shared/auth.ts";
 import { denoEnv } from "../_shared/env.ts";
 import { ArmatureError } from "../_shared/errors.ts";
-import { getInstallation, GITHUB_API, GITHUB_API_VERSION, installUrl, loadAppConfig, requestUnscopedInstallationToken, USER_AGENT } from "../_shared/githubApp.ts";
+import { getInstallation, installUrl, loadAppConfig, requestUnscopedInstallationToken } from "../_shared/githubApp.ts";
+import { DEFAULT_PAGE_CAP, listRepositoriesForInstallation } from "../_shared/githubRepositories.ts";
 import { readJsonBody, requireString, requireUuid, serveJson } from "../_shared/http.ts";
 
 Deno.serve(
@@ -107,6 +108,7 @@ Deno.serve(
       const app = loadAppConfig(env);
       const installationIds = await linkedInstallationIds(caller.supabase, agencyId);
       const repositories: GithubRepositorySummary[] = [];
+      let pageCapHit = false;
       for (const installationId of installationIds) {
         let account: { login: string; type: string } | null = null;
         try {
@@ -124,33 +126,15 @@ Deno.serve(
           continue;
         }
         if (!token) continue;
-        // GitHub returns at most 100 repositories per page; agencies with more than
-        // that get the first page (agencies of that size are rare, and the manual
-        // owner/name fallback still works). We do NOT try to paginate 10+ pages.
         try {
-          const response = await fetch(`${GITHUB_API}/installation/repositories?per_page=100`, {
-            headers: {
-              Accept: "application/vnd.github+json",
-              Authorization: `Bearer ${token}`,
-              "X-GitHub-Api-Version": GITHUB_API_VERSION,
-              "User-Agent": USER_AGENT,
-            },
+          const result = await listRepositoriesForInstallation({
+            token,
+            accountLogin: account.login,
+            accountType: account.type,
+            installationId,
           });
-          if (!response.ok) continue;
-          const body = (await response.json()) as { repositories?: { owner: { login?: string }; name: string; full_name: string; private: boolean; default_branch: string }[] };
-          for (const repo of body.repositories ?? []) {
-            const owner = repo.owner?.login ?? account.login;
-            repositories.push({
-              installation_id: installationId,
-              account_login: account.login,
-              owner,
-              name: repo.name,
-              full_name: repo.full_name,
-              private: repo.private,
-              default_branch: repo.default_branch,
-              configure_url: `https://github.com/${account.type === "Organization" ? "organizations/" + account.login + "/" : ""}settings/installations/${installationId}`,
-            });
-          }
+          repositories.push(...result.repositories);
+          if (result.page_cap_hit) pageCapHit = true;
         } catch {
           continue;
         }
@@ -164,7 +148,7 @@ Deno.serve(
         return true;
       });
       unique.sort((a, b) => a.full_name.localeCompare(b.full_name));
-      return { ok: true, action, repositories: unique };
+      return { ok: true, action, repositories: unique, page_cap_hit: pageCapHit, page_cap: DEFAULT_PAGE_CAP };
     }
 
     throw new ArmatureError("invalid", `Unknown action "${action}".`);

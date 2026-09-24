@@ -5,16 +5,18 @@
  * the repository path connects a repository to that hosting-only site in place.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
+import { clsx } from "clsx";
+import { useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { CheckList } from "@/components/CheckList.tsx";
 import { IconGithub, IconGlobe, IconRefresh } from "@/components/icons.tsx";
 import { Button, Field, Input, LinkButton, Notice, PageHeader, Panel, Pill, Segmented, Select, Skeleton, SrOnly } from "@/components/ui.tsx";
 import { callFunction } from "@/lib/functions.ts";
+import { filterRepositories } from "@/lib/repoFilter.ts";
 import { supabase } from "@/lib/supabase.ts";
 import type { Site } from "@/lib/types.ts";
-import type { GithubSetupResponse, SiteConnectRequest, SiteConnectResponse } from "@shared/publishTypes.ts";
+import type { GithubRepositorySummary, GithubSetupResponse, SiteConnectRequest, SiteConnectResponse } from "@shared/publishTypes.ts";
 
 type InstallationsResponse = Extract<GithubSetupResponse, { action: "list_installations" }>;
 type InstallUrlResponse = Extract<GithubSetupResponse, { action: "install_url" }>;
@@ -46,6 +48,127 @@ type FormState = { repo: string; branch: string; name: string; liveUrl: string }
 type FormErrors = Partial<Record<keyof FormState, string>>;
 
 const EMPTY_FORM: FormState = { repo: "", branch: "main", name: "", liveUrl: "" };
+
+const REPO_PICKER_LIMIT = 20;
+
+type RepoPickerProps = {
+  value: string;
+  onChange: (next: string) => void;
+  repositories: GithubRepositorySummary[];
+  isPending: boolean;
+  onRefetch: () => void;
+  parsed: ParsedRepo | null;
+  pageCapHit: boolean;
+  pageCap: number | null;
+};
+
+/**
+ * A combobox for the repository field: the person types into the input, a
+ * scrollable list below shows every repository whose owner or name matches the
+ * text (anywhere in the string), and clicking a row fills the input. The list
+ * also drives the count and the "Don't see it?" hint.
+ */
+export function RepoPicker({ value, onChange, repositories, isPending, onRefetch, parsed, pageCapHit, pageCap }: RepoPickerProps) {
+  const [focus, setFocus] = useState(false);
+  const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filtered = useMemo(() => filterRepositories(repositories, value), [repositories, value]);
+  const shown = filtered.slice(0, REPO_PICKER_LIMIT);
+  const total = repositories.length;
+  const showList = focus && repositories.length > 0;
+
+  return (
+    <div className="relative">
+      <Input
+        id="add-site-repo"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => {
+          if (blurTimer.current) clearTimeout(blurTimer.current);
+          setFocus(true);
+        }}
+        onBlur={() => {
+          // A click on a list row runs after blur; defer so the click can fire.
+          blurTimer.current = setTimeout(() => setFocus(false), 120);
+        }}
+        placeholder="acme/acme-site or https://github.com/acme/acme-site"
+        autoComplete="off"
+        spellCheck={false}
+        required
+        role="combobox"
+        aria-expanded={showList}
+        aria-controls="add-site-repo-listbox"
+        data-testid="add-site-repo-input"
+      />
+      {showList && (
+        <ul
+          id="add-site-repo-listbox"
+          role="listbox"
+          className="absolute z-10 mt-1 max-h-72 w-full overflow-y-auto rounded-card border border-line bg-panel shadow-lg"
+          data-testid="add-site-repo-listbox"
+        >
+          {shown.length === 0 ? (
+            <li className="px-3 py-2 text-[12px] text-muted">No repository matches your text. Try a different word.</li>
+          ) : (
+            shown.map((repo) => (
+              <li
+                key={repo.full_name}
+                role="option"
+                aria-selected={value.trim().toLowerCase() === repo.full_name.toLowerCase()}
+                data-testid={`repo-option-${repo.full_name.replace("/", "--")}`}
+              >
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    onChange(repo.full_name);
+                    setFocus(false);
+                  }}
+                  className={clsx("flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] hover:bg-ground focus:bg-ground")}
+                >
+                  <span className="font-mono">{repo.full_name}</span>
+                  <span className="text-[11px] text-muted">
+                    {repo.private ? "Private" : "Public"} · {repo.default_branch}
+                  </span>
+                </button>
+              </li>
+            ))
+          )}
+          {filtered.length > shown.length && (
+            <li className="px-3 py-2 text-[12px] text-muted">Showing the first {shown.length} of {filtered.length} matches. Type more of the name to narrow.</li>
+          )}
+        </ul>
+      )}
+      {isPending && (
+        <p className="mt-1 text-[12px] text-muted">Looking up repositories the App can see…</p>
+      )}
+      {!isPending && total === 0 && (
+        <p className="mt-1 text-[12px] text-muted" data-testid="repo-list-empty">The App can't see any repositories yet. Give it access on GitHub, then press "Check again" below.</p>
+      )}
+      {!isPending && total > 0 && (
+        <p className="mt-1 text-[12px] text-muted" data-testid="repo-list-count">
+          {total} repositor{total === 1 ? "y" : "ies"} available.{" "}
+          <button type="button" onClick={onRefetch} className="text-primary underline" data-testid="repos-refresh">Check again</button>
+        </p>
+      )}
+      {pageCapHit && pageCap && (
+        <Notice kind="warning" title={`Only the first ${pageCap * 100} repositories are shown`} className="mt-2">
+          The GitHub App can see more repositories than Armature loads at once ({pageCap} pages of 100). To pick a repository beyond the cap, type the full <span className="font-mono">owner/name</span> above by hand. Repositories loaded here still cover every install with fewer than {pageCap * 100} repositories.
+        </Notice>
+      )}
+      {!isPending && total > 0 && parsed && !repositories.some((repo) => repo.full_name.toLowerCase() === `${parsed.owner}/${parsed.name}`.toLowerCase()) && (
+        <div className="mt-2 rounded-card border border-line bg-panel p-3 text-[12px] text-text" data-testid="repo-not-listed">
+          <p className="font-semibold">Don't see <span className="font-mono">{parsed.owner}/{parsed.name}</span>?</p>
+          <p className="mt-1 text-muted">Give Armature access on GitHub: open your GitHub App installation, tick this repository under Repository access, save, then press "Check again" above.</p>
+          {repositories[0] && (
+            <p className="mt-1">
+              <a href={repositories[0].configure_url} target="_blank" rel="noreferrer" className="text-primary underline">Open installation on GitHub</a>
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function StepTitle({ number, children }: { number: number; children: ReactNode }) {
   return (
@@ -172,13 +295,20 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
     enabled: agencyId.length > 0 && (installations.data?.length ?? 0) > 0,
     // Refetch when the tab is focused so newly-granted repositories show up.
     refetchOnWindowFocus: true,
+    // Keep the last fetched list warm for five minutes so reopening Add-a-site is instant;
+    // the manual "Check again" button forces a refetch.
+    staleTime: 5 * 60_000,
     retry: false,
     queryFn: async () => {
       const result = await callFunction<RepositoriesResponse>("github-setup", { action: "list_repositories", agency_id: agencyId });
       if (!result.ok) throw new Error(result.message);
-      return result.repositories;
+      return { repositories: result.repositories, page_cap_hit: result.page_cap_hit, page_cap: result.page_cap };
     },
   });
+
+  const repositoriesList = repositories.data?.repositories ?? [];
+  const repositoriesPageCapHit = repositories.data?.page_cap_hit ?? false;
+  const repositoriesPageCap = repositories.data?.page_cap ?? null;
 
   const connect = useMutation({
     mutationFn: async (request: SiteConnectRequest) => {
@@ -204,8 +334,8 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
       // sees, seed the default branch from GitHub so they don't have to guess.
       if (key === "repo") {
         const parsedPick = parseRepo(value);
-        if (parsedPick && repositories.data) {
-          const match = repositories.data.find((repo) => repo.full_name.toLowerCase() === `${parsedPick.owner}/${parsedPick.name}`.toLowerCase());
+        if (parsedPick && repositoriesList.length > 0) {
+          const match = repositoriesList.find((repo) => repo.full_name.toLowerCase() === `${parsedPick.owner}/${parsedPick.name}`.toLowerCase());
           if (match && (previous.branch === "main" || previous.branch === "")) {
             next.branch = match.default_branch;
           }
@@ -401,39 +531,16 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
               )
             }
           >
-            <Input id="add-site-repo" value={form.repo} onChange={update("repo")} placeholder="acme/acme-site or https://github.com/acme/acme-site" autoComplete="off" spellCheck={false} list="add-site-repo-options" required />
-            {repositories.data && repositories.data.length > 0 && (
-              <datalist id="add-site-repo-options" data-testid="repo-datalist">
-                {repositories.data.map((repo) => (
-                  <option key={repo.full_name} value={repo.full_name}>
-                    {repo.private ? "Private" : "Public"} · default branch {repo.default_branch}
-                  </option>
-                ))}
-              </datalist>
-            )}
-            {repositories.isPending && (
-              <p className="mt-1 text-[12px] text-muted">Looking up repositories the App can see…</p>
-            )}
-            {repositories.data && repositories.data.length === 0 && (
-              <p className="mt-1 text-[12px] text-muted" data-testid="repo-list-empty">The App can't see any repositories yet. Give it access on GitHub, then press "Check again" below.</p>
-            )}
-            {repositories.data && repositories.data.length > 0 && (
-              <p className="mt-1 text-[12px] text-muted" data-testid="repo-list-count">
-                {repositories.data.length} repository{repositories.data.length === 1 ? "" : "ies"} available.{" "}
-                <button type="button" onClick={() => void repositories.refetch()} className="text-primary underline" data-testid="repos-refresh">Check again</button>
-              </p>
-            )}
-            {repositories.data && parsed && !repositories.data.some((repo) => repo.full_name.toLowerCase() === `${parsed.owner}/${parsed.name}`.toLowerCase()) && (
-              <div className="mt-2 rounded-card border border-line bg-panel p-3 text-[12px] text-text" data-testid="repo-not-listed">
-                <p className="font-semibold">Don't see <span className="font-mono">{parsed.owner}/{parsed.name}</span>?</p>
-                <p className="mt-1 text-muted">Give Armature access on GitHub: open your GitHub App installation, tick this repository under Repository access, save, then press "Check again" above.</p>
-                {repositories.data[0] && (
-                  <p className="mt-1">
-                    <a href={repositories.data[0].configure_url} target="_blank" rel="noreferrer" className="text-primary underline">Open installation on GitHub</a>
-                  </p>
-                )}
-              </div>
-            )}
+            <RepoPicker
+              value={form.repo}
+              onChange={(next) => update("repo")({ target: { value: next } } as unknown as ChangeEvent<HTMLInputElement>)}
+              repositories={repositoriesList}
+              onRefetch={() => void repositories.refetch()}
+              isPending={repositories.isPending}
+              parsed={parsed}
+              pageCapHit={repositoriesPageCapHit}
+              pageCap={repositoriesPageCap}
+            />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Branch" htmlFor="add-site-branch" error={errors.branch ?? null} hint="The branch the live site is built from.">
