@@ -10,7 +10,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Icon } from "../icon.tsx";
 import { safeMediaSrc } from "../sanitize.ts";
 import type { AccordionProps, CarouselProps, CountdownProps, FlipBoxProps, GalleryImage, GalleryProps, HtmlProps, MapProps, PanelItem, TabsProps, TocProps } from "../types.ts";
-import { linkAttributes, registerWidget, type WidgetContext } from "../widgets.tsx";
+import { linkAttributes, type WidgetContext, type WidgetRender } from "../widgets.tsx";
 import { Lightbox, Paragraphs, Picture, Title, useReducedMotion } from "./common.tsx";
 import { GLYPHS } from "./glyphs.ts";
 
@@ -448,13 +448,16 @@ function Html({ element, common, editMode }: WidgetContext) {
   );
 }
 
-registerWidget("accordion", Accordion);
-registerWidget("toggle", Toggle);
-registerWidget("tabs", Tabs);
-registerWidget("gallery", Gallery);
-registerWidget("carousel", Carousel);
-registerWidget("countdown", Countdown);
-registerWidget("flip-box", FlipBox);
-registerWidget("toc", Toc);
-registerWidget("map", MapWidget);
-registerWidget("html", Html);
+/** Registered by `createArmatureKit` (see library/index.ts); nothing happens at import. */
+export const INTERACTIVE_WIDGETS: Readonly<Record<string, WidgetRender>> = {
+  accordion: Accordion,
+  toggle: Toggle,
+  tabs: Tabs,
+  gallery: Gallery,
+  carousel: Carousel,
+  countdown: Countdown,
+  "flip-box": FlipBox,
+  toc: Toc,
+  map: MapWidget,
+  html: Html,
+};

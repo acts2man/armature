@@ -530,6 +530,17 @@ exactly as before.
    title" puts `data-armature-hide-title` there; the kit's base CSS then hides the marked
    elements. Unmarked sites simply keep their header, footer and title.
 
+8. **Verification against a production build.** The kit registers its widgets, the widget
+   library's CSS and its glyphs from `createArmatureKit()` (never through a side-effect
+   import), so a site with `"sideEffects": false` in its package.json keeps them all. The
+   site must still verify its builder pages against a **production build**, when the kit is
+   installed and after every update: `npm run build && npm run preview` (or build, then the
+   SSR server), then open a page with builder widgets from the built output and check that
+   every element is there and the console never says `Armature: no widget renders "…"`. A
+   dev server never tree-shakes and so hides any widget a bundler drops; a site that was
+   only ever checked under `npm run dev` has not been checked. `kit/README.md` step 8 has
+   the procedure; this repository runs it in `tests/e2e/production-build.spec.ts`.
+
 ### Upgrading a v1.1 site to the kit
 
 1. Copy `kit/` from this repository into `src/lib/armature-kit/` and delete
@@ -544,7 +555,9 @@ exactly as before.
 6. If the site uses forms or sends a Content-Security-Policy, do steps 5 and 6.
 7. Commit an empty `content/layouts/` (a `.gitkeep`) if the site's bundler needs the folder
    to exist. `content/site-kit.json` is optional; the first save from Site settings writes it.
-8. Deploy, open the site in the visual editor as agency staff and check that the builder
+8. Build the site for production and open a page with builder widgets from the built
+   output (step 8 above; the dev server cannot show a widget the bundler dropped).
+9. Deploy, open the site in the visual editor as agency staff and check that the builder
    switches on (protocol 2). Then choose the clients' editing level on the site overview.
 
 ### The widget library
@@ -558,8 +571,10 @@ Table, Countdown (to a date, or per visitor), Flip Box, Blockquote, Table of Con
 Form, and the agency-only HTML embed. Interactive widgets follow the WAI-ARIA patterns
 (buttons with `aria-expanded`, tablists with arrow keys, a native `<dialog>` lightbox) and
 stop moving for visitors who ask for reduced motion. Their props are in `kit/types.ts` and
-their rules in `shared/builder/widgetSchemas.ts`. A newer widget an older kit does not know
-is skipped on the site (the editor shows "Unsupported element").
+their rules in `kit/validate.ts`. Every one of them is registered by `createArmatureKit()`
+(`registerBuiltInWidgets`), never by a side-effect import, so a production build keeps them
+whatever the site's `sideEffects` setting. A newer widget an older kit does not know is
+skipped on the site (the editor shows "Unsupported element").
 
 ### Files the editor writes
 
@@ -665,4 +680,4 @@ force-pushed. The site then rebuilds as it does for any commit.
 
 ## Versioning
 
-This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) and version 2 (the page builder) are purely additive and keep the same number: a site that adds the bridge or the kit still declares `1`, and a site without either still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` and `PROTOCOL_VERSION` (1); the kit carries `KIT_VERSION` (currently `2.2.0`) and `PROTOCOL_VERSION` (2), negotiated so either side can be older.
+This is contract version 1, declared by `"armatureContract": 1`. Version 1.1 (visual editing) and version 2 (the page builder) are purely additive and keep the same number: a site that adds the bridge or the kit still declares `1`, and a site without either still connects. A breaking change will get a new number, and a dashboard will refuse a version it does not understand rather than guess. The bridge file carries `BRIDGE_VERSION` and `PROTOCOL_VERSION` (1); the kit carries `KIT_VERSION` (currently `2.5.0`) and `PROTOCOL_VERSION` (2), negotiated so either side can be older.

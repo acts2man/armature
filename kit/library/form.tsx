@@ -9,7 +9,7 @@ import { safeHref } from "../sanitize.ts";
 import type { FormField, FormProps } from "../types.ts";
 import { parseKitRef } from "../values.ts";
 import { getKitRuntime } from "../renderer.tsx";
-import { registerWidget, type WidgetContext } from "../widgets.tsx";
+import type { WidgetContext, WidgetRender } from "../widgets.tsx";
 
 type Status = { kind: "idle" } | { kind: "sending" } | { kind: "sent"; message: string } | { kind: "error"; message: string; fields: Record<string, string> };
 
@@ -155,4 +155,5 @@ function FormView({ props, common, elementId, page, editMode }: { props: FormPro
 
 const Form = ({ element, common, editMode, page }: WidgetContext) => <FormView props={element.props as FormProps} common={common} elementId={element.id} page={page} editMode={editMode} />;
 
-registerWidget("form", Form);
+/** Registered by `createArmatureKit` (see library/index.ts); nothing happens at import. */
+export const FORM_WIDGETS: Readonly<Record<string, WidgetRender>> = { form: Form };

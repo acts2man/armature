@@ -164,6 +164,28 @@ and to built pages' own paths, with one level of dropdowns, a hamburger below th
 widget sets, and an optional sticky position). Keep `data-armature-chrome` on your coded
 header and footer so the editor keeps telling clients they are coded.
 
+### 8. Verify against a production build, never only the dev server
+
+The kit registers every widget, the widget library's CSS and its glyphs from
+`createArmatureKit()` itself; nothing is registered by importing a module for its side
+effects. So a site whose `package.json` says `"sideEffects": false` (a common line in a
+Vite site) keeps all of them in its production bundle. Prove it on your site anyway, when
+you install the kit and after every update, because **a dev server never tree-shakes and
+so hides this whole class of bug**: a widget the bundler dropped shows perfectly under
+`npm run dev` and renders as nothing on the live site.
+
+```bash
+npm run build && npm run preview   # Vite; an SSR site builds, then starts its production server
+```
+
+Open a page that uses builder widgets (an accordion, a form, a gallery, a video, a nav
+menu…) from the *built* output. Every element must be on the page and the browser console
+must not say `Armature: no widget renders "…"`. This repository runs that check in
+`tests/e2e/production-build.spec.ts`: it builds `examples/demo-site` laid out as a real
+site (the kit under `src/lib/armature-kit/`, `"sideEffects": false` in its package.json),
+serves the built files and checks in a browser that one element of every widget type
+renders. A site's own check can copy it.
+
 ## SSR / TanStack Start
 
 The kit renders on the server unchanged — during SSR there is no `document`, so it stays
@@ -319,5 +341,9 @@ folder's own code, so a site can tell whether its copy is current. Both are expo
 3. **Check `KIT_VERSION`** before and after: compare the `KIT_VERSION` in your copy against
    this repository's `kit/index.ts`. If the editor reports that a site runs an older kit,
    updating the folder is the fix.
+4. **Verify against a production build** (step 8 above): `npm run build && npm run preview`,
+   then open a page with builder widgets from the built output. The dev server cannot show
+   a widget the bundler dropped. Kits before 2.5.0 registered their widgets through
+   side-effect imports and lost every library widget on a site with `"sideEffects": false`.
 
 No dependency changes are needed to update: React remains the only dependency.

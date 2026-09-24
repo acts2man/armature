@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Icon } from "../icon.tsx";
 import { safeMediaSrc } from "../sanitize.ts";
 import type { IconProps, VideoProps } from "../types.ts";
-import { linkAttributes, registerWidget, type WidgetContext } from "../widgets.tsx";
+import { linkAttributes, type WidgetContext, type WidgetRender } from "../widgets.tsx";
 import { GLYPHS } from "./glyphs.ts";
 
 function IconWidget({ element, common }: WidgetContext) {
@@ -132,5 +132,5 @@ function Video({ element, common, editMode }: WidgetContext) {
   );
 }
 
-registerWidget("icon", IconWidget);
-registerWidget("video", Video);
+/** Registered by `createArmatureKit` (see library/index.ts); nothing happens at import. */
+export const BASIC_WIDGETS: Readonly<Record<string, WidgetRender>> = { icon: IconWidget, video: Video };

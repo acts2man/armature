@@ -1,0 +1,683 @@
+{
+  "version": 1,
+  "pageSlug": "every-widget",
+  "path": "/every-widget/",
+  "label": "Every widget",
+  "root": [
+    {
+      "id": "ewcontai",
+      "type": "container",
+      "props": {
+        "tag": "section",
+        "layout": "boxed",
+        "gap": {
+          "value": 24,
+          "unit": "px"
+        }
+      },
+      "style": {},
+      "advanced": {},
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-24T00:00:00.000Z"
+      },
+      "children": [
+        {
+          "id": "ewheadng",
+          "type": "heading",
+          "props": {
+            "text": "Every widget the kit ships",
+            "tag": "h2"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewtext01",
+          "type": "text",
+          "props": {
+            "doc": {
+              "type": "doc",
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "A test page: one element of every widget type, rendered from a production build."
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewimage1",
+          "type": "image",
+          "props": {
+            "src": "/assets/hero.svg",
+            "alt": "A timber-framed house",
+            "naturalWidth": 640,
+            "naturalHeight": 420
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewbutton",
+          "type": "button",
+          "props": {
+            "text": "Book a consultation",
+            "link": {
+              "href": "/contact/"
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewspacer",
+          "type": "spacer",
+          "props": {
+            "height": {
+              "value": 40,
+              "unit": "px"
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewdivide",
+          "type": "divider",
+          "props": {
+            "style": "solid",
+            "text": "or"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewicon01",
+          "type": "icon",
+          "props": {
+            "icon": {
+              "name": "Check",
+              "nodes": [
+                [
+                  "path",
+                  {
+                    "d": "M20 6 9 17l-5-5"
+                  }
+                ]
+              ]
+            },
+            "size": {
+              "value": 48,
+              "unit": "px"
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewvideo1",
+          "type": "video",
+          "props": {
+            "source": "youtube",
+            "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            "title": "A site tour"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewiconbx",
+          "type": "icon-box",
+          "props": {
+            "icon": {
+              "name": "Check",
+              "nodes": [
+                [
+                  "path",
+                  {
+                    "d": "M20 6 9 17l-5-5"
+                  }
+                ]
+              ]
+            },
+            "title": "Fixed price",
+            "description": "One number, agreed before the first nail."
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewimgbox",
+          "type": "image-box",
+          "props": {
+            "src": "/assets/team.svg",
+            "alt": "The team",
+            "title": "Meet the team",
+            "description": "Twelve people who build houses."
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewiconls",
+          "type": "icon-list",
+          "props": {
+            "items": [
+              {
+                "id": "a1",
+                "text": "Licensed and insured"
+              },
+              {
+                "id": "a2",
+                "text": "Fixed-price contracts"
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewtestim",
+          "type": "testimonial",
+          "props": {
+            "quote": "They built the house we drew on a napkin.",
+            "name": "Jane Doe",
+            "role": "Homeowner",
+            "rating": 5
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewstars1",
+          "type": "star-rating",
+          "props": {
+            "rating": 4.5,
+            "scale": 5,
+            "title": "Rated"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewalert1",
+          "type": "alert",
+          "props": {
+            "kind": "info",
+            "title": "Heads up",
+            "description": "Permits take six weeks."
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewquote1",
+          "type": "blockquote",
+          "props": {
+            "quote": "Measure twice, cut once.",
+            "author": "Every carpenter"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewcta001",
+          "type": "cta",
+          "props": {
+            "title": "Ready to build?",
+            "description": "Tell us about the lot.",
+            "buttonText": "Get in touch",
+            "link": {
+              "href": "/contact/"
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        }
+      ]
+    },
+    {
+      "id": "ewgrid01",
+      "type": "grid",
+      "props": {
+        "tag": "section",
+        "layout": "boxed",
+        "columns": 2,
+        "gap": {
+          "value": 24,
+          "unit": "px"
+        }
+      },
+      "style": {},
+      "advanced": {},
+      "meta": {
+        "createdBy": "demo",
+        "updatedAt": "2026-09-24T00:00:00.000Z"
+      },
+      "children": [
+        {
+          "id": "ewprice1",
+          "type": "price-table",
+          "props": {
+            "heading": "Starter",
+            "currency": "$",
+            "price": "1,200",
+            "period": "/mo",
+            "features": [
+              {
+                "id": "f1",
+                "text": "Plans",
+                "included": true
+              },
+              {
+                "id": "f2",
+                "text": "Permits",
+                "included": false
+              }
+            ],
+            "buttonText": "Choose"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewsocial",
+          "type": "social-icons",
+          "props": {
+            "items": [
+              {
+                "id": "s1",
+                "network": "facebook",
+                "href": "https://facebook.com/alderstone"
+              },
+              {
+                "id": "s2",
+                "network": "email",
+                "href": "hello@example.com"
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewprogrs",
+          "type": "progress",
+          "props": {
+            "title": "Framing",
+            "percent": 70
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewcountr",
+          "type": "counter",
+          "props": {
+            "end": 120,
+            "suffix": "+",
+            "title": "Homes built",
+            "duration": 0
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewaccord",
+          "type": "accordion",
+          "props": {
+            "items": [
+              {
+                "id": "p1",
+                "title": "How long does a build take?",
+                "content": "About a year."
+              },
+              {
+                "id": "p2",
+                "title": "What does it cost?",
+                "content": "It depends on the lot."
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewtoggle",
+          "type": "toggle",
+          "props": {
+            "items": [
+              {
+                "id": "t1",
+                "title": "Do you do renovations?",
+                "content": "Yes."
+              },
+              {
+                "id": "t2",
+                "title": "Do you travel?",
+                "content": "Within the county."
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewtabs01",
+          "type": "tabs",
+          "props": {
+            "items": [
+              {
+                "id": "b1",
+                "title": "Plans",
+                "content": "We draw the plans with you."
+              },
+              {
+                "id": "b2",
+                "title": "Build",
+                "content": "Then we build them."
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewgaller",
+          "type": "gallery",
+          "props": {
+            "images": [
+              {
+                "id": "g1",
+                "src": "/assets/hero.svg",
+                "alt": "A house"
+              },
+              {
+                "id": "g2",
+                "src": "/assets/team.svg",
+                "alt": "The team"
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewcarous",
+          "type": "carousel",
+          "props": {
+            "images": [
+              {
+                "id": "c1",
+                "src": "/assets/hero.svg",
+                "alt": "A house"
+              },
+              {
+                "id": "c2",
+                "src": "/assets/team.svg",
+                "alt": "The team"
+              }
+            ]
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewcountd",
+          "type": "countdown",
+          "props": {
+            "mode": "date",
+            "date": "2099-01-01T00:00:00Z"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewflipbx",
+          "type": "flip-box",
+          "props": {
+            "front": {
+              "title": "Front",
+              "description": "Hover to turn."
+            },
+            "back": {
+              "title": "Back",
+              "description": "The other side.",
+              "buttonText": "More",
+              "link": {
+                "href": "/about/"
+              }
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewtoc001",
+          "type": "toc",
+          "props": {
+            "title": "On this page"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewmap001",
+          "type": "map",
+          "props": {
+            "address": "1 Main Street, Auburn CA",
+            "zoom": 12
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewhtml01",
+          "type": "html",
+          "props": {
+            "code": "<p>Embedded</p>",
+            "title": "Embedded"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewlogo01",
+          "type": "site-logo",
+          "props": {
+            "src": "/assets/hero.svg",
+            "alt": "Alder & Stone",
+            "naturalWidth": 640,
+            "naturalHeight": 420,
+            "height": {
+              "value": 40,
+              "unit": "px"
+            }
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewnavmnu",
+          "type": "nav-menu",
+          "props": {
+            "layout": "horizontal"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        },
+        {
+          "id": "ewform01",
+          "type": "form",
+          "props": {
+            "fields": [
+              {
+                "id": "n1",
+                "type": "text",
+                "label": "Name",
+                "name": "name",
+                "required": true
+              },
+              {
+                "id": "n2",
+                "type": "email",
+                "label": "Email",
+                "name": "email"
+              },
+              {
+                "id": "n3",
+                "type": "textarea",
+                "label": "Message",
+                "name": "message"
+              }
+            ],
+            "submitText": "Send"
+          },
+          "style": {},
+          "advanced": {},
+          "meta": {
+            "createdBy": "demo",
+            "updatedAt": "2026-09-24T00:00:00.000Z"
+          }
+        }
+      ]
+    }
+  ]
+}

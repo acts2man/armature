@@ -9,7 +9,7 @@ import { useEffect, useId, useState } from "react";
 import { pagePathOf, useKitSnapshot } from "../renderer.tsx";
 import { safeHref, safeMediaSrc } from "../sanitize.ts";
 import type { MenuItem, NavMenuProps, SiteLogoProps } from "../types.ts";
-import { linkAttributes, registerWidget, type WidgetContext } from "../widgets.tsx";
+import { linkAttributes, type WidgetContext, type WidgetRender } from "../widgets.tsx";
 
 function SiteLogo({ element, common, editMode }: WidgetContext) {
   const props = element.props as SiteLogoProps;
@@ -125,5 +125,8 @@ function NavMenuView({ element, common, kit, editMode }: WidgetContext) {
   );
 }
 
-registerWidget("site-logo", SiteLogo);
-registerWidget("nav-menu", (context) => <NavMenuView key={context.element.id} {...context} />);
+/** Registered by `createArmatureKit` (see library/index.ts); nothing happens at import. */
+export const CHROME_WIDGETS: Readonly<Record<string, WidgetRender>> = {
+  "site-logo": SiteLogo,
+  "nav-menu": (context) => <NavMenuView key={context.element.id} {...context} />,
+};

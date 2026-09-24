@@ -8,7 +8,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { validateElement, validateLayout, type LayoutDoc } from "@shared/builder/index.ts";
-import { createArmatureKit, ArmaturePage } from "@kit/index.ts";
+import { BUILT_IN_WIDGET_TYPES, createArmatureKit, ArmaturePage } from "@kit/index.ts";
 import { embedUrl, videoId } from "@kit/library/basic.tsx";
 import { countdownParts, countdownTarget, evergreenStart, mapUrl, slugify } from "@kit/library/interactive.tsx";
 import { createElement as createBuilderElement } from "../store.ts";
@@ -19,6 +19,10 @@ describe("the widget catalogue", () => {
   const definitions = widgetDefinitions();
   const elements = definitions.map((definition) => definition.create());
   const layout: LayoutDoc = { version: 1, pageSlug: "all", path: "/all/", label: "All", root: [createBuilderElement("container", { layout: "boxed" }, { children: elements.filter((element) => element.type !== "container" && element.type !== "grid") })] };
+
+  it("offers exactly the widgets the kit ships", () => {
+    expect(elements.map((element) => element.type).sort()).toEqual([...BUILT_IN_WIDGET_TYPES].sort());
+  });
 
   it("starts every widget with content the schema accepts", () => {
     for (const element of elements) expect(validateElement(element, element.type).errors, element.type).toEqual([]);

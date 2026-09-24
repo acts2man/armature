@@ -4,6 +4,7 @@ import { ArmatureChrome, ArmatureRoute, ArmatureSlot } from "../../../kit/index.
 import { armature } from "./armature.ts";
 import { registerNavigate, usePageCopy } from "./content.ts";
 import { SectionParity } from "./parity.tsx";
+import { EveryWidget } from "./widgets.tsx";
 
 function Header() {
   const copy = usePageCopy("shared");
@@ -163,6 +164,8 @@ export function App() {
           <Route path="/about" element={<About />} />
           {/* A test-only page proving builder CSS never changes how a site section renders. */}
           <Route path="/section-parity" element={<SectionParity />} />
+          {/* A test-only page with one element of every widget, for the production-build test. */}
+          <Route path="/every-widget" element={<EveryWidget />} />
           {/* Builder-only pages (content/layouts/*.json with a path of their own) come before the 404. */}
           <Route path="*" element={<ArmatureRoute fallback={<NotFound />} />} />
         </Routes>

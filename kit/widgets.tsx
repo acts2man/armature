@@ -3,7 +3,12 @@
  * Button, Spacer, Divider and the site-section wrapper. Each render function receives
  * the element, the common attributes it must spread on its root, and its rendered
  * children. Semantic HTML only; every href and src passes through the sanitizers.
- * Widgets added later register themselves with `registerWidget`.
+ *
+ * Nothing registers itself when this file is imported: the core widgets are exported as
+ * `CORE_WIDGETS` and `createArmatureKit` registers them (with the library's) through
+ * `registerWidgets`. A module that registered at import time would be dropped by a bundler
+ * that trusts the site's `"sideEffects": false`, and the page would render nothing.
+ * A site's own widget goes through `registerWidget` after the kit is created.
  */
 import { createElement, type ReactNode } from "react";
 import { Icon } from "./icon.tsx";
@@ -35,6 +40,14 @@ export function registerWidget(type: string, render: WidgetRender): void {
 }
 
 export const getWidget = (type: string): WidgetRender | undefined => WIDGETS.get(type);
+
+/** Registers each widget of a table, leaving a type that already has a renderer alone. */
+export function registerWidgets(table: Readonly<Record<string, WidgetRender>>): void {
+  for (const [type, render] of Object.entries(table)) if (!WIDGETS.has(type)) registerWidget(type, render);
+}
+
+/** The types with a renderer right now: the built-in ones once the kit is created, plus the site's own. */
+export const registeredWidgetTypes = (): string[] => Array.from(WIDGETS.keys());
 
 export const linkAttributes = (link: { href: string; newTab?: boolean; rel?: string } | undefined) => {
   const href = safeHref(link?.href);
@@ -179,11 +192,14 @@ function Divider({ element, common }: WidgetContext) {
   );
 }
 
-registerWidget("container", Container);
-registerWidget("grid", Grid);
-registerWidget("heading", Heading);
-registerWidget("text", Text);
-registerWidget("image", Image);
-registerWidget("button", Button);
-registerWidget("spacer", Spacer);
-registerWidget("divider", Divider);
+/** The core widgets by type. `createArmatureKit` registers them; nothing happens at import. */
+export const CORE_WIDGETS: Readonly<Record<string, WidgetRender>> = {
+  container: Container,
+  grid: Grid,
+  heading: Heading,
+  text: Text,
+  image: Image,
+  button: Button,
+  spacer: Spacer,
+  divider: Divider,
+};

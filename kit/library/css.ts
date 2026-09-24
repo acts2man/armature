@@ -285,9 +285,6 @@ const BASE = `
 @media (max-width: 767px) { .ae-root .ae-box-left, .ae-root .ae-box-right, .ae-root .ae-testimonial-image-left, .ae-root .ae-tabs-vertical { flex-direction: column; } .ae-root .ae-box-left .ae-box-image, .ae-root .ae-box-right .ae-box-image { width: 100%; } .ae-root .ae-tabs-vertical .ae-tabs-list { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid rgba(0,0,0,0.12); } }
 `.trim();
 
-registerBaseCss(BASE);
-registerBaseCss((kit) => `@media (max-width: ${kit.breakpoints.mobile}px) { .ae-root .ae-bg-video-nomobile { display: none; } }`);
-
 const alignHook: WidgetCssHook = (sheet, selector, props) => {
   sheet.responsive(selector, props["align"] as never, (value: string) => [["text-align", value]]);
 };
@@ -372,6 +369,19 @@ const hooks: Record<string, WidgetCssHook> = {
   },
 };
 
-for (const [type, hook] of Object.entries(hooks)) registerWidgetCss(type, hook);
-registerWidgetCss("site-logo", siteLogoCss);
-registerWidgetCss("nav-menu", navMenuCss);
+let registered = false;
+/**
+ * Adds the library's base CSS and its per-widget CSS hooks to the generator. Called by
+ * `createArmatureKit` (through library/index.ts), never at import, so a bundler that
+ * trusts the site's `"sideEffects": false` cannot drop the widgets' styles. Calling it
+ * again does nothing.
+ */
+export function registerLibraryCss(): void {
+  if (registered) return;
+  registered = true;
+  registerBaseCss(BASE);
+  registerBaseCss((kit) => `@media (max-width: ${kit.breakpoints.mobile}px) { .ae-root .ae-bg-video-nomobile { display: none; } }`);
+  for (const [type, hook] of Object.entries(hooks)) registerWidgetCss(type, hook);
+  registerWidgetCss("site-logo", siteLogoCss);
+  registerWidgetCss("nav-menu", navMenuCss);
+}

@@ -20,7 +20,7 @@ import type {
   StarRatingProps,
   TestimonialProps,
 } from "../types.ts";
-import { linkAttributes, registerWidget, type WidgetContext } from "../widgets.tsx";
+import { linkAttributes, type WidgetContext, type WidgetRender } from "../widgets.tsx";
 import { formatNumber, Paragraphs, Picture, Title, useInView, useReducedMotion } from "./common.tsx";
 import { GLYPHS, NETWORKS } from "./glyphs.ts";
 
@@ -320,15 +320,18 @@ function CounterView({ props, common, editMode }: { props: CounterProps; common:
 }
 const Counter = ({ element, common, editMode }: WidgetContext) => <CounterView props={element.props as CounterProps} common={common} editMode={editMode} />;
 
-registerWidget("icon-box", IconBox);
-registerWidget("image-box", ImageBox);
-registerWidget("icon-list", IconList);
-registerWidget("testimonial", Testimonial);
-registerWidget("star-rating", StarRating);
-registerWidget("alert", Alert);
-registerWidget("blockquote", Blockquote);
-registerWidget("cta", Cta);
-registerWidget("price-table", PriceTable);
-registerWidget("social-icons", SocialIcons);
-registerWidget("progress", Progress);
-registerWidget("counter", Counter);
+/** Registered by `createArmatureKit` (see library/index.ts); nothing happens at import. */
+export const CONTENT_WIDGETS: Readonly<Record<string, WidgetRender>> = {
+  "icon-box": IconBox,
+  "image-box": ImageBox,
+  "icon-list": IconList,
+  testimonial: Testimonial,
+  "star-rating": StarRating,
+  alert: Alert,
+  blockquote: Blockquote,
+  cta: Cta,
+  "price-table": PriceTable,
+  "social-icons": SocialIcons,
+  progress: Progress,
+  counter: Counter,
+};

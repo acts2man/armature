@@ -18,3 +18,8 @@ npm run dev        # http://localhost:5174
 - `VITE_ARMATURE_EDITOR_ORIGINS`: comma-separated editor origins allowed to embed the
   site. Defaults to the local dashboard (`http://localhost:5173`) and the production
   dashboard.
+- `/every-widget` (`src/widgets.tsx`, `src/every-widget.json`): a test-only page with one
+  element of every widget the kit ships. `tests/e2e/production-build.spec.ts` builds this
+  site for production laid out as a real site and checks that each one renders, which is
+  why `package.json` keeps `"sideEffects": false`: a real site's bundler tree-shakes with
+  it, and the dev server never does.
