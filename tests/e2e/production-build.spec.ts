@@ -21,8 +21,9 @@
 import { execFileSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
+import { createRequire } from "node:module";
 import type { AddressInfo } from "node:net";
-import { extname, join } from "node:path";
+import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { PROPS_CHECKS } from "../../kit/validate.ts";
@@ -31,6 +32,9 @@ const repo = fileURLToPath(new URL("../..", import.meta.url));
 const demo = join(repo, "examples", "demo-site");
 /** The demo site laid out as a real site, built for production. */
 const site = join(demo, ".production-build");
+/** The demo site's own Vite (its node_modules on CI, the repository's otherwise), as `npm run build` would use. */
+const vitePackage = createRequire(join(demo, "package.json")).resolve("vite/package.json");
+const viteBin = join(dirname(vitePackage), (JSON.parse(readFileSync(vitePackage, "utf8")) as { bin: { vite: string } }).bin.vite);
 
 type Node = { id: string; type: string; children?: Node[] };
 const flatten = (nodes: Node[]): Node[] => nodes.flatMap((node) => [node, ...flatten(node.children ?? [])]);
@@ -140,7 +144,7 @@ test.describe("a production build with \"sideEffects\": false", () => {
 
       // A real production build: Vite with the site's own config, minified, tree-shaken.
       try {
-        execFileSync("npx", ["vite", "build", "--outDir", "dist", "--emptyOutDir", "--logLevel", "warn"], { cwd: site, stdio: "pipe", shell: process.platform === "win32" });
+        execFileSync(process.execPath, [viteBin, "build", "--outDir", "dist", "--emptyOutDir", "--logLevel", "warn"], { cwd: site, stdio: "pipe" });
       } catch (error) {
         const failed = error as { stdout?: Buffer; stderr?: Buffer };
         throw new Error(`vite build failed:\n${failed.stdout?.toString() ?? ""}\n${failed.stderr?.toString() ?? ""}`, { cause: error });
