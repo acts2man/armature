@@ -78,11 +78,15 @@ export function SiteStats() {
       {query.isPending ? (
         <div className="rounded-card border border-line bg-panel p-4"><Skeleton lines={3} /></div>
       ) : rows.length === 0 ? (
-        <EmptyState title="No stats yet">
-          Turn on the beacon in the site's kit config to start collecting visitor numbers. No cookies are set; nothing personal is stored.
-          <br />
-          <code className="mt-2 inline-block rounded bg-ground px-2 py-1 text-[12px]">createArmatureKit(&#123; ..., stats: &#123; endpoint: "https://&lt;project&gt;.supabase.co/functions/v1/stats-ingest", siteId: "..." &#125; &#125;)</code>
-        </EmptyState>
+        <div className="flex flex-col gap-3">
+          <EmptyState title="No stats yet">Turn on the beacon in the site's kit config to start collecting visitor numbers. No cookies are set; nothing personal is stored.</EmptyState>
+          <pre className="max-w-full overflow-x-auto rounded-card border border-line bg-panel p-3 text-[12px] font-mono"><code>{`createArmatureKit({
+  stats: {
+    endpoint: "https://<project>.supabase.co/functions/v1/stats-ingest",
+    siteId: "<site id>",
+  },
+})`}</code></pre>
+        </div>
       ) : (
         <>
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
