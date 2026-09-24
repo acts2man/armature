@@ -92,7 +92,50 @@ async function openBuilder(page: Page, options: Parameters<typeof installMocks>[
   await expect(page.getByTestId("visual-editor")).toHaveAttribute("data-builder", "on");
   await page.getByRole("button", { name: /Phone view/ }).click();
   await expect(page.getByTestId("canvas")).toHaveAttribute("data-scale", "1.000");
+  await settled(page);
   return state;
+}
+
+/**
+ * The site inside the frame reflows for the phone width and its pictures load a moment after
+ * the canvas reports its scale; a click or hover computed before that lands on whatever was
+ * there before the shift (the parent section, or nothing). Wait until every picture is in and
+ * the page height has held still for a couple of frames.
+ */
+async function settled(page: Page) {
+  const frame = siteFrame(page);
+  await expect.poll(() => frame.locator("img").evaluateAll((nodes) => nodes.every((node) => (node as HTMLImageElement).complete)), { timeout: 15_000 }).toBe(true);
+  await expect
+    .poll(
+      () =>
+        frame.locator("body").evaluate(
+          (body) =>
+            new Promise<boolean>((resolve) => {
+              const before = body.getBoundingClientRect().height;
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve(body.getBoundingClientRect().height === before)));
+            }),
+        ),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
+}
+
+/** Hover an element on the canvas until the editor draws its outline (the frame can still be settling). */
+async function hoverElement(page: Page, selector: string, id: string, position?: { x: number; y: number }) {
+  const frame = siteFrame(page);
+  await expect(async () => {
+    await frame.locator(selector).hover({ position });
+    await expect(page.getByTestId(`hover-${id}`)).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
+}
+
+/** Click an element on the canvas until it is the selection. */
+async function selectElement(page: Page, selector: string, id: string, position?: { x: number; y: number }) {
+  const frame = siteFrame(page);
+  await expect(async () => {
+    await frame.locator(selector).click({ position });
+    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", id, { timeout: 1500 });
+  }).toPass({ timeout: 15_000 });
 }
 
 async function dragTo(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
@@ -474,8 +517,7 @@ test.describe("the inspector", () => {
     await openBuilder(page);
     const frame = siteFrame(page);
     await frame.locator(".ae-btnbuild").scrollIntoViewIfNeeded();
-    await frame.locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
-    await expect(page.getByTestId("element-selection")).toHaveAttribute("data-element-id", "btnbuild");
+    await selectElement(page, ".ae-btnbuild", "btnbuild", { x: 4, y: 4 });
     await page.getByTestId("inspector-tab-style").click();
     await page.getByTestId("style-state-hover").click();
     const background = page.getByTestId("group-background");
@@ -684,10 +726,10 @@ test.describe("the canvas handles", () => {
     await openBuilder(page);
     const frame = siteFrame(page);
     // Hover: solid on a widget, dashed on a container, with the type label.
-    await frame.locator(".ae-hdbuilds").hover();
+    await hoverElement(page, ".ae-hdbuilds", "hdbuilds");
     await expect(page.getByTestId("hover-hdbuilds")).toHaveAttribute("data-kind", "widget");
     await expect(page.getByTestId("hover-hdbuilds")).toContainText("Heading");
-    await frame.locator(".ae-secbuild").hover({ position: { x: 5, y: 5 } });
+    await hoverElement(page, ".ae-secbuild", "secbuild", { x: 5, y: 5 });
     await expect(page.getByTestId("hover-secbuild")).toHaveAttribute("data-kind", "container");
     // A selected widget: solid outline and a square pencil tab outside its top-right corner.
     await frame.locator(".ae-hdbuilds").click();
