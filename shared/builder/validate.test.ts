@@ -146,19 +146,55 @@ describe("one bad value never takes a page down", () => {
     expect((report.value?.props["items"] as unknown[]).length).toBe(2);
     expect(report.problems[0]).toMatchObject({ relativePath: ["props", "items", 1], setting: "Content › Items › row 2 › Title" });
   });
-  it("turns an element it cannot read into an Unsupported placeholder and keeps the raw element", () => {
+  it("turns an element it cannot read at all into an Unsupported placeholder and keeps the raw element", () => {
     const broken = { id: "not an id", type: "heading", props: { text: "Hi" }, style: {}, advanced: {}, meta };
-    const noText = element({ id: "abcdefgh", type: "heading", props: { tag: "h1" } });
-    const withChildren = element({ id: "hasakids", type: "heading", props: { text: "x" }, children: [element({ type: "spacer" })] });
-    const report = checkLayout(layoutOf([broken, noText, withChildren, element({ id: "finefine", type: "spacer" })]));
+    const noType = { id: "abcdefgh", type: "Not A Widget!", props: {}, style: {}, advanced: {}, meta };
+    const badProps = { id: "propsbad", type: "heading", props: "Hi", style: {}, advanced: {}, meta };
+    const report = checkLayout(layoutOf([broken, noType, badProps, element({ id: "finefine", type: "spacer" })]));
     expect(report.value?.root.map((item) => item.type)).toEqual([UNSUPPORTED_TYPE, UNSUPPORTED_TYPE, UNSUPPORTED_TYPE, "spacer"]);
     expect(report.value?.root[0]?.id).toMatch(/^[a-z0-9]{8}$/);
     expect(report.value?.root[1]?.id).toBe("abcdefgh");
     expect(report.problems).toHaveLength(3);
     expect(report.problems[0]).toMatchObject({ effect: "element", elementType: "heading", value: broken });
-    expect(report.problems[1]?.found).toBe('Content › Text is nothing');
-    expect(report.problems[2]?.found).toMatch(/cannot contain/);
+    expect(report.problems[1]?.found).toMatch(/is not a widget name/);
+    expect(report.problems[2]?.found).toBe("its content settings are not an object");
     expect(describeProblem(report.problems[0]!, "Home")).toMatch(/could not be read: its element id "not an id".*Unsupported element/);
+  });
+  it("a known element with one unreadable content value renders with that value ignored, never as Unsupported", () => {
+    const noText = element({ id: "abcdefgh", type: "heading", label: "Title", props: { tag: "h1" } });
+    const numberText = element({ id: "numbtext", type: "button", props: { text: 42, link: { href: "/contact/" } } });
+    const badItems = element({ id: "acc00001", type: "accordion", props: { items: "none", open: "first" } });
+    const noDoc = element({ id: "textnodo", type: "text", props: {} });
+    const withChildren = element({ id: "hasakids", type: "heading", props: { text: "x" }, children: [element({ type: "spacer" })] });
+    const report = checkLayout(layoutOf([noText, numberText, badItems, noDoc, withChildren]));
+    expect(report.value?.root.map((item) => item.type)).toEqual(["heading", "button", "accordion", "text", "heading"]);
+    // The stand-in is the emptiest value of the right shape, so the site's widgets never crash on it.
+    expect(report.value?.root[0]?.props).toEqual({ tag: "h1", text: "" });
+    expect(report.value?.root[1]?.props).toEqual({ text: "", link: { href: "/contact/" } });
+    expect(report.value?.root[2]?.props).toEqual({ items: [], open: "first" });
+    expect(report.value?.root[3]?.props).toEqual({ doc: { type: "doc", content: [] } });
+    expect(report.value?.root[4]?.children).toBeUndefined();
+    expect(report.problems.map((problem) => [problem.effect, problem.elementId, problem.setting])).toEqual([
+      ["ignored", "abcdefgh", "Content › Text"],
+      ["ignored", "numbtext", "Content › Text"],
+      ["ignored", "acc00001", "Content › Items"],
+      ["ignored", "textnodo", "Content › Text"],
+      ["ignored", "hasakids", "Inner elements"],
+    ]);
+    expect(report.problems[0]).toMatchObject({ relativePath: ["props", "text"], value: undefined, filled: "", found: "nothing" });
+    expect(report.problems[1]).toMatchObject({ relativePath: ["props", "text"], value: 42, filled: "" });
+    expect(report.problems[2]).toMatchObject({ relativePath: ["props", "items"], value: "none", filled: [] });
+    expect(report.problems[4]).toMatchObject({ relativePath: ["children"], found: "1 element inside a heading" });
+    expect(describeProblem(report.problems[1]!, "Home")).toBe('Home: the button\'s Content › Text is 42, which is not text up to 300 characters. It is ignored until it is changed, and kept as it is in the file. The default ("") applies meanwhile.');
+    // The raw values go back on publish, and a required value inside a list item still drops the item only.
+    const restored = restoreLayoutProblems(report.value!, report.value!, report.problems);
+    expect(restored.root[1]?.props).toEqual({ text: 42, link: { href: "/contact/" } });
+    expect(restored.root[2]?.props).toEqual({ items: "none", open: "first" });
+    expect(restored.root[4]?.children).toHaveLength(1);
+    expect(restored.root[0]?.props).toEqual({ tag: "h1" });
+    const item = checkElement(element({ type: "accordion", props: { items: [{ id: "a", title: "A", content: "a" }, { id: "b", content: "b" }] } }));
+    expect((item.value?.props["items"] as unknown[]).length).toBe(1);
+    expect(item.problems[0]?.setting).toBe("Content › Items › row 2 › Title");
   });
   it("a duplicate id becomes a placeholder (the first keeps its id)", () => {
     const twin = element({ id: "twintwin", type: "spacer" });

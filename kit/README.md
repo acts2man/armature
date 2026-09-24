@@ -245,9 +245,11 @@ rejects its files:
 It is tolerant on purpose. **One bad value never takes a page down:**
 
 - a setting the validator cannot read is ignored (the element keeps its other settings)
-  and reported;
-- an element it cannot read (no id, no type, content of the wrong shape) is skipped on
-  the site and shown as "Unsupported element" in the editor;
+  and reported; a required content setting (a heading's text, a list's items) gets a safe
+  stand-in (`""`, `[]`) so the element still renders with that one value ignored;
+- only an element it cannot read at all (no id, a duplicate id, no widget type, content
+  settings that are not an object) is skipped on the site and shown as "Unsupported
+  element" in the editor;
 - the site kit fills anything unreadable from the default kit;
 - only a file that is not a layout at all (no `root`, no `pageSlug`, `version` not 1)
   fails to load.

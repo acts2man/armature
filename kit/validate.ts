@@ -4,9 +4,11 @@
  * a site can never pass its own checks while Armature rejects its files.
  *
  * It is tolerant on purpose. One bad value never takes a page down:
- *   - an invalid setting is ignored (dropped from the cleaned value) and reported;
- *   - an element that cannot be read at all (no id, no type, props of the wrong shape)
- *     becomes an "unsupported" placeholder the site skips and the editor names;
+ *   - an invalid setting is ignored (dropped from the cleaned value) and reported; a
+ *     required content setting (a heading's text, an accordion's items) gets a safe
+ *     stand-in ("" or []) so the element still renders with that one value ignored;
+ *   - only an element that cannot be read at all (no id, no type, content settings of
+ *     the wrong shape) becomes an "unsupported" placeholder the site skips and the editor names;
  *   - the site kit fills anything unreadable from the default kit;
  *   - only a file that is not a layout at all (no root, no slug) fails to load.
  * Every problem is reported in plain English with the setting, the value found and what
@@ -121,7 +123,18 @@ export type Check<T = unknown> = {
   run: (value: unknown, ctx: Ctx, path: ProblemPath) => T | Invalid;
   allowed: string;
   required?: boolean;
+  /**
+   * A safe stand-in for a required value that could not be read ("" for text, [] for a
+   * list…), so an element of a known type still renders with that one value ignored
+   * instead of becoming an "Unsupported element". Only an element's own content settings
+   * are filled this way; a bad list item is still dropped from its list. Returns undefined
+   * when no safe stand-in exists (an object whose required parts have none).
+   */
+  empty?: () => T | undefined;
 };
+
+/** The stand-in for a required value, when the check has one. */
+const emptyOf = <T>(check: Check<T>): T | undefined => check.empty?.();
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -180,6 +193,7 @@ const req = <T>(check: Check<T>): Check<T> => ({ ...check, required: true });
 
 const str = (max: number, options: { pattern?: RegExp; allowed?: string; min?: number } = {}): Check<string> => ({
   allowed: options.allowed ?? `text up to ${max} characters`,
+  empty: () => "",
   run: (value, ctx, path) => {
     if (typeof value !== "string" || value.length > max || value.length < (options.min ?? 0) || (options.pattern && !options.pattern.test(value))) return fail(ctx, path, options.allowed ?? `text up to ${max} characters`, value);
     return value;
@@ -190,6 +204,7 @@ const num = (min: number, max: number, options: { int?: boolean; allowed?: strin
   const allowed = options.allowed ?? `${options.int ? "a whole number" : "a number"} from ${min} to ${max}`;
   return {
     allowed,
+    empty: () => (min <= 0 && max >= 0 ? 0 : min),
     run: (value, ctx, path) => {
       const number = typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value.trim()) ? Number(value) : value;
       if (typeof number !== "number" || !Number.isFinite(number) || number < min || number > max || (options.int && !Number.isInteger(number))) return fail(ctx, path, allowed, value);
@@ -198,20 +213,21 @@ const num = (min: number, max: number, options: { int?: boolean; allowed?: strin
   };
 };
 
-const bool = (): Check<boolean> => ({ allowed: "on or off (true or false)", run: (value, ctx, path) => (typeof value === "boolean" ? value : fail(ctx, path, "on or off (true or false)", value)) });
+const bool = (): Check<boolean> => ({ allowed: "on or off (true or false)", empty: () => false, run: (value, ctx, path) => (typeof value === "boolean" ? value : fail(ctx, path, "on or off (true or false)", value)) });
 
-const lit = <T extends string | number>(literal: T): Check<T> => ({ allowed: `exactly ${shortText(literal)}`, run: (value, ctx, path) => (value === literal ? literal : fail(ctx, path, `exactly ${shortText(literal)}`, value)) });
+const lit = <T extends string | number>(literal: T): Check<T> => ({ allowed: `exactly ${shortText(literal)}`, empty: () => literal, run: (value, ctx, path) => (value === literal ? literal : fail(ctx, path, `exactly ${shortText(literal)}`, value)) });
 
 const en = <T extends string>(values: readonly T[], label?: string): Check<T> => {
   const allowed = label ?? `one of ${values.map((item) => (item === "" ? '""' : item)).join(", ")}`;
-  return { allowed, run: (value, ctx, path) => (typeof value === "string" && (values as readonly string[]).includes(value) ? (value as T) : fail(ctx, path, allowed, value)) };
+  return { allowed, empty: () => values[0] as T, run: (value, ctx, path) => (typeof value === "string" && (values as readonly string[]).includes(value) ? (value as T) : fail(ctx, path, allowed, value)) };
 };
 
-const nullable = <T>(check: Check<T>): Check<T | null> => ({ allowed: `${check.allowed}, or nothing`, run: (value, ctx, path) => (value === null ? null : check.run(value, ctx, path)) });
+const nullable = <T>(check: Check<T>): Check<T | null> => ({ allowed: `${check.allowed}, or nothing`, empty: () => null, run: (value, ctx, path) => (value === null ? null : check.run(value, ctx, path)) });
 
 /** A list. A bad item is dropped and reported; the list fails only when too few remain. */
 const arr = <T>(inner: Check<T>, max: number, min = 0): Check<T[]> => ({
   allowed: `a list of up to ${max} items, each ${inner.allowed}`,
+  empty: () => [],
   run: (value, ctx, path) => {
     if (!Array.isArray(value)) return fail(ctx, path, `a list (${inner.allowed})`, value);
     const out: T[] = [];
@@ -227,6 +243,7 @@ const arr = <T>(inner: Check<T>, max: number, min = 0): Check<T[]> => ({
 
 const union = <T>(checks: Check<T>[], allowed?: string): Check<T> => ({
   allowed: allowed ?? checks.map((check) => check.allowed).join(", or "),
+  empty: checks.find((check) => check.empty)?.empty,
   run: (value, ctx, path) => {
     const outer = ctx.detail;
     // The branch that got furthest (the deepest failure) names the real problem, e.g. a
@@ -249,6 +266,7 @@ const union = <T>(checks: Check<T>[], allowed?: string): Check<T> => ({
 
 const refine = <T>(check: Check<T>, predicate: (value: T) => boolean, allowed: string): Check<T> => ({
   allowed: check.allowed,
+  empty: check.empty,
   run: (value, ctx, path) => {
     const result = check.run(value, ctx, path);
     if (result === INVALID) return result;
@@ -261,13 +279,27 @@ const lazy = <T>(make: () => Check<T>, allowed: string): Check<T> => {
   return { allowed, run: (value, ctx, path) => (cached ??= make()).run(value, ctx, path) };
 };
 
+/** True at an element's own content settings (`props`), the one place a required value is filled with a stand-in. */
+const atElementProps = (ctx: Ctx, path: ProblemPath): boolean => !!ctx.element && path.length === ctx.element.base.length + 1 && path[path.length - 1] === "props";
+
 /**
  * An object. Optional keys that fail are dropped and reported; a required key that fails
- * makes the object fail, unless the context can fill it from defaults. Unknown keys pass
- * through untouched (they are never read, and a publish keeps them).
+ * makes the object fail, unless the context can fill it from defaults or, for an element's
+ * own content settings, from the check's stand-in (an empty text, an empty list). Unknown
+ * keys pass through untouched (they are never read, and a publish keeps them).
  */
 const obj = (shape: Record<string, Check>, label = "an object"): Check<Record<string, unknown>> => ({
   allowed: label,
+  empty: () => {
+    const out: Record<string, unknown> = {};
+    for (const [key, check] of Object.entries(shape)) {
+      if (!check.required) continue;
+      const stand = emptyOf(check);
+      if (stand === undefined) return undefined;
+      out[key] = stand;
+    }
+    return out;
+  },
   run: (value, ctx, path) => {
     if (!isRecord(value)) return fail(ctx, path, label, value);
     const out: Record<string, unknown> = { ...value };
@@ -290,6 +322,12 @@ const obj = (shape: Record<string, Check>, label = "an object"): Check<Record<st
         out[key] = filled;
         continue;
       }
+      const stand = atElementProps(ctx, path) ? emptyOf(check) : undefined;
+      if (stand !== undefined) {
+        report(ctx, at, `${check.allowed} (it is required)`, raw, "ignored", { filled: stand });
+        out[key] = stand;
+        continue;
+      }
       if (raw === undefined) return fail(ctx, at, `${check.allowed} (it is required)`, undefined);
       return INVALID;
     }
@@ -300,6 +338,7 @@ const obj = (shape: Record<string, Check>, label = "an object"): Check<Record<st
 /** A responsive value: the value itself, or { desktop, tablet?, mobile? }. A bad override is dropped; a bad desktop value fails. */
 const responsive = <T>(inner: Check<T>): Check<unknown> => ({
   allowed: `${inner.allowed} (or per device: desktop, tablet, mobile)`,
+  empty: inner.empty,
   run: (value, ctx, path) => {
     if (isRecord(value) && "desktop" in value) {
       const desktop = inner.run(value["desktop"], ctx, [...path, "desktop"]);
@@ -319,6 +358,7 @@ const responsive = <T>(inner: Check<T>): Check<unknown> => ({
 
 const record = (keyPattern: RegExp, inner: Check, max = 200): Check<Record<string, unknown>> => ({
   allowed: `a map of names to ${inner.allowed}`,
+  empty: () => ({}),
   run: (value, ctx, path) => {
     if (!isRecord(value)) return fail(ctx, path, `a map of names to ${inner.allowed}`, value);
     const out: Record<string, unknown> = {};
@@ -386,9 +426,9 @@ const kitRef = (group: "type" | "button", example: string): Check<string> => {
 };
 
 const HREF_ALLOWED = "a link starting with https://, http://, mailto:, tel:, / or #";
-const href: Check<string> = { allowed: HREF_ALLOWED, run: (value, ctx, path) => (typeof value === "string" && value.length <= 2000 && isAllowedHref(value) ? value : fail(ctx, path, HREF_ALLOWED, value)) };
+const href: Check<string> = { allowed: HREF_ALLOWED, empty: () => "", run: (value, ctx, path) => (typeof value === "string" && value.length <= 2000 && isAllowedHref(value) ? value : fail(ctx, path, HREF_ALLOWED, value)) };
 const MEDIA_ALLOWED = "a picture or video on this site (/assets/...) or an https:// address";
-const mediaSrc: Check<string> = { allowed: MEDIA_ALLOWED, run: (value, ctx, path) => (typeof value === "string" && value.length <= 2_000_000 && isAllowedMediaSrc(value) ? value : fail(ctx, path, MEDIA_ALLOWED, value)) };
+const mediaSrc: Check<string> = { allowed: MEDIA_ALLOWED, empty: () => "", run: (value, ctx, path) => (typeof value === "string" && value.length <= 2_000_000 && isAllowedMediaSrc(value) ? value : fail(ctx, path, MEDIA_ALLOWED, value)) };
 
 const link = obj({ href: req(href), newTab: bool(), rel: str(60) }, "a link with an address");
 
@@ -836,7 +876,9 @@ function checkOneElement(raw: unknown, ctx: ElementCtx, path: ProblemPath, depth
       report(ctx, [...path, "children"], "a list of elements", rawChildren, "ignored");
       delete (out as Partial<Element>).children;
     } else if (rawChildren.length > 0 && !CONTAINER_TYPES.includes(rawType)) {
-      return unsupported(`a ${humanType(rawType)} cannot contain other elements`, "children only inside a container or grid");
+      // The element itself is fine; only its inner elements cannot be shown. They stay in the file.
+      report(ctx, [...path, "children"], "inner elements only inside a container or grid", rawChildren, "ignored", { setting: "Inner elements", found: `${rawChildren.length} ${rawChildren.length === 1 ? "element" : "elements"} inside a ${humanType(rawType)}` });
+      delete (out as Partial<Element>).children;
     } else {
       ctx.element = undefined;
       out.children = rawChildren.map((child, index) => checkOneElement(child, ctx, [...path, "children", index], depth + 1));

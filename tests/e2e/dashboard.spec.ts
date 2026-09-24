@@ -24,7 +24,12 @@ test("a client sees a greeting, shortcuts, two unread messages, publishes and no
   const shortcuts = page.getByTestId("shortcuts");
   await expect(shortcuts.getByTestId("shortcut-edit")).toHaveAttribute("href", `/sites/${SITE_ID}/visual`);
   await expect(shortcuts.getByTestId("shortcut-pages")).toHaveAttribute("href", `/sites/${SITE_ID}/pages`);
-  await expect(shortcuts.getByTestId("shortcut-request")).toHaveAttribute("href", `/sites/${SITE_ID}/requests/new`);
+  // Request a change lives on the dashboard (and under Requests in the menu), not in the editor.
+  const requestCard = page.getByTestId("request-card");
+  await expect(requestCard).toContainText("go to Reputation Guardians as a request");
+  await expect(requestCard.getByTestId("request-new")).toHaveAttribute("href", `/sites/${SITE_ID}/requests/new`);
+  await expect(page.getByRole("link", { name: "All requests" })).toHaveAttribute("href", `/sites/${SITE_ID}/requests`);
+  await expect(page.getByTestId("sidebar").getByTestId("nav-requests")).toHaveAttribute("href", `/sites/${SITE_ID}/requests`);
   // Messages: the newest three, unread first by dot, with the sender and a preview.
   await expect(page.getByText("2 unread", { exact: true })).toBeVisible();
   const messages = page.getByTestId("dashboard-messages");

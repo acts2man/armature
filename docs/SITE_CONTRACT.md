@@ -598,9 +598,11 @@ rules in `kit/validate.ts` (the same code runs in the site, the dashboard and th
 function), and the design notes in [BUILDER_SPEC.md](BUILDER_SPEC.md). Limits: a layout
 file under 2 MB, nesting at most 20 deep, at most 5000 elements per page. One bad value
 never takes a page down: a setting the validator cannot read is ignored and reported
-(page, element, setting, value found, what is allowed); an element it cannot read is
-shown as "Unsupported element" in the editor and skipped on the site; the page and the
-site kit always load. Unread values stay in the file exactly as they were until someone
+(page, element, setting, value found, what is allowed), a required one filled with a safe
+stand-in (`""`, `[]`) so the element still renders; only an element it cannot read at all
+(no id, no widget type, content settings that are not an object) is shown as
+"Unsupported element" in the editor and skipped on the site; the page and the site kit
+always load. Unread values stay in the file exactly as they were until someone
 changes that setting.
 
 ### How the kit renders

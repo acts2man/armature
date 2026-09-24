@@ -1,11 +1,10 @@
 /**
  * Small companions of the workspace: the keyboard shortcuts sheet, the three-step
- * first-run tour, the "Request a change" bar, the draft-restore prompt and the
- * small-screen notice.
+ * first-run tour, the draft-restore prompt and the small-screen notice.
  */
 import { clsx } from "clsx";
 import { useEffect, useState, type ReactNode } from "react";
-import { IconBranch, IconKeyboard, IconSend, IconX } from "@/components/icons.tsx";
+import { IconKeyboard, IconX } from "@/components/icons.tsx";
 import { Button, LinkButton, Modal } from "@/components/ui.tsx";
 import { markTourSeen, modKey } from "./pages.ts";
 
@@ -127,41 +126,6 @@ export function Tour({ active, kind = "content", onDone }: { active: boolean; ki
         </Button>
       </div>
     </div>
-  );
-}
-
-// --- request bar -----------------------------------------------------------------------------
-
-export function RequestBar({ agencyName, onSubmit }: { agencyName: string; onSubmit: (text: string) => void }) {
-  const [text, setText] = useState("");
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit(text.trim());
-        setText("");
-      }}
-      className="absolute inset-x-[120px] bottom-[18px] z-20 flex h-14 items-center gap-3 rounded-full border border-line bg-panel pl-[18px] pr-2 shadow-pop"
-      data-testid="request-bar"
-    >
-      <span className="text-accent">
-        <IconBranch size={18} />
-      </span>
-      <label htmlFor="request-bar-input" className="sr-only">
-        Need something bigger? Request a change
-      </label>
-      <input
-        id="request-bar-input"
-        type="text"
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        placeholder={`Need something bigger? Describe it and ${agencyName} will build it`}
-        className="h-10 min-w-0 flex-1 bg-transparent text-[14px] text-text placeholder:text-muted/80 focus:outline-none"
-      />
-      <button type="submit" aria-label="Request a change" className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-fg hover:opacity-90">
-        <IconSend size={18} />
-      </button>
-    </form>
   );
 }
 

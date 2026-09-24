@@ -234,7 +234,10 @@ test.describe("visual editor", () => {
     await waitForReady(page);
     const text = await page.locator("body").innerText();
     expect(text).not.toMatch(/armature/i);
-    await expect(page.getByPlaceholder(/Reputation Guardians will build it/)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Reputation Guardians, back to the dashboard/ })).toBeVisible();
+    // Change requests are filed from the site's dashboard, not from a bar in the editor.
+    expect(await page.getByTestId("request-bar").count()).toBe(0);
+    expect(await page.getByText("Need something bigger?").count()).toBe(0);
   });
 });
 

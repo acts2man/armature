@@ -22,7 +22,8 @@ export type ToolbarActions = {
   onReplaceImage: (path: FieldPath) => void;
   onEditLink: (path: FieldPath) => void;
   onRevert: (root: FieldPath) => void;
-  onRequestChange: (path: FieldPath) => void;
+  /** Optional: a "Request a change" button on the toolbar (the code engine's editor still offers one). */
+  onRequestChange?: (path: FieldPath) => void;
 };
 
 function Handle({ className }: { className: string }) {
@@ -121,10 +122,14 @@ function Overlays({
           >
             <IconUndo size={16} />
           </button>
-          <span className="mx-1 h-5 w-px bg-ink-line" />
-          <button type="button" onClick={() => actions.onRequestChange(selected.path)} className="inline-flex h-9 items-center gap-1.5 rounded-sm px-2.5 text-[13px] font-semibold hover:bg-ink-2">
-            <IconBranch size={15} /> Request a change
-          </button>
+          {actions.onRequestChange && (
+            <>
+              <span className="mx-1 h-5 w-px bg-ink-line" />
+              <button type="button" onClick={() => actions.onRequestChange?.(selected.path)} className="inline-flex h-9 items-center gap-1.5 rounded-sm px-2.5 text-[13px] font-semibold hover:bg-ink-2">
+                <IconBranch size={15} /> Request a change
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

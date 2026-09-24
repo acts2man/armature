@@ -1,14 +1,15 @@
 /**
  * The one list of what a site's menu holds, in the order WordPress people expect:
- * Dashboard, Stats, Posts, Media, Pages, Contact, Appearance, Users, then Site settings
- * (agency staff only). The sidebar draws it, the first-run tour describes it, and the
- * tests read it. Anything not built yet is simply left out: never a dead link.
+ * Dashboard, Stats, Posts, Media, Pages, Contact, Requests (change requests to the
+ * agency), Appearance, Users, then Site settings (agency staff only). The sidebar draws
+ * it, the first-run tour describes it, and the tests read it. Anything not built yet is
+ * simply left out: never a dead link.
  */
 import type { IconProps } from "./icons.tsx";
 import type { ReactNode } from "react";
-import { IconChart, IconGrid, IconImage, IconInbox, IconPage, IconPalette, IconParagraph, IconSettings, IconTeam } from "./icons.tsx";
+import { IconBranch, IconChart, IconGrid, IconImage, IconInbox, IconPage, IconPalette, IconParagraph, IconSettings, IconTeam } from "./icons.tsx";
 
-export type SiteNavKey = "dashboard" | "stats" | "posts" | "media" | "pages" | "contact" | "appearance" | "users" | "settings";
+export type SiteNavKey = "dashboard" | "stats" | "posts" | "media" | "pages" | "contact" | "requests" | "appearance" | "users" | "settings";
 
 export type SiteNavEntry = {
   key: SiteNavKey;
@@ -29,6 +30,7 @@ export const BUILT: Record<SiteNavKey, boolean> = {
   media: true,
   pages: true,
   contact: true,
+  requests: true,
   appearance: true,
   users: true,
   settings: true,
@@ -51,6 +53,7 @@ export function siteNavItems({ root, isStaff, hostingOnly }: SiteNavContext): Si
     { key: "media", to: `${root}/media`, label: "Media", icon: IconImage, blurb: "every picture on the site", show: !hostingOnly },
     { key: "pages", to: `${root}/pages`, label: "Pages", icon: IconPage, blurb: "every page, ready to edit", show: !hostingOnly },
     { key: "contact", to: `${root}/contact`, label: "Contact", icon: IconInbox, blurb: "messages from the site's forms", show: true },
+    { key: "requests", to: `${root}/requests`, label: "Requests", icon: IconBranch, blurb: isStaff ? "what the client has asked for" : "ask the agency for anything bigger", show: true },
     { key: "appearance", to: `${root}/appearance`, label: "Appearance", icon: IconPalette, blurb: "colours, fonts, header and footer", show: !hostingOnly },
     { key: "users", to: `${root}/users`, label: "Users", icon: IconTeam, blurb: "who can sign in", show: true },
     { key: "settings", to: `${root}/settings`, label: "Site settings", icon: IconSettings, blurb: "the connection, hosting and what the client may edit", show: isStaff },

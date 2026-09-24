@@ -44,7 +44,7 @@ describe("schemas", () => {
     expect(validateElement(element({ type: "button", props: { text: "Go", link: { href: "javascript:alert(1)" } } })).errors.join()).toMatch(/props\.link\.href/);
     expect(validateElement(element({ id: "NOPE", type: "spacer" })).errors.join()).toMatch(/element id/);
     expect(validateElement(element({ type: "heading", props: { text: "x" }, style: { color: "red; background: url(x)" } })).errors.join()).toMatch(/colour/);
-    expect(validateElement(element({ type: "heading", props: { text: "x" }, children: [element({ type: "spacer" })] })).errors.join()).toMatch(/cannot contain/);
+    expect(validateElement(element({ type: "heading", props: { text: "x" }, children: [element({ type: "spacer" })] })).errors.join()).toMatch(/inner elements only inside a container or grid/);
     expect(validateElement(element({ type: "image", props: { src: "http://evil.example/x.png" } })).errors.join()).toMatch(/https/);
     expect(validateElement(element({ type: "heading", props: { text: "x" }, advanced: { attributes: [{ name: "onclick", value: "x" }] } })).errors.join()).toMatch(/attribute/);
   });

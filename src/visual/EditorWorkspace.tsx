@@ -2,8 +2,8 @@
  * The visual editor workspace: one draft per site across every page (content fields,
  * pictures, layouts and the site kit), the bridge connection, selection, one command
  * system with undo/redo, autosave, publishing, shortcuts and the tour. Layout per
- * docs/1-visual-editor.html: top bar, icon rail, left panel, scaled canvas, inspector,
- * and the "Need something bigger?" bar.
+ * docs/1-visual-editor.html: top bar, icon rail, left panel, scaled canvas and inspector.
+ * Change requests are filed from the site's dashboard (Requests), not from here.
  *
  * With a v1.1 bridge (protocol 1) this is the Stage 1 editor. With a v2 kit (protocol 2)
  * and an editing level that allows it, the page builder switches on: the Elements,
@@ -95,7 +95,6 @@ import {
   duplicateListItem,
   emptyDraft,
   emptyHistory,
-  fieldMeta,
   moveListItem,
   removeListItem,
   revertField,
@@ -115,7 +114,7 @@ import { FieldEditor, Inspector, type InspectorActions } from "./Inspector.tsx";
 import { LeftPanel, type LeftTab } from "./LeftPanel.tsx";
 import { defaultPage, deviceWidthFor, editablePages, modKey, modelDevice, normalizePath, pageForRoute, tourSeen, type Device } from "./pages.ts";
 import { PublishDialog, type PublishState } from "./PublishDialog.tsx";
-import { RequestBar, RestorePrompt, ShortcutsSheet, Tour } from "./Sheets.tsx";
+import { RestorePrompt, ShortcutsSheet, Tour } from "./Sheets.tsx";
 import { TopBar } from "./TopBar.tsx";
 import { useBridge } from "./useBridge.ts";
 
@@ -1218,14 +1217,13 @@ export function EditorWorkspace({
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  // --- request a change ---------------------------------------------------------------------------------------------
-  const requestChange = (path: FieldPath | "", text = "") => {
-    const meta = path ? fieldMeta(schema, path) : null;
+  // --- request a change about the selected element (from its panel: an unreadable or locked element) ----------------
+  const requestChange = () => {
     const element = selectedId ? findElement(builderView, selectedId, pageSlug)?.element : undefined;
-    const where = meta ? `${meta.page.label} page, ${meta.section.label} section, "${meta.label}"` : element ? `${page?.label ?? ""} page, ${element.label || widgetLabel(element.type)} element (${element.id})` : page ? `${page.label} page` : site.name;
+    const where = element ? `${page?.label ?? ""} page, ${element.label || widgetLabel(element.type)} element (${element.id})` : page ? `${page.label} page` : site.name;
     const params = new URLSearchParams();
-    params.set("title", text ? text.slice(0, 120) : meta ? `Change to ${meta.label} on the ${meta.page.label} page` : element ? `Change to the ${element.label || widgetLabel(element.type)} on the ${page?.label ?? ""} page` : `Change to the ${page?.label ?? ""} page`.trim());
-    params.set("details", `${text ? `${text}\n\n` : ""}Where: ${where}${path ? ` (${path})` : ""}\nCurrent text: ${path ? currentText(draft, published, path).slice(0, 300) : ""}`.trim());
+    params.set("title", element ? `Change to the ${element.label || widgetLabel(element.type)} on the ${page?.label ?? ""} page` : `Change to the ${page?.label ?? ""} page`.trim());
+    params.set("details", `Where: ${where}`);
     navigate(`/sites/${site.id}/requests/new?${params.toString()}`);
   };
 
@@ -1430,7 +1428,6 @@ export function EditorWorkspace({
     },
     onListMove: (root, from, to) => contentCommand("Moved item", (current) => moveListItem(current, published, root, from, to)),
     onShowOnPage: (path) => selectPath(path),
-    onRequestChange: (path) => requestChange(path),
   };
 
   return (
@@ -1553,7 +1550,7 @@ export function EditorWorkspace({
                   locked={lockedIn(builderView, selectedId)}
                   agencyName={agencyName}
                   siteUrl={site.live_url}
-                  requestChange={() => requestChange("")}
+                  requestChange={requestChange}
                   device={modelDevice(device)}
                   onDevice={onModelDevice}
                   kit={builderView.kit}
@@ -1642,7 +1639,6 @@ export function EditorWorkspace({
               },
               onEditLink: () => document.getElementById("inspector-link-href")?.focus() ?? document.getElementById("inspector-url")?.focus(),
               onRevert: (root) => contentCommand("Reverted to published", (current) => revertField(current, root)),
-              onRequestChange: (path) => requestChange(path),
             }}
             onSelectImage={(path) => selectPath(path, false)}
             onDropImage={(path, file) => void attachImage(path, file)}
@@ -1708,7 +1704,6 @@ export function EditorWorkspace({
               {drag.overCanvas && !drag.target && <span className="ml-2 text-red-soft">Not here</span>}
             </div>
           )}
-          <RequestBar agencyName={agencyName} onSubmit={(text) => requestChange(selectedPath ?? "", text)} />
           <Tour active={tourOpen} kind={builder ? (styleOnly ? "style" : "builder") : "content"} onDone={() => setTourOpen(false)} />
         </div>
         {!builder && !connecting && (
@@ -1720,7 +1715,6 @@ export function EditorWorkspace({
             selectedOnCanvas={selectedOnCanvas}
             liveUrl={site.live_url}
             replaceRequest={replaceRequest}
-            agencyName={agencyName}
             builder={builder}
             isStaff={isStaff}
             actions={fieldActions}

@@ -9,13 +9,16 @@ import { SITE_ID, demoLayouts, editorUrl, installMocks } from "./mocks.ts";
 
 const siteFrame = (page: Page): FrameLocator => page.frameLocator(`iframe[title$="live site"]`);
 
-/** The demo home page with a colour the validator cannot read, a broken element and a bad phone override. */
+/** A button whose text is a number: a known element with one value the editor cannot read. */
+const ODD_BUTTON = { id: "btnbroke", type: "button", props: { text: 42, link: { href: "/contact/" } }, style: {}, advanced: {}, meta: { createdBy: "hand", updatedAt: "" } };
+
+/** The demo home page with a colour the validator cannot read, a broken element, a bad phone override and a button with a number for its text. */
 function layoutsWithProblems(): Record<string, unknown> {
   const home = JSON.parse(JSON.stringify(demoLayouts["home"])) as { root: Record<string, unknown>[] };
   const section = home.root[1] as { children: Record<string, unknown>[] };
   const heading = section.children[0] as { style: Record<string, unknown> };
   heading.style = { ...heading.style, color: "navy-ish", typography: { fontWeight: 650, fontSize: { desktop: { value: 32, unit: "px" }, mobile: "big" } } };
-  section.children.splice(1, 0, { id: "BROKEN", type: "heading", props: { text: "Old" }, style: {}, advanced: {}, meta: { createdBy: "hand", updatedAt: "" } });
+  section.children.splice(1, 0, { id: "BROKEN", type: "heading", props: { text: "Old" }, style: {}, advanced: {}, meta: { createdBy: "hand", updatedAt: "" } }, JSON.parse(JSON.stringify(ODD_BUTTON)) as Record<string, unknown>);
   return { ...demoLayouts, home };
 }
 
@@ -39,12 +42,15 @@ test.describe("values the editor cannot read", () => {
     const box = page.getByTestId("file-problems");
     await expect(box).toBeVisible();
     const items = box.locator("li");
-    await expect(items).toHaveCount(3);
+    await expect(items).toHaveCount(4);
     await expect(box).toContainText('Home: the heading\'s Style › Color is "navy-ish", which is not a colour');
     await expect(box).toContainText("kept as it is in the file");
     await expect(box).toContainText('Style › Typography › Font size › on phone is "big"');
     await expect(box).toContainText('could not be read: its element id "BROKEN"');
     await expect(box).toContainText("Unsupported element");
+    // A known element with one unreadable value is named as ignored, not as unsupported.
+    await expect(items.filter({ hasText: "Content › Text is 42" })).toContainText("the button's Content › Text is 42, which is not text up to 300 characters. It is ignored");
+    await expect(items.filter({ hasText: "Content › Text is 42" })).not.toContainText("Unsupported");
     await items.filter({ hasText: "navy-ish" }).getByTestId("show-me").click();
     await expect(page).toHaveURL(/\/visual\?page=home&element=hdbuilds$/);
     await expect(siteFrame(page).locator("h1")).toBeVisible({ timeout: 20_000 });
@@ -57,12 +63,21 @@ test.describe("values the editor cannot read", () => {
     await expect(siteFrame(page).locator(".ae-hdbuilds")).toHaveCSS("font-size", "32px");
   });
 
-  test("an unreadable element shows as Unsupported element, is skipped on the site, and a publish keeps every unread value", async ({ page }) => {
+  test("only a genuinely unreadable element shows as Unsupported; one with a bad value renders with it ignored; a publish keeps every unread value", async ({ page }) => {
     const state = await installMocks(page, { layouts: layoutsWithProblems() });
     await openEditor(page, editorUrl("home"));
     const frame = siteFrame(page);
     const placeholder = frame.locator(".ae-unsupported");
+    await expect(placeholder).toHaveCount(1);
     await expect(placeholder).toHaveText("Unsupported element: heading");
+    // The button with a number for its text is a real button on the page, with an empty label.
+    const button = frame.locator(".ae-btnbroke");
+    await expect(button).toBeVisible();
+    await expect(button).toHaveAttribute("data-ae-type", "button");
+    await button.click();
+    await expect(page.getByTestId("edit-title")).toHaveText("Edit Button");
+    await expect(page.getByTestId("element-problems")).toContainText("One setting could not be read");
+    await expect(page.getByTestId("element-problems")).toContainText("Content › Text is 42");
     await placeholder.click();
     await expect(page.getByTestId("edit-title")).toHaveText("Unsupported element");
     await expect(page.getByTestId("unsupported-note")).toContainText('its element id "BROKEN" is not eight lowercase letters or digits');
@@ -85,6 +100,8 @@ test.describe("values the editor cannot read", () => {
     expect(heading?.style?.["color"]).toBe("navy-ish");
     expect(heading?.style?.["typography"]).toEqual({ fontWeight: 650, fontSize: { desktop: { value: 32, unit: "px" }, mobile: "big" } });
     expect(section?.children?.[1]).toEqual({ id: "BROKEN", type: "heading", props: { text: "Old" }, style: {}, advanced: {}, meta: { createdBy: "hand", updatedAt: "" } });
+    // The button's number goes back too, untouched.
+    expect(section?.children?.[2]).toEqual(ODD_BUTTON);
   });
 
   test("the Weight control keeps its list and takes a custom number", async ({ page }) => {

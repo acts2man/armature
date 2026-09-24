@@ -7,9 +7,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import { SITE_ID, installMocks } from "./mocks.ts";
 
-/** The items a connected site shows today, in order. Later parts add Media, Contact and Appearance. */
-const STAFF_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Appearance", "Users", "Site settings"];
-const CLIENT_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Appearance", "Users"];
+/** The items a connected site shows today, in order. Requests (change requests to the agency) sits between Contact and Appearance. */
+const STAFF_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Requests", "Appearance", "Users", "Site settings"];
+const CLIENT_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Requests", "Appearance", "Users"];
 const HIDDEN = ["nav-stats", "nav-posts"];
 
 const sidebar = (page: Page) => page.getByTestId("sidebar");

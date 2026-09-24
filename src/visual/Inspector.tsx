@@ -7,7 +7,7 @@
  */
 import { clsx } from "clsx";
 import { useEffect, useId, useRef, useState, type DragEvent, type ReactNode } from "react";
-import { IconArrowDown, IconArrowUp, IconBranch, IconCopy, IconGrip, IconImage, IconPlus, IconPointer, IconTrash, IconUndo, IconUpload } from "@/components/icons.tsx";
+import { IconArrowDown, IconArrowUp, IconCopy, IconGrip, IconImage, IconPlus, IconPointer, IconTrash, IconUndo, IconUpload } from "@/components/icons.tsx";
 import { Button, Field, Input, SrOnly, Textarea } from "@/components/ui.tsx";
 import type { ContentTree, LinkValue, ListValue } from "@shared/contentFile.ts";
 import { LIMITS, isAllowedImagePath, isAllowedLinkTarget } from "@shared/contentValidation.ts";
@@ -29,7 +29,6 @@ export type InspectorActions = {
   onListRemove: (root: FieldPath, index: number) => void;
   onListMove: (root: FieldPath, from: number, to: number) => void;
   onShowOnPage: (path: FieldPath) => void;
-  onRequestChange: (path: FieldPath) => void;
 };
 
 const urlError = (value: string): string | null => {
@@ -326,7 +325,6 @@ export function Inspector({
   liveUrl,
   actions,
   replaceRequest,
-  agencyName,
   elementPanel,
   builder = false,
   isStaff = false,
@@ -340,7 +338,6 @@ export function Inspector({
   actions: InspectorActions;
   /** Bumped when the toolbar's Replace image is pressed, to open the file picker. */
   replaceRequest: number;
-  agencyName: string;
   /** Agency staff read the developer wording of the header/footer note. */
   isStaff?: boolean;
   /** Site contract v2: the selected builder element's panel, shown instead of a field. */
@@ -369,15 +366,6 @@ export function Inspector({
   return (
     <aside aria-label="Inspector" className="flex w-80 shrink-0 flex-col border-l border-line bg-panel" data-testid="inspector">
       <div className="min-h-0 flex-1 overflow-y-auto">{body}</div>
-      <div className="flex flex-col gap-2.5 border-t border-line px-5 py-4">
-        <div className="flex items-center gap-2 text-[13px] font-bold text-text">
-          <IconBranch size={15} /> Need something bigger?
-        </div>
-        <p className="text-[12px] leading-relaxed text-muted">New layouts, features and anything that changes how the site works go to {agencyName} as a request.</p>
-        <Button variant="secondary" size="bar" onClick={() => actions.onRequestChange(selectedPath ?? "")}>
-          Request a change
-        </Button>
-      </div>
     </aside>
   );
 }

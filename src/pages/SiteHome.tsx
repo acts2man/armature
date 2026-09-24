@@ -231,7 +231,6 @@ export function SiteHome() {
             <Shortcut to={`${root}/pages`} icon={<IconPage size={18} />} title="All pages" detail="Every page, its address and when it last went live." testId="shortcut-pages" />
             {BUILT.appearance && <Shortcut to={`${root}/appearance`} icon={<IconPalette size={18} />} title="Colours and fonts" detail="The site's look, changed everywhere at once." testId="shortcut-appearance" />}
             {BUILT.media && <Shortcut to={`${root}/media`} icon={<IconImage size={18} />} title="Pictures" detail="Upload, replace and describe the site's images." testId="shortcut-media" />}
-            <Shortcut to={`${root}/requests/new`} icon={<IconSend size={18} />} title="Request a change" detail={`Anything bigger: ${portal} picks it up.`} testId="shortcut-request" />
           </div>
         </section>
       )}
@@ -378,7 +377,22 @@ export function SiteHome() {
         </div>
 
         <div className="flex min-w-0 flex-col gap-5">
-          <Panel title="Open change requests" aside={<PanelLink to={`${root}/requests`}>All requests</PanelLink>}>
+          <Panel title="Change requests" aside={<PanelLink to={`${root}/requests`}>All requests</PanelLink>}>
+            {/* The one place to ask the agency for something bigger: new layouts, features, anything the editor cannot do. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-ground/60 px-4 py-3.5 sm:px-5" data-testid="request-card">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-panel text-text">
+                  <IconSend size={18} />
+                </span>
+                <div className="min-w-0">
+                  <div className="text-[14px] font-semibold text-text">Need something bigger?</div>
+                  <div className="text-[13px] leading-snug text-muted">{isStaff ? "New layouts, features and anything the editor cannot do reach you here as a request." : `New layouts, features and anything the editor cannot do go to ${portal} as a request.`}</div>
+                </div>
+              </div>
+              <LinkButton size="sm" to={`${root}/requests/new`} data-testid="request-new">
+                <IconPlus size={15} /> Request a change
+              </LinkButton>
+            </div>
             <div data-testid="dashboard-requests">
               {requests.isPending ? (
                 <SkeletonRows rows={2} label="Loading change requests" />
@@ -390,15 +404,7 @@ export function SiteHome() {
                 </div>
               ) : open.length === 0 ? (
                 <div className="p-5">
-                  <EmptyState
-                    title="No open requests"
-                    icon={<IconSend size={18} />}
-                    action={
-                      <LinkButton variant="secondary" size="sm" to={`${root}/requests/new`}>
-                        Request a change
-                      </LinkButton>
-                    }
-                  >
+                  <EmptyState title="No open requests" icon={<IconBranch size={18} />}>
                     {isStaff ? "Requests the client files for this site will appear here." : "Ask for anything you cannot change yourself and the agency will pick it up."}
                   </EmptyState>
                 </div>
@@ -449,14 +455,6 @@ export function SiteHome() {
               )}
             </div>
           </Panel>
-
-          {hostingOnly && (
-            <div className="flex flex-wrap gap-3">
-              <LinkButton variant="secondary" to={`${root}/requests/new`}>
-                <IconPlus size={16} /> Request a change
-              </LinkButton>
-            </div>
-          )}
         </div>
       </div>
     </div>

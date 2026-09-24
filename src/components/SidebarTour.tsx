@@ -49,7 +49,7 @@ export function SidebarTour({ siteName, isStaff, items }: { siteName: string; is
           ))}
         </ul>
         <p className="mt-2 text-muted">
-          {isStaff ? "Back to Fleet takes you to all your sites, and the site's name at the top switches between them. " : "Anything bigger than that, ask for it with Request a change. "}
+          {isStaff ? "Back to Fleet takes you to all your sites, and the site's name at the top switches between them. " : "Anything bigger than that, ask for it under Requests: Request a change goes straight to the agency. "}
           On a phone the menu sits behind the button at the top; on a desktop you can collapse it to icons.
         </p>
       </div>
