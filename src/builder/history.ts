@@ -40,8 +40,9 @@ export function apply(history: EditorHistory, command: Command, now = Date.now()
   const next = command.run(history.present);
   if (next === null || next === history.present) return history;
   const last = history.past[history.past.length - 1];
-  // A "drag:" group (one resize or spacing drag, keyed by its start) merges however long the
-  // pointer rests; other groups merge only while the changes keep coming.
+  // A "drag:" group (one resize or spacing drag, one held stepper button or one key-repeat
+  // run, keyed by its start) merges however long it lasts; other groups merge only while the
+  // changes keep coming.
   if (command.group && last && last.group === command.group && (command.group.startsWith("drag:") || now - last.at < GROUP_MS)) {
     const merged: HistoryEntry = { ...last, after: next, at: now };
     return { present: next, past: [...history.past.slice(0, -1), merged], future: [] };

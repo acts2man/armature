@@ -1,17 +1,81 @@
 /**
  * The floating toolbar over a Text Editor being edited on the page: bold, italic,
  * underline, strike, paragraph or heading, lists, alignment, a link (validated), a colour
- * from the site's palette or any hex, and clear formatting. It lives above the frame;
- * the kit applies each command inside the page and reports the new state back. Buttons
- * never take focus from the page, and the kit keeps the text selection while they're used.
+ * from the site's palette or any hex, clear formatting, and the font size (A−, the size,
+ * A+). It lives above the frame; the kit applies each command inside the page and reports
+ * the new state back. Buttons never take focus from the page, and the kit keeps the text
+ * selection while they're used. The font-size stepper is also shown on its own over any
+ * selected element whose Style tab has typography (headings, buttons, boxes with text).
  */
 import { clsx } from "clsx";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { IconAlignCenter, IconAlignJustify, IconAlignLeft, IconAlignRight, IconBold, IconCheck, IconDroplet, IconEraser, IconItalic, IconLink, IconListBullet, IconListOrdered, IconStrike, IconUnderline } from "@/components/icons.tsx";
-import type { SiteKit } from "@shared/builder/index.ts";
+import type { Device, Size, SiteKit } from "@shared/builder/index.ts";
 import { isAllowedHref } from "@shared/builder/schema.ts";
 import type { Rect, RichTextCommand, RichTextState } from "@shared/visualProtocol.ts";
-import { resolveKitColor } from "@kit/values.ts";
+import { resolveKitColor, sizeToCss } from "@kit/values.ts";
+import { useHold } from "./controls/inputs.tsx";
+import { stepFontSize, type FontSizeInfo } from "./fontSize.ts";
+
+// --- font size ---------------------------------------------------------------------------------------
+
+export type FontSizeStepperProps = {
+  info: FontSizeInfo;
+  device: Device;
+  /** `run` names one hold, so the caller can keep it one undo step. */
+  onChange: (next: Size, run: string) => void;
+  onCommit?: () => void;
+};
+
+function HoldTool({ label, onStep, onEnd, testId, children }: { label: string; onStep: (shift: boolean, run: string) => void; onEnd?: () => void; testId: string; children: ReactNode }) {
+  const hold = useHold(onStep, onEnd);
+  return (
+    <button type="button" title={`${label} (Shift for 10, hold to repeat)`} aria-label={label} data-testid={testId} {...hold} className="inline-flex h-full min-w-7 items-center justify-center rounded-sm px-1 text-[12px] font-semibold hover:bg-ink-2">
+      {children}
+    </button>
+  );
+}
+
+/** A−, the current size, A+: steps the element's font size for the device being edited. */
+export function FontSizeStepper({ info, device, onChange, onCommit }: FontSizeStepperProps) {
+  // A hold repeats from a timer: step from the last size written, not the render the press came from.
+  const latest = useRef(info.size);
+  useEffect(() => {
+    latest.current = info.size;
+  }, [info.size]);
+  const stepBy = (direction: 1 | -1, shift: boolean, run: string) => {
+    const next = stepFontSize(latest.current, direction, shift);
+    latest.current = next;
+    onChange(next, run);
+  };
+  const smaller = (shift: boolean, run: string) => stepBy(-1, shift, run);
+  const larger = (shift: boolean, run: string) => stepBy(1, shift, run);
+  const from = info.source === "own" ? `set for ${device}` : info.source === "preset" ? "from the site text style" : "as the page shows it";
+  return (
+    <span role="group" aria-label={`Font size on ${device}`} title={`Font size (${from})`} data-testid="font-size-toolbar" data-device={device} data-source={info.source} className="inline-flex h-8 items-center gap-0.5">
+      <HoldTool label="Smaller text" onStep={smaller} onEnd={onCommit} testId="font-size-down">
+        A−
+      </HoldTool>
+      <span className="min-w-9 text-center font-mono text-[11px] tabular-nums" data-testid="font-size-value">
+        {sizeToCss(info.size)}
+      </span>
+      <HoldTool label="Larger text" onStep={larger} onEnd={onCommit} testId="font-size-up">
+        A+
+      </HoldTool>
+    </span>
+  );
+}
+
+/** The stepper on its own, over a selected element that is not being edited as rich text. */
+export function FontSizeStrip({ left, top, ...props }: FontSizeStepperProps & { left: number; top: number }) {
+  return (
+    <div className="dense-controls pointer-events-auto absolute z-10 flex h-8 items-center rounded-[6px] bg-ink px-0.5 text-white shadow-dark" style={{ left, top }} data-testid="font-size-strip">
+      <FontSizeStepper {...props} />
+    </div>
+  );
+}
+
+// --- the toolbar -------------------------------------------------------------------------------------
 
 const EMPTY: RichTextState = { bold: false, italic: false, underline: false, strike: false, bulletList: false, orderedList: false, block: "p", link: null, align: "left" };
 
@@ -34,11 +98,11 @@ function Tool({ label, active, onClick, children, testId }: { label: string; act
   );
 }
 
-const TOOLBAR_WIDTH = 580;
+const TOOLBAR_WIDTH = 700;
 
 const Divider = () => <span className="mx-0.5 h-5 w-px bg-ink-line" aria-hidden="true" />;
 
-export function RichTextToolbar({ rect, scale, viewportWidth, state, kit, onCommand, onDone }: { rect: Rect; scale: number; viewportWidth: number; state: RichTextState | null; kit: SiteKit; onCommand: (command: RichTextCommand, value?: string) => void; onDone: () => void }) {
+export function RichTextToolbar({ rect, scale, viewportWidth, state, kit, onCommand, onDone, fontSize }: { rect: Rect; scale: number; viewportWidth: number; state: RichTextState | null; kit: SiteKit; onCommand: (command: RichTextCommand, value?: string) => void; onDone: () => void; /** The element's font size for the device being edited, with A− and A+. */ fontSize?: FontSizeStepperProps }) {
   const current = state ?? EMPTY;
   const [panel, setPanel] = useState<"link" | "color" | null>(null);
   const [href, setHref] = useState("");
@@ -123,6 +187,12 @@ export function RichTextToolbar({ rect, scale, viewportWidth, state, kit, onComm
         <Tool label="Clear formatting" onClick={() => onCommand("clear")} testId="rt-clear">
           <IconEraser size={15} />
         </Tool>
+        {fontSize && (
+          <>
+            <Divider />
+            <FontSizeStepper {...fontSize} />
+          </>
+        )}
         <Divider />
         <Tool label="Done (Esc cancels)" onClick={onDone} testId="rt-done">
           <IconCheck size={15} />

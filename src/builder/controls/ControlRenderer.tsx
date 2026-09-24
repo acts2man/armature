@@ -17,8 +17,9 @@ import { isAllowedHref, isAllowedMediaSrc } from "@shared/builder/schema.ts";
 import { parseKitRef, resolveKitFont, sizeToCss } from "@kit/values.ts";
 import { FontPicker } from "./FontPicker.tsx";
 import { IconPicker } from "./IconPicker.tsx";
-import { Choice, ColorInput, ColorSwatch, controlInputClass, DeviceButton, GlobalColorList, GlobeButton, NumberInput, PencilButton, Popover, PopoverHost, Row, SizeInput, UnitMenu } from "./inputs.tsx";
-import { FONT_UNITS, LETTER_UNITS, LINE_HEIGHT_UNITS, PX_UNITS, SPACING_UNITS, type ControlSpec, type Path } from "./types.ts";
+import { Choice, ColorInput, ColorSwatch, controlInputClass, DeviceButton, GlobalColorList, GlobeButton, NumberInput, PencilButton, Popover, PopoverHost, Row, SizeInput, stepForUnit, stepGroup, UnitMenu } from "./inputs.tsx";
+import { borderSpecs, typographySpecs } from "./specs.ts";
+import { PX_UNITS, SPACING_UNITS, type ControlSpec, type Path } from "./types.ts";
 import { thumbnailUrl } from "../media.ts";
 
 export type ControlTarget = {
@@ -41,8 +42,12 @@ const slug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 /** True inside a popover: colours render their full picker in place instead of another popover. */
 const InPopover = createContext(false);
 
-/** Reads and writes for one control, responsive or not. */
-function useValue<T>(target: ControlTarget, path: Path, responsive: boolean | undefined, fallback?: T) {
+/**
+ * Reads and writes for one control, responsive or not. `desktopFallback` is what desktop
+ * shows while nothing is set (a site text style's value): a first value written on a phone
+ * or tablet then keeps desktop at it, since the file format needs a desktop base.
+ */
+function useValue<T>(target: ControlTarget, path: Path, responsive: boolean | undefined, fallback?: T, desktopFallback?: T) {
   const raw = target.read(path) as T | { desktop: T; tablet?: T; mobile?: T } | undefined;
   if (!responsive) {
     return {
@@ -55,11 +60,12 @@ function useValue<T>(target: ControlTarget, path: Path, responsive: boolean | un
   }
   const value = own<T>(raw, target.device);
   const inherited = value === undefined ? (resolve<T>(raw, target.device) ?? fallback) : undefined;
+  const base = raw === undefined && target.device !== "desktop" && desktopFallback !== undefined ? { desktop: desktopFallback } : raw;
   return {
     value,
     inherited,
     overridden: hasOverride<T>(raw, target.device),
-    set: (next: T | undefined, name: string, group?: string) => target.write(path, setAt<T>(raw, target.device, next), name, group),
+    set: (next: T | undefined, name: string, group?: string) => target.write(path, setAt<T>(next === undefined ? raw : base, target.device, next), name, group),
     reset: () => target.write(path, setAt<T>(raw, target.device, undefined), "Reset the override"),
   };
 }
@@ -102,7 +108,7 @@ const CUSTOM_OPTION = "__custom__";
 
 function SelectControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "select" }> }) {
   const id = useId();
-  const { value, inherited, set } = useValue<string | number>(target, spec.path, spec.responsive, spec.fallback);
+  const { value, inherited, set } = useValue<string | number>(target, spec.path, spec.responsive, spec.fallback, spec.desktopFallback);
   const parse = (raw: string): string | number | undefined => {
     if (raw === "") return undefined;
     if (spec.numeric && /^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
@@ -113,7 +119,7 @@ function SelectControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const listed = shown === undefined || spec.options.some((option) => option.value === String(shown));
   const [customOpen, setCustomOpen] = useState(false);
   const customMode = !!spec.custom && (customOpen || !listed);
-  const [customText, setCustomText] = useState(() => (shown !== undefined && !listed ? String(shown) : ""));
+  const [customValue, setCustomValue] = useState<number | undefined>(() => (shown !== undefined && !listed && Number.isFinite(Number(shown)) ? Number(shown) : undefined));
   return (
     <Responsive target={target} spec={spec} htmlFor={id} hint={spec.hint}>
       <div className="flex w-full items-center gap-1">
@@ -123,7 +129,7 @@ function SelectControl({ target, spec }: { target: ControlTarget; spec: Extract<
           onChange={(event) => {
             if (event.target.value === CUSTOM_OPTION) {
               setCustomOpen(true);
-              setCustomText(shown !== undefined ? String(shown) : "");
+              setCustomValue(shown !== undefined && Number.isFinite(Number(shown)) ? Number(shown) : undefined);
               return;
             }
             setCustomOpen(false);
@@ -142,22 +148,21 @@ function SelectControl({ target, spec }: { target: ControlTarget; spec: Extract<
           {spec.custom && <option value={CUSTOM_OPTION}>Custom…</option>}
         </select>
         {customMode && spec.custom && (
-          <input
-            type="number"
-            aria-label={`Custom ${spec.label.toLowerCase()}`}
-            data-testid={`custom-${spec.label.toLowerCase().replace(/\s+/g, "-")}`}
-            min={spec.custom.min}
-            max={spec.custom.max}
-            step={spec.custom.step ?? 1}
-            value={customText}
-            placeholder={`${spec.custom.min}–${spec.custom.max}`}
-            onChange={(event) => {
-              setCustomText(event.target.value);
-              const number = Number(event.target.value);
-              if (event.target.value !== "" && Number.isFinite(number) && number >= spec.custom!.min && number <= spec.custom!.max) set(number, `Changed ${spec.label.toLowerCase()}`, `custom:${spec.path.join(".")}`);
-            }}
-            className={clsx(controlInputClass, "w-1/2")}
-          />
+          <span className="w-1/2">
+            <NumberInput
+              ariaLabel={`Custom ${spec.label.toLowerCase()}`}
+              testId={`custom-${spec.label.toLowerCase().replace(/\s+/g, "-")}`}
+              value={customValue}
+              min={spec.custom.min}
+              max={spec.custom.max}
+              step={spec.custom.step ?? 1}
+              placeholder={`${spec.custom.min}–${spec.custom.max}`}
+              onChange={(next, run) => {
+                setCustomValue(next);
+                set(next, `Changed ${spec.label.toLowerCase()}`, stepGroup(`custom:${key(spec.path)}`, run));
+              }}
+            />
+          </span>
         )}
       </div>
     </Responsive>
@@ -195,14 +200,14 @@ function NumberControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const { value, inherited, set } = useValue<number>(target, spec.path, spec.responsive);
   return (
     <Responsive target={target} spec={spec} htmlFor={id} hint={spec.hint}>
-      <NumberInput id={id} value={value} inherited={inherited} min={spec.min} max={spec.max} step={spec.step ?? 1} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} className="w-full" />
+      <NumberInput id={id} value={value} inherited={inherited} min={spec.min} max={spec.max} step={spec.step ?? 1} onChange={(next, run) => set(next, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run))} className="w-full" />
     </Responsive>
   );
 }
 
 function SizeControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "size" }> }) {
   const id = useId();
-  const { value, inherited, set } = useValue<Size | "screen">(target, spec.path, spec.responsive, spec.fallback);
+  const { value, inherited, set } = useValue<Size | "screen">(target, spec.path, spec.responsive, spec.fallback, spec.desktopFallback);
   const isScreen = value === "screen" || (value === undefined && inherited === "screen");
   return (
     <Responsive target={target} spec={spec} htmlFor={id} hint={spec.hint}>
@@ -218,7 +223,7 @@ function SizeControl({ target, spec }: { target: ControlTarget; spec: Extract<Co
           allowScreen={spec.allowScreen}
           screen={isScreen}
           onScreen={(on) => set(on ? "screen" : undefined, `Changed ${spec.label.toLowerCase()}`)}
-          onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))}
+          onChange={(next, run) => set(next, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run))}
         />
       </div>
     </Responsive>
@@ -240,11 +245,11 @@ function LinkedSizes<K extends string>({ target, spec, keys, labels }: { target:
   });
   const units = spec.units ?? SPACING_UNITS;
   const unit: Unit = keys.map((k) => shown[k]?.unit).find((u): u is Unit => !!u) ?? units[0] ?? "px";
-  const update = (which: K, next: Size) => {
+  const update = (which: K, next: Size, run?: string) => {
     const base = { ...(value ?? inherited ?? {}) } as Partial<Record<K, Size>>;
     if (linked) for (const k of keys) base[k] = next;
     else base[which] = next;
-    set(base, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+    set(base, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run));
   };
   return (
     <Responsive
@@ -262,7 +267,7 @@ function LinkedSizes<K extends string>({ target, spec, keys, labels }: { target:
     >
       <div className="grid grid-cols-4 gap-1">
         {keys.map((k) => (
-          <NumberInput key={k} label={labels[k]} ariaLabel={`${spec.label} ${labels[k].toLowerCase()}`} value={shown[k]?.value} inherited={value === undefined ? inherited?.[k]?.value : undefined} step={unit === "em" || unit === "rem" ? 0.1 : 1} onChange={(next) => update(k, { value: next, unit })} className="flex-col-reverse items-stretch gap-0.5 text-center" />
+          <NumberInput key={k} label={labels[k]} ariaLabel={`${spec.label} ${labels[k].toLowerCase()}`} value={shown[k]?.value} inherited={value === undefined ? inherited?.[k]?.value : undefined} step={stepForUnit(unit)} onChange={(next, run) => update(k, { value: next, unit }, run)} className="flex-col-reverse items-stretch gap-0.5 text-center" />
         ))}
       </div>
     </Responsive>
@@ -275,12 +280,12 @@ const CornersControl = ({ target, spec }: { target: ControlTarget; spec: Extract
 function GapControl({ target, spec }: { target: ControlTarget; spec: Extract<ControlSpec, { kind: "gap" }> }) {
   const { value, inherited, set } = useValue<Gap>(target, spec.path, spec.responsive);
   const shown = value ?? inherited ?? {};
-  const update = (which: "column" | "row", next: Size | undefined) => set({ ...(value ?? inherited ?? {}), [which]: next }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+  const update = (which: "column" | "row", next: Size | undefined, run?: string) => set({ ...(value ?? inherited ?? {}), [which]: next }, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run));
   return (
     <Responsive target={target} spec={spec} stacked>
       <div className="grid grid-cols-2 gap-2">
-        <SizeInput label="Col" value={value?.column} inherited={value === undefined ? inherited?.column : shown.column} units={SPACING_UNITS} onChange={(next) => update("column", next)} />
-        <SizeInput label="Row" value={value?.row} inherited={value === undefined ? inherited?.row : shown.row} units={SPACING_UNITS} onChange={(next) => update("row", next)} />
+        <SizeInput label="Col" value={value?.column} inherited={value === undefined ? inherited?.column : shown.column} units={SPACING_UNITS} onChange={(next, run) => update("column", next, run)} />
+        <SizeInput label="Row" value={value?.row} inherited={value === undefined ? inherited?.row : shown.row} units={SPACING_UNITS} onChange={(next, run) => update("row", next, run)} />
       </div>
     </Responsive>
   );
@@ -437,10 +442,10 @@ function ShadowControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const shown = value ?? inherited;
   const defaults: Shadow = { x: 0, y: 4, blur: 12, spread: spec.text ? undefined : 0, color: "#00000033" };
   const draft = shown ?? defaults;
-  const update = (patch: Partial<Shadow>) => set({ ...defaults, ...(value ?? inherited ?? {}), ...patch }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+  const update = (patch: Partial<Shadow>, run?: string) => set({ ...defaults, ...(value ?? inherited ?? {}), ...patch }, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run));
   const number = (label: string, field: "x" | "y" | "blur" | "spread", min?: number) => (
     <Row label={label}>
-      <NumberInput ariaLabel={`${spec.label} ${label.toLowerCase()}`} value={draft[field] ?? 0} min={min} step={1} onChange={(next) => update({ [field]: next })} className="w-full" />
+      <NumberInput ariaLabel={`${spec.label} ${label.toLowerCase()}`} value={draft[field] ?? 0} min={min} step={1} onChange={(next, run) => update({ [field]: next }, run)} className="w-full" />
     </Row>
   );
   return (
@@ -468,11 +473,11 @@ function StrokeControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const { value, inherited, set } = useValue<TextStroke>(target, spec.path, spec.responsive);
   const shown = value ?? inherited;
   const draft: TextStroke = shown ?? { width: 1, color: "kit:color.text" };
-  const update = (patch: Partial<TextStroke>) => set({ ...draft, ...patch }, `Changed ${spec.label.toLowerCase()}`, key(spec.path));
+  const update = (patch: Partial<TextStroke>, run?: string) => set({ ...draft, ...patch }, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run));
   return (
     <PopoverRow target={target} spec={spec} active={!!shown}>
       <Row label="Width (px)">
-        <NumberInput ariaLabel={`${spec.label} width`} value={draft.width} min={0} max={50} step={0.5} onChange={(next) => update({ width: next })} className="w-full" />
+        <NumberInput ariaLabel={`${spec.label} width`} value={draft.width} min={0} max={50} step={0.5} onChange={(next, run) => update({ width: next }, run)} className="w-full" />
       </Row>
       <ColorField label="Colour" value={draft.color} kit={target.kit} allowClear={false} onChange={(next) => update({ color: next ?? "kit:color.text" })} />
       {shown && (
@@ -492,7 +497,7 @@ const BACKGROUND_KINDS = [
   { value: "video", label: "Video" },
 ];
 
-function BackgroundFields({ background, kit, onChange }: { background: Background; kit: SiteKit; onChange: (next: Background) => void }) {
+function BackgroundFields({ background, kit, onChange }: { background: Background; kit: SiteKit; onChange: (next: Background, run?: string) => void }) {
   switch (background.kind) {
     case "none":
       return null;
@@ -500,7 +505,7 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
       return <ColorField label="Colour" value={background.color} kit={kit} allowClear={false} onChange={(next) => onChange({ kind: "color", color: next ?? "transparent" })} />;
     case "gradient": {
       const stops = background.stops;
-      const setStop = (index: number, patch: Partial<{ color: string; position: number }>) => onChange({ ...background, stops: stops.map((stop, i) => (i === index ? { ...stop, ...patch } : stop)) });
+      const setStop = (index: number, patch: Partial<{ color: string; position: number }>, run?: string) => onChange({ ...background, stops: stops.map((stop, i) => (i === index ? { ...stop, ...patch } : stop)) }, run);
       return (
         <div className="flex flex-col gap-2">
           <Row label="Type">
@@ -508,7 +513,7 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
           </Row>
           {background.type === "linear" && (
             <Row label="Angle">
-              <NumberInput ariaLabel="Gradient angle" value={background.angle ?? 180} min={0} max={360} step={1} onChange={(next) => onChange({ ...background, angle: next })} className="w-full" />
+              <NumberInput ariaLabel="Gradient angle" value={background.angle ?? 180} min={0} max={360} step={1} onChange={(next, run) => onChange({ ...background, angle: next }, run)} className="w-full" />
             </Row>
           )}
           <div className="h-6 rounded-sm border border-line" style={{ background: `linear-gradient(90deg, ${stops.map((stop) => `${stop.color.startsWith("kit:") ? "#888" : stop.color} ${stop.position}%`).join(", ")})` }} aria-hidden="true" />
@@ -517,7 +522,7 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
               <div className="min-w-0 flex-1">
                 <ColorField label={`Stop ${index + 1}`} value={stop.color} kit={kit} allowClear={false} onChange={(next) => setStop(index, { color: next ?? "#000000" })} />
               </div>
-              <NumberInput ariaLabel={`Stop ${index + 1} position`} value={stop.position} min={0} max={100} step={1} onChange={(next) => setStop(index, { position: next })} className="w-16" suffix={<span className="text-[11px] text-muted">%</span>} />
+              <NumberInput ariaLabel={`Stop ${index + 1} position`} value={stop.position} min={0} max={100} step={1} onChange={(next, run) => setStop(index, { position: next }, run)} className="w-24" suffix={<span className="text-[11px] text-muted">%</span>} />
               <button type="button" aria-label="Remove stop" disabled={stops.length <= 2} onClick={() => onChange({ ...background, stops: stops.filter((_, i) => i !== index) })} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-muted hover:bg-ground hover:text-text disabled:opacity-40">
                 <icons.IconX size={14} />
               </button>
@@ -568,8 +573,8 @@ function BackgroundFields({ background, kit, onChange }: { background: Backgroun
           </Row>
           {background.focal && (
             <div className="grid grid-cols-2 gap-1.5">
-              <NumberInput label="X %" value={background.focal.x} min={0} max={100} step={1} onChange={(next) => onChange({ ...background, focal: { x: next, y: background.focal?.y ?? 50 } })} />
-              <NumberInput label="Y %" value={background.focal.y} min={0} max={100} step={1} onChange={(next) => onChange({ ...background, focal: { x: background.focal?.x ?? 50, y: next } })} />
+              <NumberInput label="X %" value={background.focal.x} min={0} max={100} step={1} onChange={(next, run) => onChange({ ...background, focal: { x: next, y: background.focal?.y ?? 50 } }, run)} />
+              <NumberInput label="Y %" value={background.focal.y} min={0} max={100} step={1} onChange={(next, run) => onChange({ ...background, focal: { x: background.focal?.x ?? 50, y: next } }, run)} />
             </div>
           )}
         </div>
@@ -625,7 +630,7 @@ function BackgroundControl({ target, spec }: { target: ControlTarget; spec: Extr
           ))}
         </select>
       </Responsive>
-      {shown && <BackgroundFields background={shown} kit={target.kit} onChange={(next) => set(next, `Changed ${spec.label.toLowerCase()}`, key(spec.path))} />}
+      {shown && <BackgroundFields background={shown} kit={target.kit} onChange={(next, run) => set(next, `Changed ${spec.label.toLowerCase()}`, stepGroup(key(spec.path), run))} />}
     </div>
   );
 }
@@ -647,11 +652,11 @@ function OverlayControl({ target, path }: { target: ControlTarget; path: Path })
       </Responsive>
       {shown && (
         <>
-          <BackgroundFields background={shown.background} kit={target.kit} onChange={(next) => set({ ...shown, background: next }, "Changed overlay", key(path))} />
+          <BackgroundFields background={shown.background} kit={target.kit} onChange={(next, run) => set({ ...shown, background: next }, "Changed overlay", stepGroup(key(path), run))} />
           <Row label="Opacity">
             <div className="flex w-full items-center gap-2 text-[11px] text-muted">
-              <input type="range" min={0} max={100} value={Math.round(shown.opacity * 100)} onChange={(event) => set({ ...shown, opacity: Number(event.target.value) / 100 }, "Changed overlay opacity", key(path))} className="h-1 min-w-0 flex-1" aria-label="Overlay opacity" />
-              <span className="w-8 text-right tabular-nums">{Math.round(shown.opacity * 100)}%</span>
+              <input type="range" min={0} max={100} value={Math.round(shown.opacity * 100)} onChange={(event) => set({ ...shown, opacity: Number(event.target.value) / 100 }, "Changed overlay opacity", key(path))} className="h-1 min-w-0 flex-1" aria-label="Overlay opacity slider" />
+              <NumberInput ariaLabel="Overlay opacity" value={shown.opacity} min={0} max={1} step={0.05} onChange={(next, run) => set({ ...shown, opacity: next }, "Changed overlay opacity", stepGroup(`${key(path)}.opacity`, run))} className="w-[84px] shrink-0" />
             </div>
           </Row>
           <Row label="Blend mode">
@@ -670,7 +675,6 @@ function OverlayControl({ target, path }: { target: ControlTarget; path: Path })
 }
 
 const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"];
-const WEIGHTS = ["100", "200", "300", "400", "500", "600", "700", "800", "900"];
 
 const presetLabel = (name: string) => (name.toUpperCase().startsWith("H") && /^h[1-6]$/i.test(name) ? `Heading ${name.slice(1)}` : name.charAt(0).toUpperCase() + name.slice(1));
 
@@ -693,6 +697,8 @@ function TypographyControl({ target, spec }: { target: ControlTarget; spec: Extr
     letterSpacing: preset?.letterSpacing,
     textTransform: preset?.textTransform,
   };
+  // Only the size is per device in a site text style; the rest is the same on desktop.
+  const onDesktop = { ...fromPreset, fontSize: preset ? resolve<Size>(preset.fontSize, "desktop") : undefined };
   const set = Object.keys(typography).some((field) => field !== "textAlign" && typography[field as keyof Typography] !== undefined);
   const [globalOpen, setGlobalOpen] = useState(false);
   return (
@@ -737,19 +743,7 @@ function TypographyControl({ target, spec }: { target: ControlTarget; spec: Extr
           <FontPicker value={family} kit={target.kit} placeholder={presetRef ? `From the preset (${resolveKitFont(target.kit, target.kit.typography[presetRef.replace("kit:type.", "") as keyof SiteKit["typography"]]?.fontFamily) ?? "site font"})` : "Inherit"} onChange={(next) => target.write([...base, "fontFamily"], next, "Changed the font")} />
         </div>
       </Row>
-      <ControlRenderer
-        target={target}
-        specs={[
-          { kind: "size", label: "Size", path: [...base, "fontSize"], units: FONT_UNITS, responsive: true, min: 0, fallback: fromPreset.fontSize },
-          { kind: "select", label: "Weight", path: [...base, "fontWeight"], responsive: true, numeric: true, fallback: fromPreset.fontWeight, custom: { min: 1, max: 1000 }, options: WEIGHTS.map((weight) => ({ value: weight, label: weight === "400" ? "400 Regular" : weight === "700" ? "700 Bold" : weight })) },
-          { kind: "select", label: "Transform", path: [...base, "textTransform"], responsive: true, fallback: fromPreset.textTransform, options: [{ value: "none", label: "None" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }, { value: "capitalize", label: "Capitalize" }] },
-          { kind: "select", label: "Style", path: [...base, "fontStyle"], responsive: true, options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Italic" }] },
-          { kind: "select", label: "Decoration", path: [...base, "textDecoration"], responsive: true, options: [{ value: "none", label: "None" }, { value: "underline", label: "Underline" }, { value: "line-through", label: "Strike" }, { value: "overline", label: "Overline" }] },
-          { kind: "size", label: "Line height", path: [...base, "lineHeight"], units: LINE_HEIGHT_UNITS, responsive: true, min: 0, fallback: fromPreset.lineHeight },
-          { kind: "size", label: "Letter spacing", path: [...base, "letterSpacing"], units: LETTER_UNITS, responsive: true, fallback: fromPreset.letterSpacing },
-          { kind: "size", label: "Word spacing", path: [...base, "wordSpacing"], units: LETTER_UNITS, responsive: true },
-        ]}
-      />
+      <ControlRenderer target={target} specs={typographySpecs(base, fromPreset, onDesktop)} />
     </PopoverRow>
   );
 }
@@ -760,15 +754,7 @@ function BorderControl({ target, spec }: { target: ControlTarget; spec: Extract<
   const set = !!border && Object.values(border).some((value) => value !== undefined);
   return (
     <PopoverRow target={target} spec={{ label: spec.label ?? "Border", path: base }} active={set}>
-      <ControlRenderer
-        target={target}
-        specs={[
-          { kind: "select", label: "Type", path: [...base, "style"], responsive: true, options: [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }, { value: "double", label: "Double" }] },
-          { kind: "sides", label: "Width", path: [...base, "width"], responsive: true, units: ["px", "em", "rem"] },
-          { kind: "color", label: "Colour", path: [...base, "color"], responsive: true },
-          { kind: "corners", label: "Radius", path: [...base, "radius"], responsive: true, units: ["px", "%", "em", "rem"] },
-        ]}
-      />
+      <ControlRenderer target={target} specs={borderSpecs(base)} />
     </PopoverRow>
   );
 }

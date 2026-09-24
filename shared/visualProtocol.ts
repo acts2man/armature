@@ -169,6 +169,8 @@ export type ElementRect = {
   inner?: Rect;
   /** For site sections: the registered key. */
   section?: string;
+  /** The computed font size in pixels of the part the Style tab styles (the button's link, else the element), for the font-size stepper. */
+  fontSize?: number;
 };
 export type Box = { top: number; right: number; bottom: number; left: number };
 

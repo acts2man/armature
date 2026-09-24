@@ -10,7 +10,8 @@ import type { Page, Route } from "@playwright/test";
 import { checkLayout, checkSiteKit } from "../../kit/validate.ts";
 
 export const SUPABASE_URL = "https://mock.supabase.test";
-export const DEMO_SITE_URL = "http://localhost:5174";
+/** Where the demo site runs (see ARMATURE_E2E_SITE_PORT in playwright.config.ts). */
+export const DEMO_SITE_URL = `http://localhost:${process.env["ARMATURE_E2E_SITE_PORT"] ?? "5174"}`;
 export const SITE_ID = "11111111-1111-4111-8111-111111111111";
 export const AGENCY_ID = "22222222-2222-4222-8222-222222222222";
 export const STAFF_ID = "33333333-3333-4333-8333-333333333333";

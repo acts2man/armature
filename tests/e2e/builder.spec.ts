@@ -3,7 +3,7 @@
  * kit renders layouts and builder-only pages, the bridge negotiates protocol 2, and
  * public visitors get no bridge activity.
  */
-import { expect, test, type FrameLocator, type Page } from "@playwright/test";
+import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 import { COMMIT_SHA, DEMO_SITE_URL, SITE_ID, STAFF_ID, demoLayouts, editorUrl, installMocks } from "./mocks.ts";
 
 const ZERO_WIDTH = new RegExp(`[${[0x200b, 0x200c, 0x200d, 0xfeff].map((point) => `\\u{${point.toString(16)}}`).join("")}]`, "u");
@@ -1456,5 +1456,179 @@ test.describe("the builder tour", () => {
     await waitForReady(page);
     await expect(page.getByTestId("visual-editor")).toHaveAttribute("data-builder", "on");
     await expect(page.getByTestId("tour")).toHaveCount(0);
+  });
+});
+
+// --- number steppers: the up/down buttons, the arrow keys, and the toolbar's A− / A+ ----------------------
+
+/** The number box (input plus its up/down buttons) that holds the field with this label. */
+const numberBox = (scope: Locator, label: string) => scope.getByTestId("number-input").filter({ has: scope.page().getByLabel(label, { exact: true }) });
+const steps = async (page: Page) => Number(await page.getByTestId("history-steps").textContent());
+
+test.describe("number steppers", () => {
+  test("the up and down buttons step, Shift steps 10, the canvas follows live, and one hold is one undo step", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const heading = frame.locator(".ae-hdbuilds");
+    await heading.click();
+    await page.getByTestId("inspector-tab-advanced").click();
+    const layout = page.getByTestId("group-layout");
+    const top = layout.getByLabel("Margin top", { exact: true });
+    const box = numberBox(layout, "Margin top");
+    const up = box.getByTestId("step-up");
+    const down = box.getByTestId("step-down");
+    const before = await steps(page);
+    // One click, one px (the sides are linked, so every side follows).
+    await up.click();
+    await expect(top).toHaveValue("1");
+    await expect(heading).toHaveCSS("margin-top", "1px");
+    await expect(layout.getByLabel("Margin left", { exact: true })).toHaveValue("1");
+    // Shift: ten steps.
+    await up.click({ modifiers: ["Shift"] });
+    await expect(top).toHaveValue("11");
+    await expect(heading).toHaveCSS("margin-top", "11px");
+    await down.click();
+    await expect(top).toHaveValue("10");
+    await expect(heading).toHaveCSS("margin-top", "10px");
+    expect(await steps(page)).toBe(before + 3);
+    // Press and hold: repeats after a short delay, quickly, and is one undo step.
+    const target = center(await up.boundingBox());
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.down();
+    await page.waitForTimeout(900);
+    await page.mouse.up();
+    const held = Number(await top.inputValue());
+    expect(held).toBeGreaterThan(14);
+    await expect(heading).toHaveCSS("margin-top", `${held}px`);
+    expect(await steps(page)).toBe(before + 4);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(top).toHaveValue("10");
+    await expect(heading).toHaveCSS("margin-top", "10px");
+    expect(await steps(page)).toBe(before + 3);
+    // The stepper for a size follows the unit: 0.1 per step in em.
+    await layout.getByLabel("Unit").first().selectOption("em");
+    await up.click();
+    await expect(top).toHaveValue("10.1");
+    await expect.poll(() => frame.locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain("margin-top: 10.1em");
+  });
+
+  test("the arrow keys step the focused number, Shift steps 10, and a key-repeat run is one undo step", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const heading = frame.locator(".ae-hdbuilds");
+    await heading.click();
+    await page.getByTestId("inspector-tab-advanced").click();
+    const layout = page.getByTestId("group-layout");
+    const top = layout.getByLabel("Margin top", { exact: true });
+    const before = await steps(page);
+    await top.focus();
+    await top.press("ArrowUp");
+    await top.press("ArrowUp");
+    await expect(top).toHaveValue("2");
+    await expect(heading).toHaveCSS("margin-top", "2px");
+    await top.press("Shift+ArrowUp");
+    await expect(top).toHaveValue("12");
+    await top.press("ArrowDown");
+    await expect(top).toHaveValue("11");
+    await expect(heading).toHaveCSS("margin-top", "11px");
+    // Four presses, four steps.
+    expect(await steps(page)).toBe(before + 4);
+    // A key held down: the browser repeats the keydown; the whole run is one step.
+    await top.dispatchEvent("keydown", { key: "ArrowUp", bubbles: true });
+    await top.dispatchEvent("keydown", { key: "ArrowUp", repeat: true, bubbles: true });
+    await top.dispatchEvent("keydown", { key: "ArrowUp", repeat: true, bubbles: true });
+    await top.dispatchEvent("keyup", { key: "ArrowUp", bubbles: true });
+    await expect(top).toHaveValue("14");
+    await expect(heading).toHaveCSS("margin-top", "14px");
+    expect(await steps(page)).toBe(before + 5);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(heading).toHaveCSS("margin-top", "11px");
+    // Opacity steps by 0.05 (the user's report: the value must reach the page).
+    await page.getByTestId("inspector-tab-style").click();
+    const effects = page.getByTestId("group-effects");
+    await effects.getByRole("button", { name: "Effects" }).click();
+    const opacity = effects.getByLabel("Opacity", { exact: true });
+    await opacity.fill("0.5");
+    await expect(heading).toHaveCSS("opacity", "0.5");
+    await numberBox(effects, "Opacity").getByTestId("step-up").click();
+    await expect(opacity).toHaveValue("0.55");
+    await expect(heading).toHaveCSS("opacity", "0.55");
+    await opacity.press("Shift+ArrowUp");
+    await expect(opacity).toHaveValue("1");
+    await expect(heading).toHaveCSS("opacity", "1");
+  });
+
+  test("the Globals panel numbers have the same steppers", async ({ page }) => {
+    await openBuilder(page);
+    await openGlobals(page);
+    const layout = page.getByTestId("group-layout");
+    await layout.getByRole("button", { name: "Layout" }).click();
+    const mobile = layout.getByLabel("Mobile from (px)", { exact: true });
+    await expect(mobile).toHaveValue("767");
+    await numberBox(layout, "Mobile from (px)").getByTestId("step-up").click({ modifiers: ["Shift"] });
+    await expect(mobile).toHaveValue("777");
+    // The site's phone rules (the H2's phone size) now switch at the new width.
+    await expect.poll(() => siteFrame(page).locator("style[data-armature-page=home]").evaluate((node) => node.textContent ?? "")).toContain("@media (max-width: 777px)");
+  });
+
+  test("A− and A+ on the floating toolbar change the font size for the device being edited", async ({ page }) => {
+    await openBuilder(page);
+    const frame = siteFrame(page);
+    const heading = frame.locator(".ae-hdbuilds");
+    await heading.click();
+    // On the phone the heading shows its site style's phone size; the strip says so.
+    const strip = page.getByTestId("font-size-strip");
+    await expect(strip).toBeVisible();
+    await expect(strip.getByTestId("font-size-toolbar")).toHaveAttribute("data-device", "mobile");
+    await expect(strip.getByTestId("font-size-toolbar")).toHaveAttribute("data-source", "preset");
+    await expect(strip.getByTestId("font-size-value")).toHaveText("24px");
+    await expect(heading).toHaveCSS("font-size", "24px");
+    const before = await steps(page);
+    await strip.getByTestId("font-size-up").click();
+    await expect(strip.getByTestId("font-size-value")).toHaveText("25px");
+    await expect(heading).toHaveCSS("font-size", "25px");
+    await expect(strip.getByTestId("font-size-toolbar")).toHaveAttribute("data-source", "own");
+    await strip.getByTestId("font-size-up").click({ modifiers: ["Shift"] });
+    await expect(strip.getByTestId("font-size-value")).toHaveText("35px");
+    await expect(heading).toHaveCSS("font-size", "35px");
+    expect(await steps(page)).toBe(before + 2);
+    // Desktop keeps its own size: the phone change never reached it.
+    await page.getByRole("button", { name: /Desktop view/ }).click();
+    await expect(strip.getByTestId("font-size-toolbar")).toHaveAttribute("data-device", "desktop");
+    await expect(strip.getByTestId("font-size-value")).toHaveText("28px");
+    await expect(heading).toHaveCSS("font-size", "28px");
+    await strip.getByTestId("font-size-down").click();
+    await expect(strip.getByTestId("font-size-value")).toHaveText("27px");
+    await expect(heading).toHaveCSS("font-size", "27px");
+    // And the phone keeps its own.
+    await page.getByRole("button", { name: /Phone view/ }).click();
+    await expect(page.getByTestId("canvas")).toHaveAttribute("data-scale", "1.000");
+    await settled(page);
+    await expect(strip.getByTestId("font-size-value")).toHaveText("35px");
+    await expect(heading).toHaveCSS("font-size", "35px");
+    // A hold on A− is one undo step.
+    const target = center(await strip.getByTestId("font-size-down").boundingBox());
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.down();
+    await page.waitForTimeout(800);
+    await page.mouse.up();
+    const held = Number.parseFloat((await strip.getByTestId("font-size-value").textContent()) ?? "");
+    expect(held).toBeLessThan(31);
+    expect(await steps(page)).toBe(before + 4);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(heading).toHaveCSS("font-size", "35px");
+    // The same stepper sits on the rich-text toolbar while a Text Editor is edited.
+    const text = frame.locator(".ae-txtbuild");
+    await selectElement(page, ".ae-txtbuild", "txtbuild");
+    await text.dblclick();
+    const toolbar = page.getByTestId("richtext-toolbar");
+    await expect(toolbar).toBeVisible();
+    await expect(page.getByTestId("font-size-strip")).toHaveCount(0);
+    await expect(toolbar.getByTestId("font-size-value")).toHaveText("16px");
+    await toolbar.getByTestId("font-size-up").click();
+    await expect(toolbar.getByTestId("font-size-value")).toHaveText("17px");
+    await expect(text).toHaveCSS("font-size", "17px");
+    await page.getByTestId("rt-done").click();
+    await expect(text).toHaveCSS("font-size", "17px");
   });
 });

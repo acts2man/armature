@@ -99,7 +99,7 @@ type Rect = { x: number; y: number; width: number; height: number };
 type Box = { top: number; right: number; bottom: number; left: number };
 type MappedKind = "text" | "image" | "link";
 type MappedField = { path: string; kind: MappedKind; rect: Rect; tag: string; inline: boolean; href?: string; owner?: string };
-type ElementRect = { id: string; type: string; tag: string; rect: Rect; padding: Box; margin: Box; parentId: string | null; page: string | null; empty: boolean; inner?: Rect; section?: string };
+type ElementRect = { id: string; type: string; tag: string; rect: Rect; padding: Box; margin: Box; parentId: string | null; page: string | null; empty: boolean; inner?: Rect; section?: string; fontSize?: number };
 type Viewport = { width: number; height: number; scrollX: number; scrollY: number };
 type ElementInfo = { path: string; kind: MappedKind; inline: boolean; textNode?: Text };
 
@@ -409,6 +409,10 @@ export function createBridge(config: BridgeConfig): Bridge {
       page: page?.getAttribute("data-ae-page") ?? null,
       empty: element.classList.contains("ae-empty"),
     };
+    // The font size the editor's stepper starts from: the styled part's computed size (a button styles its link).
+    const link = type === "button" ? element.querySelector(".ae-btn") : null;
+    const fontSize = num(link ? getComputedStyle(link).fontSize : style.fontSize);
+    if (fontSize > 0) out.fontSize = fontSize;
     if (type === "image") {
       const img = element.querySelector("img");
       if (img) out.inner = toRect(img);

@@ -11,13 +11,15 @@
 import { clsx } from "clsx";
 import { useEffect, useState, type ReactNode } from "react";
 import { IconCopy, IconEyeOff, IconGrip, IconLock, IconPencil, IconPlus, IconTrash } from "@/components/icons.tsx";
-import type { Device, Element, SiteKit } from "@shared/builder/index.ts";
+import { setAt, type Device, type Element, type Size, type SiteKit } from "@shared/builder/index.ts";
 import type { ElementRect, Rect, RichTextCommand, RichTextState } from "@shared/visualProtocol.ts";
 import { useGeometry, type GeometryStore } from "@/visual/geometry.ts";
 import type { DragState } from "./useDrag.ts";
+import { styleKindOf } from "./controls/specs.ts";
 import { sectionGapAt } from "./dnd.ts";
 import { Handles, type HandleActions } from "./Handles.tsx";
-import { RichTextToolbar } from "./RichTextToolbar.tsx";
+import { fontSizeOf } from "./fontSize.ts";
+import { FontSizeStrip, RichTextToolbar, type FontSizeStepperProps } from "./RichTextToolbar.tsx";
 import { findElement, isContainerType, type BuilderState } from "./store.ts";
 import { widgetLabel } from "./widgets/registry.ts";
 
@@ -30,6 +32,14 @@ export type ElementActions = {
   onAddSection: (index: number) => void;
   onBeginMove: (event: React.PointerEvent, id: string) => void;
   onSelectParent: (id: string) => void;
+  /** A setting written from the canvas (the font-size stepper); `group` keeps one hold one undo step. */
+  onSetPath?: (id: string, path: string[], value: unknown, label: string, group?: string) => void;
+};
+
+/** Widgets whose Style tab has typography get the font-size stepper: headings, text, buttons, boxes with text. */
+const hasTypography = (type: string): boolean => {
+  const kind = styleKindOf(type);
+  return kind === "text" || kind === "box";
 };
 
 const scaleRect = (rect: Rect, scale: number, pad = 0) => ({ left: rect.x * scale - pad, top: rect.y * scale - pad, width: rect.width * scale + pad * 2, height: rect.height * scale + pad * 2 });
@@ -117,6 +127,29 @@ export function ElementOverlays({
   const label = (element: Element | undefined, rect: ElementRect): string => (element?.label ? element.label : element?.type === "site-section" ? `${rect.section ?? "Section"} (site section)` : widgetLabel(rect.type));
   const isLocked = (entry: { element: Element; ancestors: string[] } | undefined): boolean => !!entry && !isStaff && (entry.element.locked === true || entry.ancestors.some((id) => findElement(state, id, slug)?.element.locked));
   const hiddenHere = (element: Element | undefined): boolean => element?.advanced.hidden?.[device] === true;
+
+  // The font-size stepper for the selected element, for the device being edited.
+  const fontSize: FontSizeStepperProps | null =
+    selected && selectedEntry && canEdit && !drag && actions.onSetPath && !isLocked(selectedEntry) && hasTypography(selectedEntry.element.type)
+      ? {
+          info: fontSizeOf(selectedEntry.element, state.kit, device, selected.fontSize),
+          device,
+          onChange: (next: Size, run: string) => {
+            const current = findElement(state, selectedEntry.element.id, slug)?.element ?? selectedEntry.element;
+            const raw = current.style.typography?.fontSize;
+            // A first size on a phone or tablet keeps desktop at what it shows now (the site style's
+            // size, or the page's), since the file format needs a desktop base.
+            const base = raw === undefined && device !== "desktop" ? { desktop: fontSizeOf(current, state.kit, "desktop", selected.fontSize).size } : raw;
+            actions.onSetPath?.(current.id, ["style", "typography", "fontSize"], setAt<Size>(base, device, next), "Changed font size", `drag:font-size:${current.id}:${run}`);
+          },
+        }
+      : null;
+  /** The strip sits above the element at its left; under it when the element is too narrow to share its top edge with the tab. */
+  const stripPosition = (rect: ElementRect) => {
+    const narrow = rect.rect.width * scale < 170;
+    const top = narrow ? (rect.rect.y + rect.rect.height) * scale + 2 : rect.rect.y * scale - 34;
+    return { left: Math.max(2, rect.rect.x * scale), top: top < 2 ? rect.rect.y * scale + 2 : top };
+  };
 
   /** The widget tab sits outside the top-right corner (inside it when the element touches the top). */
   const widgetTabPosition = (rect: ElementRect) => {
@@ -236,8 +269,10 @@ export function ElementOverlays({
       )}
 
       {selected && editing && richText && selected.type === "text" && (
-        <RichTextToolbar rect={selected.rect} scale={scale} viewportWidth={store.get().viewport.width} state={richText.state} kit={richText.kit} onCommand={richText.onCommand} onDone={richText.onDone} />
+        <RichTextToolbar rect={selected.rect} scale={scale} viewportWidth={store.get().viewport.width} state={richText.state} kit={richText.kit} onCommand={richText.onCommand} onDone={richText.onDone} fontSize={fontSize ?? undefined} />
       )}
+
+      {selected && fontSize && !(editing && selected.type === "text") && <FontSizeStrip {...fontSize} {...stripPosition(selected)} />}
 
       {selected && selectedEntry && handleActions && canEdit && !editing && !drag && !isLocked(selectedEntry) && (
         <Handles

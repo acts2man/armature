@@ -1676,6 +1676,7 @@ export function EditorWorkspace({
                   actions={{
                     onSelect: (id) => selectElement(id, false),
                     onEdit: (id) => send({ type: "armature:element:edit:start", id }),
+                    onSetPath: inspectorActions.onSetPath,
                     onDuplicate: duplicate,
                     onDelete: deleteElement,
                     onAddInside: (id) => {

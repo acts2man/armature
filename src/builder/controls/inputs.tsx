@@ -1,12 +1,14 @@
 /**
- * The primitive inputs every control is made of: a number that scrubs when its label
- * is dragged (Shift = x10) and steps with the arrow keys, a size with a unit menu that
- * also accepts typed values like "2rem", a colour with the kit's swatches, a picker,
- * opacity and the global link, and the per-device switch with its override dot.
+ * The primitive inputs every control is made of: a number with up/down buttons that step
+ * (Shift = 10 steps, hold to repeat), the same on the arrow keys, a label that scrubs when
+ * dragged, a size with a unit menu that also accepts typed values like "2rem", a colour
+ * with the kit's swatches, a picker, opacity and the global link, and the per-device
+ * switch with its override dot. One hold, one key-repeat run or one scrub is one undo
+ * step: every change it makes carries the same run token (see `stepGroup`).
  */
 import { clsx } from "clsx";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { IconDesktop, IconGlobe, IconPencil, IconPhone, IconTablet, IconX } from "@/components/icons.tsx";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { IconChevronDown, IconChevronUp, IconDesktop, IconGlobe, IconPencil, IconPhone, IconTablet, IconX } from "@/components/icons.tsx";
 import type { Device, Size, SiteKit, Unit } from "@shared/builder/index.ts";
 import { isColorLiteral, parseKitRef, parseSize, resolveKitColor, sizeToCss } from "@kit/values.ts";
 
@@ -145,9 +147,87 @@ const round = (value: number, step: number) => {
   return Number(value.toFixed(decimals));
 };
 
+/** The step for a unit: whole pixels and percents, tenths of an em, rem or unitless value. */
+export const stepForUnit = (unit: Unit): number => (unit === "em" || unit === "rem" || unit === "" ? 0.1 : 1);
+
+/** Holding a stepper button repeats after this long, then this often. */
+export const HOLD_DELAY_MS = 350;
+export const HOLD_REPEAT_MS = 50;
+
+let runCounter = 0;
+/** A token for one continuous run of changes (a hold, a key-repeat run, a scrub). */
+export const newRun = (): string => `${Date.now().toString(36)}-${(runCounter++).toString(36)}`;
+
 /**
- * A number input. Drag the label sideways to scrub (Shift = x10), use the arrow keys
- * (Shift = x10), or type. `inherited` shows a greyed value that comes from another device.
+ * The undo group for a change: a run (a hold, a key-repeat run, a scrub) merges into one
+ * step however long it lasts and never with the next run; typing merges with typing on the
+ * same path while it keeps coming (see history.ts).
+ */
+export const stepGroup = (path: string, run?: string): string => (run ? `drag:step:${path}:${run}` : path);
+
+/**
+ * Press-and-hold for a stepper button: one step on press, then repeats after a short delay
+ * until the pointer lifts. Shift at the press means 10 steps each time. The press never
+ * takes focus (the input keeps it, so Esc and the arrow keys still go where they went).
+ */
+export function useHold(onStep: (shift: boolean, run: string) => void, onEnd?: () => void) {
+  const timers = useRef<{ timeout: number; interval: number | null } | null>(null);
+  // The repeat timer always calls the latest handler, never the one from the press's render.
+  const handlers = useRef({ onStep, onEnd });
+  useEffect(() => {
+    handlers.current = { onStep, onEnd };
+  }, [onStep, onEnd]);
+  const stop = useCallback(() => {
+    if (!timers.current) return;
+    window.clearTimeout(timers.current.timeout);
+    if (timers.current.interval !== null) window.clearInterval(timers.current.interval);
+    timers.current = null;
+    handlers.current.onEnd?.();
+  }, []);
+  useEffect(() => stop, [stop]);
+  const onPointerDown = (event: React.PointerEvent) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    stop();
+    const run = newRun();
+    const shift = event.shiftKey;
+    handlers.current.onStep(shift, run);
+    (event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId);
+    const timeout = window.setTimeout(() => {
+      if (!timers.current) return;
+      timers.current.interval = window.setInterval(() => handlers.current.onStep(shift, run), HOLD_REPEAT_MS);
+    }, HOLD_DELAY_MS);
+    timers.current = { timeout, interval: null };
+  };
+  return { onPointerDown, onPointerUp: stop, onPointerCancel: stop, onLostPointerCapture: stop, onMouseDown: (event: React.MouseEvent) => event.preventDefault() };
+}
+
+/** The accessible name is just "Increase" / "Decrease" (the field's own label names the field); the title says which. */
+function StepButton({ direction, field, onStep, onEnd, testId }: { direction: 1 | -1; field?: string; onStep: (direction: 1 | -1, shift: boolean, run: string) => void; onEnd?: () => void; testId: string }) {
+  const hold = useHold((shift, run) => onStep(direction, shift, run), onEnd);
+  const verb = direction === 1 ? "Increase" : "Decrease";
+  return (
+    <button type="button" tabIndex={-1} aria-label={verb} title={`${verb}${field ? ` ${field}` : ""} (Shift for 10, hold to repeat)`} data-testid={testId} {...hold} className="flex flex-1 items-center justify-center text-muted hover:bg-ground hover:text-text active:bg-blue-soft active:text-accent">
+      {direction === 1 ? <IconChevronUp size={10} /> : <IconChevronDown size={10} />}
+    </button>
+  );
+}
+
+/** The up/down pair beside a number: click to step, Shift for 10 steps, hold to repeat. */
+export function StepButtons({ onStep, onEnd, label }: { onStep: (direction: 1 | -1, shift: boolean, run: string) => void; onEnd?: () => void; label?: string }) {
+  return (
+    <span className="flex h-8 w-4 shrink-0 flex-col divide-y divide-line overflow-hidden rounded-sm border border-line bg-panel" data-testid="steppers">
+      <StepButton direction={1} field={label} onStep={onStep} onEnd={onEnd} testId="step-up" />
+      <StepButton direction={-1} field={label} onStep={onStep} onEnd={onEnd} testId="step-down" />
+    </span>
+  );
+}
+
+/**
+ * A number input with up/down buttons. Click a button to step, Shift for 10 steps, hold to
+ * repeat; the arrow keys do the same (Shift too); drag the label sideways to scrub; or type.
+ * `inherited` shows a greyed value that comes from another device. `onChange` receives the
+ * run token of a hold, a key-repeat run or a scrub, so the caller can make it one undo step.
  */
 export function NumberInput({
   id,
@@ -163,12 +243,16 @@ export function NumberInput({
   suffix,
   label,
   ariaLabel,
+  steppers = true,
+  testId,
 }: {
   ariaLabel?: string;
   id?: string;
+  /** Goes on the text field itself. */
+  testId?: string;
   value: number | undefined;
   inherited?: number;
-  onChange: (value: number) => void;
+  onChange: (value: number, run?: string) => void;
   onCommit?: () => void;
   min?: number;
   max?: number;
@@ -178,6 +262,8 @@ export function NumberInput({
   suffix?: ReactNode;
   /** When given, the label itself scrubs. */
   label?: ReactNode;
+  /** The up/down buttons (on unless the control has its own). */
+  steppers?: boolean;
 }) {
   // While the field has focus it shows what is typed; otherwise it shows the value.
   const [draft, setDraft] = useState<string | null>(null);
@@ -187,18 +273,31 @@ export function NumberInput({
     const parsed = Number.parseFloat(raw);
     if (Number.isFinite(parsed)) onChange(round(clamp(parsed), step));
   };
-  const scrub = useRef<{ startX: number; start: number } | null>(null);
+  // A hold repeats from a timer, so it steps from the last value it wrote, not a stale render.
+  const latest = useRef({ value, inherited });
+  useEffect(() => {
+    latest.current = { value, inherited };
+  }, [value, inherited]);
+  const stepBy = (direction: 1 | -1, shift: boolean, run: string) => {
+    const base = latest.current.value ?? latest.current.inherited ?? 0;
+    const next = round(clamp(base + direction * step * (shift ? 10 : 1)), step);
+    latest.current = { ...latest.current, value: next };
+    setDraft((current) => (current === null ? null : String(next)));
+    onChange(next, run);
+  };
+  const keyRun = useRef<string | null>(null);
+  const scrub = useRef<{ startX: number; start: number; run: string } | null>(null);
   const onScrubDown = (event: React.PointerEvent) => {
     if (event.button !== 0) return;
     const start = value ?? inherited ?? 0;
-    scrub.current = { startX: event.clientX, start };
+    scrub.current = { startX: event.clientX, start, run: newRun() };
     (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
     document.body.style.cursor = "ew-resize";
   };
   const onScrubMove = (event: React.PointerEvent) => {
     if (!scrub.current) return;
     const delta = (event.clientX - scrub.current.startX) * (event.shiftKey ? 10 : 1) * step * 0.5;
-    onChange(round(clamp(scrub.current.start + delta), step));
+    onChange(round(clamp(scrub.current.start + delta), step), scrub.current.run);
   };
   const onScrubUp = () => {
     if (!scrub.current) return;
@@ -206,8 +305,9 @@ export function NumberInput({
     document.body.style.cursor = "";
     onCommit?.();
   };
+  const name = ariaLabel ?? (typeof label === "string" ? label : undefined);
   return (
-    <div className={clsx("flex items-center gap-1.5", className)}>
+    <div className={clsx("flex items-center gap-1.5", className)} data-testid="number-input">
       {label !== undefined && (
         <span
           role="presentation"
@@ -222,35 +322,44 @@ export function NumberInput({
           {label}
         </span>
       )}
-      <input
-        id={id}
-        aria-label={ariaLabel}
-        type="text"
-        inputMode="decimal"
-        value={text}
-        placeholder={placeholder ?? (inherited !== undefined ? String(inherited) : undefined)}
-        onFocus={() => setDraft(text)}
-        onBlur={() => {
-          setDraft(null);
-          commit(text);
-          onCommit?.();
-        }}
-        onChange={(event) => {
-          setDraft(event.target.value);
-          if (event.target.value.trim() !== "" && Number.isFinite(Number.parseFloat(event.target.value))) commit(event.target.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "ArrowUp" || event.key === "ArrowDown") {
-            event.preventDefault();
-            const base = value ?? inherited ?? 0;
-            const next = round(clamp(base + (event.key === "ArrowUp" ? 1 : -1) * step * (event.shiftKey ? 10 : 1)), step);
-            setDraft(String(next));
-            onChange(next);
-          }
-          if (event.key === "Enter") (event.target as HTMLInputElement).blur();
-        }}
-        className={clsx(inputClass, "tabular-nums", value === undefined && inherited !== undefined && "text-muted")}
-      />
+      <span className="flex min-w-0 flex-1 items-center gap-0.5">
+        <input
+          id={id}
+          aria-label={ariaLabel}
+          data-testid={testId}
+          type="text"
+          inputMode="decimal"
+          value={text}
+          placeholder={placeholder ?? (inherited !== undefined ? String(inherited) : undefined)}
+          onFocus={() => setDraft(text)}
+          onBlur={() => {
+            setDraft(null);
+            commit(text);
+            onCommit?.();
+          }}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            if (event.target.value.trim() !== "" && Number.isFinite(Number.parseFloat(event.target.value))) commit(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+              event.preventDefault();
+              // A key held down is one run (the browser repeats the keydown); each new press is a new one.
+              if (!event.repeat || !keyRun.current) keyRun.current = newRun();
+              stepBy(event.key === "ArrowUp" ? 1 : -1, event.shiftKey, keyRun.current);
+            }
+            if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+          }}
+          onKeyUp={(event) => {
+            if ((event.key === "ArrowUp" || event.key === "ArrowDown") && keyRun.current) {
+              keyRun.current = null;
+              onCommit?.();
+            }
+          }}
+          className={clsx(inputClass, "tabular-nums", value === undefined && inherited !== undefined && "text-muted")}
+        />
+        {steppers && <StepButtons onStep={stepBy} onEnd={onCommit} label={name} />}
+      </span>
       {suffix}
     </div>
   );
@@ -270,7 +379,7 @@ export function UnitMenu({ unit, units, onChange, id }: { unit: Unit; units: Uni
   );
 }
 
-/** A value with a unit. Typing "2rem" switches the unit; the label scrubs. */
+/** A value with a unit. Typing "2rem" switches the unit; the label scrubs; the buttons step by the unit (1px, 0.1em). */
 export function SizeInput({
   id,
   value,
@@ -290,7 +399,7 @@ export function SizeInput({
   value: Size | undefined;
   inherited?: Size;
   units: Unit[];
-  onChange: (value: Size | undefined) => void;
+  onChange: (value: Size | undefined, run?: string) => void;
   onCommit?: () => void;
   label?: ReactNode;
   min?: number;
@@ -305,7 +414,6 @@ export function SizeInput({
   const unit: Unit = shown?.unit ?? units[0] ?? "px";
   const list = allowAuto && !units.includes("auto") ? [...units, "auto" as Unit] : units;
   const inputId = useId();
-  const stepFor = (u: Unit) => (u === "em" || u === "rem" || u === "" ? 0.1 : 1);
   return (
     <div className="flex items-center gap-1.5">
       {screen ? (
@@ -320,8 +428,8 @@ export function SizeInput({
           inherited={inherited?.value}
           min={min}
           max={max}
-          step={stepFor(unit)}
-          onChange={(next) => onChange({ value: next, unit })}
+          step={stepForUnit(unit)}
+          onChange={(next, run) => onChange({ value: next, unit }, run)}
           onCommit={onCommit}
           className="min-w-0 flex-1"
         />
@@ -470,11 +578,11 @@ export function ColorInput({ id, value, inherited, kit, onChange, onCommit, allo
         )}
       </div>
       {!ref && shown && shown.startsWith("#") && (
-        <label className="flex items-center gap-2 text-[11px] text-muted">
-          Opacity
-          <input type="range" min={0} max={100} value={Math.round(alpha * 100)} onChange={(event) => onChange(withAlpha(hex, Number(event.target.value) / 100))} onMouseUp={() => onCommit?.()} onKeyUp={() => onCommit?.()} className="h-1 flex-1 accent-[var(--accent)]" aria-label="Opacity" />
-          <span className="w-8 text-right tabular-nums">{Math.round(alpha * 100)}%</span>
-        </label>
+        <div className="flex items-center gap-2 text-[11px] text-muted">
+          <span className="shrink-0">Opacity</span>
+          <input type="range" min={0} max={100} value={Math.round(alpha * 100)} onChange={(event) => onChange(withAlpha(hex, Number(event.target.value) / 100))} onMouseUp={() => onCommit?.()} onKeyUp={() => onCommit?.()} className="h-1 min-w-0 flex-1 accent-[var(--accent)]" aria-label="Opacity slider" />
+          <NumberInput ariaLabel="Opacity" value={Math.round(alpha * 100)} min={0} max={100} step={1} onChange={(next) => onChange(withAlpha(hex, next / 100))} onCommit={onCommit} className="w-[76px] shrink-0" suffix={<span className="text-[11px] text-muted">%</span>} />
+        </div>
       )}
     </div>
   );

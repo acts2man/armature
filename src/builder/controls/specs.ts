@@ -4,13 +4,46 @@
  * Advanced tab. Widgets added later register their content specs and style kinds here.
  */
 import { createElement as h } from "react";
-import type { Element, RichDoc } from "@shared/builder/index.ts";
+import type { Element, RichDoc, Size } from "@shared/builder/index.ts";
 import { BLEND_MODES } from "@kit/types.ts";
 import { RichTextEditor } from "../RichTextEditor.tsx";
 import { StructureControl } from "./StructureControl.tsx";
-import { HEIGHT_UNITS, PX_UNITS, SPACING_UNITS, WIDTH_UNITS, type ControlSpec, type Option, type Path } from "./types.ts";
+import { FONT_UNITS, HEIGHT_UNITS, LETTER_UNITS, LINE_HEIGHT_UNITS, PX_UNITS, SPACING_UNITS, WIDTH_UNITS, type ControlSpec, type Option, type Path } from "./types.ts";
 
 const opts = (...pairs: [string, string][]): Option[] => pairs.map(([value, label]) => ({ value, label }));
+
+const WEIGHTS = ["100", "200", "300", "400", "500", "600", "700", "800", "900"];
+
+export type TypographyFallback = { fontSize?: Size; fontWeight?: string | number; textTransform?: string; lineHeight?: Size; letterSpacing?: Size };
+
+/**
+ * The fields inside the Typography popover (after the font family): the size, weight,
+ * transform, style, decoration and spacing. `fromPreset` greys in the linked site style's
+ * values for the device being edited; `onDesktop` is the same style's desktop values, which
+ * a first phone or tablet value keeps desktop at (rather than copying the phone value up).
+ */
+export function typographySpecs(base: Path, fromPreset: TypographyFallback = {}, onDesktop: TypographyFallback = fromPreset): ControlSpec[] {
+  return [
+    { kind: "size", label: "Size", path: [...base, "fontSize"], units: FONT_UNITS, responsive: true, min: 0, fallback: fromPreset.fontSize, desktopFallback: onDesktop.fontSize },
+    { kind: "select", label: "Weight", path: [...base, "fontWeight"], responsive: true, numeric: true, fallback: fromPreset.fontWeight, desktopFallback: onDesktop.fontWeight, custom: { min: 1, max: 1000 }, options: WEIGHTS.map((weight) => ({ value: weight, label: weight === "400" ? "400 Regular" : weight === "700" ? "700 Bold" : weight })) },
+    { kind: "select", label: "Transform", path: [...base, "textTransform"], responsive: true, fallback: fromPreset.textTransform, desktopFallback: onDesktop.textTransform, options: [{ value: "none", label: "None" }, { value: "uppercase", label: "UPPERCASE" }, { value: "lowercase", label: "lowercase" }, { value: "capitalize", label: "Capitalize" }] },
+    { kind: "select", label: "Style", path: [...base, "fontStyle"], responsive: true, options: [{ value: "normal", label: "Normal" }, { value: "italic", label: "Italic" }] },
+    { kind: "select", label: "Decoration", path: [...base, "textDecoration"], responsive: true, options: [{ value: "none", label: "None" }, { value: "underline", label: "Underline" }, { value: "line-through", label: "Strike" }, { value: "overline", label: "Overline" }] },
+    { kind: "size", label: "Line height", path: [...base, "lineHeight"], units: LINE_HEIGHT_UNITS, responsive: true, min: 0, fallback: fromPreset.lineHeight, desktopFallback: onDesktop.lineHeight },
+    { kind: "size", label: "Letter spacing", path: [...base, "letterSpacing"], units: LETTER_UNITS, responsive: true, fallback: fromPreset.letterSpacing, desktopFallback: onDesktop.letterSpacing },
+    { kind: "size", label: "Word spacing", path: [...base, "wordSpacing"], units: LETTER_UNITS, responsive: true },
+  ];
+}
+
+/** The fields inside the Border popover: type, width per side, colour and radius per corner. */
+export function borderSpecs(base: Path): ControlSpec[] {
+  return [
+    { kind: "select", label: "Type", path: [...base, "style"], responsive: true, options: [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }, { value: "double", label: "Double" }] },
+    { kind: "sides", label: "Width", path: [...base, "width"], responsive: true, units: ["px", "em", "rem"] },
+    { kind: "color", label: "Colour", path: [...base, "color"], responsive: true },
+    { kind: "corners", label: "Radius", path: [...base, "radius"], responsive: true, units: ["px", "%", "em", "rem"] },
+  ];
+}
 
 const ALIGN_ICONS = [
   { value: "left", label: "Left", icon: "AlignLeft" },
