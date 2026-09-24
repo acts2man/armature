@@ -5,6 +5,8 @@ All notable changes to Armature are recorded here. The format follows
 
 ## [Unreleased]
 
+JOB-C-COMPLETE
+
 ### Added
 
 - **In-app Help ("How Armature works").** A new Help item at the bottom of the agency sidebar opens `/agency/help`: an in-app, searchable guide with an eighth-grade reading level. Ten sections — what Armature is, adding a project, installing and updating the kit (with "every visual check uses the production build"), editing and publishing (draft, publish, one GitHub commit, Netlify rebuild, credit note), where each thing lives (GitHub vs Supabase), giving clients access and editing levels + View as client, SEO and Search Console, email sending setup, storage and what counts against Supabase's included amounts, and troubleshooting (can't connect, editor won't load, publish conflict, site not updating, picture not showing, password reset). Clients get a shorter guide at `/help` ("How to edit your site"). Every entry lives as a markdown file in `docs/guide/agency/` and `docs/guide/client/`, so updating a section is a text edit — Vite bundles the files at build time with `import.meta.glob`, no network calls at runtime. A tiny in-house markdown renderer (`src/lib/markdown.ts`, 9 unit tests) handles headings, lists, code fences, bold/italic, and safe links (https and site-relative only; anything else becomes `#`). Search filters entries by title and body with a snippet excerpt around the match.
