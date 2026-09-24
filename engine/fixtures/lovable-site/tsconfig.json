@@ -1,0 +1,8 @@
+{
+  // Lovable-style config with comments and a trailing comma
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"], },
+    "jsx": "react-jsx",
+  }
+}

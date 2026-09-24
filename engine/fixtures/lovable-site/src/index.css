@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #1d3770;
+  --color-accent: #349e49;
+  --font-display: "Poppins", sans-serif;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+}
+
+.hero-title { letter-spacing: -0.02em; }
