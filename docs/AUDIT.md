@@ -24,6 +24,7 @@ job, fixed and covered; **Still broken** = known limitation, with the reason and
 | Every page loads with all of its content (7 pages, 140 elements, nothing unsupported) | **Fixed** (font-weight 650 invalidated the home layout and the kit) | `real-site.spec.ts` "every page loads in the editor"; `validate.test.ts` "treetestprep loads cleanly"; Deno `realSite.test.ts` |
 | Every element on every page selects and shows Content, Style and Advanced | Works | `real-site.spec.ts` "every element on every page selects" (keyboard walk of the whole tree) |
 | Drag between elements | Works | `real-site.spec.ts` "drag between elements…"; `builder.spec.ts` "drag anywhere" |
+| Drag and drop that stays put: 12 drags in a row on the home page (production build), each landing at its line, still selected, draggable again at once; by the element itself, by the toolbar handle, by a container's grip | **Fixed** (auto-scroll fought the site's `scroll-behavior: smooth` and was stuck at its slowest speed; "Add section" sat over a section's grip; a drop at the first element of a grid cell landed beside the cell — see `CHANGELOG.md`) | `drag-sequences.spec.ts` "12 drags on Tree Test Prep's home page"; the demo's 22 |
 | Resize an image with its handle | Works | `real-site.spec.ts`; `builder.spec.ts` "image width and height handles" |
 | Change padding | Works | `real-site.spec.ts`; `builder.spec.ts` "hover styles, spacing on the Advanced tab" |
 | A phone-only override that leaves desktop alone | Works | `real-site.spec.ts`; `builder.spec.ts` "a tablet value overrides desktop" |
@@ -56,9 +57,25 @@ job, fixed and covered; **Still broken** = known limitation, with the reason and
   The hero has no padding of its own on phones, so its corner belongs to the inner container.
   Select the inner element and press the left arrow, or use the breadcrumbs. By design; the
   arrow keys and breadcrumbs exist for this. `real-site.spec.ts` does exactly that.
-- **The first few pixels of a container's first child belong to the container's "drop beside
-  me" band.** Aim at the child's upper third to drop before it. By design (the band is how you
-  drop next to a container); the drag ghost names the target so you can see which it is.
+- **A container's outer few pixels mean "drop beside it"**, but only on the edges where that
+  line looks different from a drop against the child under the pointer: a column's left and
+  right edges in a row or a grid (a vertical line). Over a child that shares the edge, the child
+  wins, so aiming at the first heading of a grid cell drops before the heading, never beside the
+  cell (it did before this job). To drop beside a stacked container on a phone, use its parent's
+  padding just past its edge; the drag ghost always names the target.
+- **The site's `html { scroll-behavior: smooth }` and the editor's auto-scroll.** The kit now
+  scrolls the frame at once during a drag; with the site's own kit copy (2.2.0) auto-scroll
+  barely moves on this site until the kit is updated. The same applies to dragging an element
+  by itself (kit 2.5.0): with the older copy only the toolbar handles and grips drag.
+- **The FAQ and course pictures are hidden on phones** (`hidden: { mobile: true }`), so on the
+  phone canvas they have no box to drag or drop against; their mobile counterparts do.
+- **On the production build, the site's kit copy (2.2.0) skips the home page's video and FAQ
+  accordion** (`Armature: no widget renders "video"` / `"accordion"` in the server log and the
+  browser console; neither element is on the live page). The dev server used for the first audit
+  did not show this. Updating the kit folder is the fix; noted so nobody chases it in the editor.
+- **The request bar** ("Need something bigger?") floats over the bottom of the canvas and takes
+  the pointer there; an element scrolled right to the bottom edge is clicked through the bar.
+  Scroll it up a little. Noted for the next dashboard job.
 - **The real-site Playwright tests run only where the site is cloned.** CI has no clone of
   acts2man/treetestprep, so `real-site.spec.ts` skips there and runs locally with
   `REAL_SITE_DIR`. The clone needs two local-only edits: `http://localhost:5173` added to

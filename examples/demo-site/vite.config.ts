@@ -7,5 +7,10 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [react()],
   server: { fs: { allow: [fileURLToPath(new URL("../..", import.meta.url))] } },
+  // The kit's React resolves from the repository root's node_modules and the demo's from
+  // its own node_modules; one copy must win, or a production bundle carries two Reacts and
+  // every hook throws ("Cannot read properties of null (reading 'useSyncExternalStore')").
+  // The dev server happens to tolerate the pair; a production build does not.
+  resolve: { dedupe: ["react", "react-dom"] },
   build: { target: "es2022" },
 });

@@ -810,6 +810,14 @@ export function createBridge(config: BridgeConfig): Bridge {
   };
 
   const onClick = (event: MouseEvent) => {
+    // The click that follows a drag's release is not a click on anything: the drop is the action.
+    if (swallowClick) {
+      swallowClick = false;
+      window.clearTimeout(swallowTimer);
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
     const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
     if (mode === "preview") {
       if (anchor && !event.defaultPrevented && !anchor.getAttribute("target")) {
@@ -881,7 +889,7 @@ export function createBridge(config: BridgeConfig): Bridge {
   };
 
   const onDoubleClick = (event: MouseEvent) => {
-    if (mode !== "edit") return;
+    if (mode !== "edit" || dragging) return;
     if (editing && editing.host.contains(event.target as Node)) return;
     const fieldElement = mappedAncestor(event.target);
     const builderElement = protocol >= 2 ? builderAncestor(event.target) : null;
@@ -908,6 +916,99 @@ export function createBridge(config: BridgeConfig): Bridge {
     send({ type: `${PREFIX}element:contextmenu`, id: elementId(builderElement), x: event.clientX, y: event.clientY });
   };
 
+  // --- dragging an element by itself ---------------------------------------------------------------------
+  // The pointer goes down on a builder element and moves a few pixels: from then until it is
+  // released the editor drives the drag (the indicator, the drop) from the positions sent here,
+  // exactly as for a drag from its own toolbar. Under the threshold nothing happens, so a plain
+  // click still selects and a double-click still edits. While the pointer is down in this frame
+  // the browser keeps sending its events here, never to the editor, which is why they are forwarded.
+  const DRAG_THRESHOLD = 4;
+  let dragPending: { element: Element; id: string; x: number; y: number; pointerId: number } | null = null;
+  let dragging = false;
+  /** Esc ended the drag while the button was still down: the release that follows is not a click. */
+  let dragCancelled = false;
+  /** The click the browser fires after the pointer that dragged is released: swallowed once. */
+  let swallowClick = false;
+  let swallowTimer = 0;
+  let rootStyle: { userSelect: string; cursor: string } | null = null;
+  const sendDrag = (phase: "start" | "move" | "end" | "cancel", id: string, x: number, y: number) => send({ type: `${PREFIX}element:drag`, phase, id, x, y });
+  const swallowNextClick = () => {
+    swallowClick = true;
+    window.clearTimeout(swallowTimer);
+    swallowTimer = window.setTimeout(() => {
+      swallowClick = false;
+    }, 300);
+  };
+  const endDrag = (phase: "end" | "cancel", x?: number, y?: number) => {
+    const pending = dragPending;
+    dragPending = null;
+    if (!pending || !dragging) return;
+    dragging = false;
+    if (rootStyle) {
+      document.documentElement.style.userSelect = rootStyle.userSelect;
+      document.documentElement.style.cursor = rootStyle.cursor;
+      rootStyle = null;
+    }
+    try {
+      pending.element.releasePointerCapture(pending.pointerId);
+    } catch {
+      // released already
+    }
+    if (phase === "end") swallowNextClick();
+    else dragCancelled = true;
+    sendDrag(phase, pending.id, x ?? pending.x, y ?? pending.y);
+  };
+  const onPointerDown = (event: PointerEvent) => {
+    dragPending = null;
+    dragCancelled = false;
+    if (mode !== "edit" || protocol < 2 || event.button !== 0 || !event.isPrimary) return;
+    // Typing into an element: the pointer selects text there, it never drags.
+    if (editing && editing.host.contains(event.target as Node)) return;
+    const builderElement = builderAncestor(event.target);
+    const id = elementId(builderElement);
+    if (!builderElement || !id) return;
+    dragPending = { element: builderElement, id, x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+  };
+  const onPointerMove = (event: PointerEvent) => {
+    const pending = dragPending;
+    if (!pending) return;
+    if (!dragging) {
+      if (Math.hypot(event.clientX - pending.x, event.clientY - pending.y) < DRAG_THRESHOLD) return;
+      dragging = true;
+      // No text selection and a grabbing hand while the element is carried.
+      rootStyle = { userSelect: document.documentElement.style.userSelect, cursor: document.documentElement.style.cursor };
+      document.documentElement.style.userSelect = "none";
+      document.documentElement.style.cursor = "grabbing";
+      window.getSelection()?.removeAllRanges();
+      try {
+        // Keeps every later pointer event on this element, even once the pointer leaves the frame.
+        pending.element.setPointerCapture(pending.pointerId);
+      } catch {
+        // capture is a nicety; the document listeners below still see the moves
+      }
+      sendDrag("start", pending.id, pending.x, pending.y);
+    }
+    event.preventDefault();
+    sendDrag("move", pending.id, event.clientX, event.clientY);
+  };
+  const onPointerUp = (event: PointerEvent) => {
+    if (dragging) endDrag("end", event.clientX, event.clientY);
+    else {
+      dragPending = null;
+      if (dragCancelled) {
+        dragCancelled = false;
+        swallowNextClick();
+      }
+    }
+  };
+  const onPointerCancel = () => endDrag("cancel");
+  /** A link or a picture inside a builder element must never start the browser's own drag in edit mode (text being typed into may still be dragged about). */
+  const onDragStart = (event: DragEvent) => {
+    if (mode !== "edit" || protocol < 2 || !builderAncestor(event.target)) return;
+    if (editing && editing.host.contains(event.target as Node)) return;
+    event.preventDefault();
+  };
+
   let lastHoverTarget: EventTarget | null = null;
   const onMouseMove = (event: MouseEvent) => {
     if (mode !== "edit" || event.target === lastHoverTarget) return;
@@ -932,6 +1033,13 @@ export function createBridge(config: BridgeConfig): Bridge {
   };
 
   const onKeydownDocument = (event: KeyboardEvent) => {
+    if (dragging && event.key === "Escape") {
+      // Esc mid-drag: the element stays where it was; the release that follows does nothing.
+      event.preventDefault();
+      event.stopPropagation();
+      endDrag("cancel");
+      return;
+    }
     if (mode !== "edit" || editing) return;
     const target = event.target as Element | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
@@ -1080,8 +1188,11 @@ export function createBridge(config: BridgeConfig): Bridge {
         return;
       }
       case `${PREFIX}scroll`: {
-        if (typeof data.deltaY === "number") window.scrollBy({ top: data.deltaY, behavior: "auto" });
-        if (typeof data.top === "number") window.scrollTo({ top: data.top, behavior: "auto" });
+        // At once, never smoothly: "auto" defers to the site's own `scroll-behavior`, and a site
+        // that sets it to smooth would turn the editor's auto-scroll while dragging (a few pixels
+        // every few frames, each interrupting the last) into a page that barely moves.
+        if (typeof data.deltaY === "number") window.scrollBy({ top: data.deltaY, behavior: "instant" });
+        if (typeof data.top === "number") window.scrollTo({ top: data.top, behavior: "instant" });
         scheduleFrame(false);
         return;
       }
@@ -1134,6 +1245,11 @@ export function createBridge(config: BridgeConfig): Bridge {
     document.addEventListener("click", onClick, true);
     document.addEventListener("dblclick", onDoubleClick, true);
     document.addEventListener("contextmenu", onContextMenu, true);
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("pointermove", onPointerMove, { passive: false, capture: true });
+    document.addEventListener("pointerup", onPointerUp, true);
+    document.addEventListener("pointercancel", onPointerCancel, true);
+    document.addEventListener("dragstart", onDragStart, true);
     document.addEventListener("mousemove", onMouseMove, { passive: true });
     document.addEventListener("mouseleave", onMouseLeave);
     document.addEventListener("keydown", onKeydownDocument);

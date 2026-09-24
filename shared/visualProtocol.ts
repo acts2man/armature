@@ -178,6 +178,13 @@ export type ElementsMapMessage = { type: "armature:elements:map"; nonce: string;
 export type ElementHoverMessage = { type: "armature:element:hover"; nonce: string; id: string | null };
 export type ElementSelectMessage = { type: "armature:element:select"; nonce: string; id: string | null; source: "canvas" | "editor" | "refresh" };
 export type ElementContextMenuMessage = { type: "armature:element:contextmenu"; nonce: string; id: string; x: number; y: number };
+/**
+ * A builder element dragged by itself on the page: the pointer went down on it and moved a
+ * few pixels ("start"), then every move, and "end" on release or "cancel" on Esc. `x` and
+ * `y` are the pointer in the frame's own viewport pixels; the editor decides where the drop
+ * lands, exactly as for a drag that starts from its own toolbar.
+ */
+export type ElementDragMessage = { type: "armature:element:drag"; nonce: string; phase: "start" | "move" | "end" | "cancel"; id: string; x: number; y: number };
 export type SlotMessage = { type: "armature:slot"; nonce: string; slots: SlotInfo[]; sections: SiteSectionInfo[]; layouts: string[] };
 /** `value` is a string for headings and buttons, a rich-text document for the Text Editor. */
 export type ElementEditStartMessage = { type: "armature:element:edit:start"; nonce: string; id: string; value: string | RichDoc };
@@ -224,6 +231,7 @@ export type BridgeToEditor =
   | ElementHoverMessage
   | ElementSelectMessage
   | ElementContextMenuMessage
+  | ElementDragMessage
   | SlotMessage
   | ElementEditStartMessage
   | ElementEditInputMessage
@@ -264,6 +272,7 @@ export const BRIDGE_MESSAGE_TYPES: readonly BridgeToEditor["type"][] = [
   "armature:element:hover",
   "armature:element:select",
   "armature:element:contextmenu",
+  "armature:element:drag",
   "armature:slot",
   "armature:element:edit:start",
   "armature:element:edit:input",

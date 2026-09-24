@@ -217,7 +217,9 @@ describe("drag-and-drop hit testing", () => {
     const reversed = el("container", "rev00001", [el("heading", "hedrev01"), el("heading", "hedrev02")]);
     reversed.props = { direction: "row-reverse" };
     const grid = el("grid", "grd00001", [el("heading", "hedgrd01"), el("heading", "hedgrd02"), el("heading", "hedgrd03"), el("heading", "hedgrd04")]);
-    const s: BuilderState = { layouts: { home: { version: 1, pageSlug: "home", path: "/", root: [row, reversed, grid] } }, deletedPages: [], kit: defaultSiteKit() };
+    // A grid whose first cell is a column holding a heading that touches the cell's top edge.
+    const cells = el("grid", "grd00002", [el("container", "cel00001", [el("heading", "hedcel01")]), el("heading", "hedgrd05")]);
+    const s: BuilderState = { layouts: { home: { version: 1, pageSlug: "home", path: "/", root: [row, reversed, grid, cells] } }, deletedPages: [], kit: defaultSiteKit() };
     const rects = [
       rect("row00001", "container", 0, 0, 1000, 100, null, { inner: { x: 0, y: 0, width: 1000, height: 100 } }),
       rect("hedrow01", "heading", 0, 0, 400, 100, "row00001"),
@@ -229,6 +231,10 @@ describe("drag-and-drop hit testing", () => {
       rect("hedgrd02", "heading", 500, 200, 500, 200, "grd00001"),
       rect("hedgrd03", "heading", 0, 400, 500, 200, "grd00001"),
       rect("hedgrd04", "heading", 500, 400, 500, 200, "grd00001"),
+      rect("grd00002", "grid", 0, 600, 1000, 200, null, { inner: { x: 0, y: 600, width: 1000, height: 200 } }),
+      rect("cel00001", "container", 0, 600, 500, 200, "grd00002", { inner: { x: 0, y: 600, width: 500, height: 200 } }),
+      rect("hedcel01", "heading", 0, 600, 500, 60, "cel00001"),
+      rect("hedgrd05", "heading", 500, 600, 500, 200, "grd00002"),
     ];
     expect(flowOf(row, [], "desktop")).toEqual({ axis: "x", reversed: false });
     expect(flowOf(row, [], "mobile")).toEqual({ axis: "y", reversed: false });
@@ -243,6 +249,13 @@ describe("drag-and-drop hit testing", () => {
     // A grid: the nearest cell edge; the top of cell 3 is a horizontal line before it.
     expect(hitTest({ state: s, elements: rects, slug: "home", x: 250, y: 410, device: "desktop" })).toMatchObject({ parentId: "grd00001", index: 2, indicator: { kind: "line", axis: "y", edge: "before" } });
     expect(hitTest({ state: s, elements: rects, slug: "home", x: 490, y: 300, device: "desktop" })).toMatchObject({ parentId: "grd00001", index: 1, indicator: { kind: "line", axis: "x", edge: "after" } });
+    // A column cell in a grid: over its first heading, the cell's top band would draw the very same
+    // horizontal line as "before the heading", so the heading wins and nothing lands beside the cell.
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 250, y: 603, device: "desktop" })).toMatchObject({ parentId: "cel00001", index: 0, indicator: { kind: "line", axis: "y", edge: "before" }, beside: { id: "hedcel01", edge: "before" } });
+    // Its left band draws a vertical line, which the heading never would: that is "before the cell", in the grid.
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 3, y: 630, device: "desktop" })).toMatchObject({ parentId: "grd00002", index: 0, indicator: { kind: "line", axis: "x", edge: "before" }, beside: { id: "cel00001", edge: "before" } });
+    // Its bottom band, with no child under the pointer, is "after the cell".
+    expect(hitTest({ state: s, elements: rects, slug: "home", x: 250, y: 797, device: "desktop" })).toMatchObject({ parentId: "grd00002", index: 1, indicator: { kind: "line", axis: "y", edge: "after" }, beside: { id: "cel00001", edge: "after" } });
     expect(dropLabel(s, hitTest({ state: s, elements: rects, slug: "home", x: 490, y: 300, device: "desktop" })!)).toBe("after Heading");
   });
 

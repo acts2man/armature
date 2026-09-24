@@ -431,6 +431,11 @@ export function EditorWorkspace({
   const [selection, setSelection] = useState<Selection>(null);
   const selectedPath = selection?.kind === "field" ? selection.path : null;
   const selectedId = selection?.kind === "element" ? selection.id : null;
+  /** For keys that arrive faster than a render (a held arrow key): the selection as it is now. */
+  const selectedIdRef = useRef(selectedId);
+  useLayoutEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
   const [editingPath, setEditingPath] = useState<FieldPath | null>(null);
   const [editingElement, setEditingElement] = useState<string | null>(null);
   const [richState, setRichState] = useState<RichTextState | null>(null);
@@ -822,7 +827,7 @@ export function EditorWorkspace({
     return () => observer.disconnect();
   }, [ready]);
   const scale = sheetWidth > 0 ? sheetWidth / deviceWidths[device] : 1;
-  const { drag, beginDrag } = useDrag({
+  const { drag, beginDrag, startDragAt, followDrag, endDrag } = useDrag({
     sheetRef,
     scale,
     geometry,
@@ -891,15 +896,17 @@ export function EditorWorkspace({
         case "down":
         case "left":
         case "right": {
-          if (!selectedId) return;
-          const around = siblingsOf(selectedId);
+          // Each press walks from where the last one landed, even before that render has run.
+          const current = selectedIdRef.current;
+          if (!current) return;
+          const around = siblingsOf(current);
           if (!around) return;
           if (key === "left") {
             if (around.parentId) selectElement(around.parentId);
             return;
           }
           if (key === "right") {
-            const first = findElement(builderRef.current, selectedId, pageSlug)?.element.children?.[0];
+            const first = findElement(builderRef.current, current, pageSlug)?.element.children?.[0];
             if (first) selectElement(first.id);
             return;
           }
@@ -1051,6 +1058,24 @@ export function EditorWorkspace({
           setEditingPart(isChromeSlug(owner) ? owner : null);
         }
         setMenu({ id: message.id, x: (box?.left ?? 0) + message.x * scale, y: (box?.top ?? 0) + message.y * scale });
+        return;
+      }
+      case "armature:element:drag": {
+        // An element dragged by itself on the page. The frame owns the pointer while it is down
+        // there, so the bridge reports it in frame pixels; here they become page pixels on the
+        // sheet and drive the very same drag as the toolbar handle does.
+        if (!builder) return;
+        const box = sheetRef.current?.getBoundingClientRect();
+        const clientX = (box?.left ?? 0) + message.x * scale;
+        const clientY = (box?.top ?? 0) + message.y * scale;
+        if (message.phase === "start") {
+          const entry = findElement(builderRef.current, message.id, pageSlug);
+          if (!entry || isLockedForMe(message.id) || editingElement) return;
+          // Picking an element up selects it, as a click would, so it is the selection after the drop.
+          if (selectedId !== message.id) selectElement(message.id, false);
+          startDragAt({ kind: "move", id: message.id, slug: ownerSlug(builderRef.current, message.id, pageSlug), label: entry.element.label || widgetLabel(entry.element.type) }, clientX, clientY);
+        } else if (message.phase === "move") followDrag(clientX, clientY);
+        else endDrag(message.phase === "end");
         return;
       }
       case "armature:slot":

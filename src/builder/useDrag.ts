@@ -78,6 +78,8 @@ export function useDrag(opts: {
     scrollTimer.current = 0;
   };
 
+  /** How far each auto-scroll tick moves the frame: from the pointer's depth in the edge band, refreshed on every move. */
+  const scrollDelta = useRef(0);
   const autoScroll = useCallback((clientY: number) => {
     const sheet = optsRef.current.sheetRef.current;
     if (!sheet) return stopScrolling();
@@ -88,11 +90,14 @@ export function useDrag(opts: {
     if (fromTop >= 0 && fromTop < EDGE) delta = -Math.ceil((EDGE - fromTop) / 4);
     else if (fromBottom >= 0 && fromBottom < EDGE) delta = Math.ceil((EDGE - fromBottom) / 4);
     if (delta === 0) return stopScrolling();
+    // The timer reads the latest depth, so pushing further into the band speeds the scroll up
+    // (and easing back slows it) while the timer that the first move started keeps running.
+    scrollDelta.current = delta;
     if (!scrollTimer.current) {
       scrollTimer.current = window.setInterval(() => {
         const current = dragRef.current;
         if (!current) return stopScrolling();
-        optsRef.current.onScroll(delta * 2);
+        optsRef.current.onScroll(scrollDelta.current * 2);
         const located = locate(current.clientX, current.clientY);
         update({ ...current, ...located });
       }, 40);
@@ -170,14 +175,37 @@ export function useDrag(opts: {
     pending.current = { source, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, target: event.currentTarget as HTMLElement };
   }, []);
 
-  /** Start a drag straight away (from a keyboard "Move" action, or the Navigator). */
+  /**
+   * Start a drag straight away, at a point in page (client) pixels: from a keyboard "Move"
+   * action, the Navigator, or the page itself (the bridge reports a drag that began inside the
+   * frame, where the parent never sees the pointer). The pointer's later positions arrive through
+   * `followDrag`, and `endDrag` drops or cancels.
+   */
   const startDragAt = useCallback(
     (source: DragSource, clientX: number, clientY: number) => {
+      pending.current = null;
       document.body.classList.add("ae-dragging");
-      update({ source, clientX, clientY, target: null, overCanvas: false });
+      dragRef.current = { source, clientX, clientY, target: null, overCanvas: false };
+      update({ ...dragRef.current, ...locate(clientX, clientY) });
     },
-    [update],
+    [locate, update],
   );
 
-  return { drag, beginDrag, startDragAt, cancelDrag: () => finish(false) };
+  /** The pointer moved (reported from inside the frame): find the drop under it and auto-scroll near the edges. */
+  const followDrag = useCallback(
+    (clientX: number, clientY: number) => {
+      const current = dragRef.current;
+      if (!current) return;
+      const located = locate(clientX, clientY);
+      update({ ...current, clientX, clientY, ...located });
+      if (located.overCanvas) autoScroll(clientY);
+      else stopScrolling();
+    },
+    [autoScroll, locate, update],
+  );
+
+  /** The pointer was released (a drop) or the drag was cancelled, from inside the frame. */
+  const endDrag = useCallback((drop: boolean) => finish(drop), [finish]);
+
+  return { drag, beginDrag, startDragAt, followDrag, endDrag, cancelDrag: () => finish(false) };
 }

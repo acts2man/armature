@@ -165,6 +165,19 @@ export function ElementOverlays({
 
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" data-testid="element-overlays">
+      {/* Between sections: the hover "+". Drawn first, so a selected section's tab (which straddles the
+          same boundary) and every handle paint above it: the pointer reaching for the grip must never
+          find "Add section" under it instead. */}
+      {gap && canEdit && !editing && (
+        <div className="pointer-events-none absolute flex items-center" style={{ left: gap.x * scale, top: gap.y * scale - 14, width: gap.width * scale, height: 28 }} data-testid="section-gap">
+          <span className="h-px flex-1 border-t border-dashed border-accent" />
+          <button type="button" onClick={() => actions.onAddSection(gap.index)} className="pointer-events-auto inline-flex h-7 items-center gap-1 rounded-full border border-accent bg-white px-2.5 text-[11px] font-semibold text-accent hover:bg-accent hover:text-accent-fg" data-testid="section-gap-add">
+            <IconPlus size={12} /> Add section
+          </button>
+          <span className="h-px flex-1 border-t border-dashed border-accent" />
+        </div>
+      )}
+
       {/* Hidden-on-this-device badges */}
       {layout &&
         Array.from(rects.values())
@@ -304,17 +317,6 @@ export function ElementOverlays({
               </span>
             </span>
           ))}
-
-      {/* Between sections: the hover "+" */}
-      {gap && canEdit && !editing && (
-        <div className="pointer-events-none absolute flex items-center" style={{ left: gap.x * scale, top: gap.y * scale - 14, width: gap.width * scale, height: 28 }} data-testid="section-gap">
-          <span className="h-px flex-1 border-t border-dashed border-accent" />
-          <button type="button" onClick={() => actions.onAddSection(gap.index)} className="pointer-events-auto inline-flex h-7 items-center gap-1 rounded-full border border-accent bg-white px-2.5 text-[11px] font-semibold text-accent hover:bg-accent hover:text-accent-fg" data-testid="section-gap-add">
-            <IconPlus size={12} /> Add section
-          </button>
-          <span className="h-px flex-1 border-t border-dashed border-accent" />
-        </div>
-      )}
 
       {/* Drag indicator: the container that would receive the drop, and the line or the filled inside */}
       {drag && drag.target && drag.target.indicator.kind === "line" && drag.target.parentId && rects.get(drag.target.parentId) && (

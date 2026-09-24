@@ -162,22 +162,34 @@ export function hitTest(opts: {
 
   // The outer few pixels of a container mean "beside it": the nearest such container, deepest
   // first, on the edges its parent's flow uses (top/bottom in a column, left/right in a row, any
-  // in a grid). Over one of its children the child's own before/after wins, unless the parent
-  // flows the other way (a column in a row: its left and right edges are the only way between
-  // the columns).
+  // in a grid). Over one of its children the child's own before/after wins whenever the two
+  // lines would look the same (a column in a column: both horizontal, on the same edge), so a
+  // drop aimed at the first heading never lands beside its column; the band stays where the
+  // lines differ (a column in a row: its left and right edges are the only way between the
+  // columns, and a vertical line says so). In a grid the edge under the pointer decides which
+  // way the "beside" line runs, so the same rule holds cell by cell.
   for (const { element } of under) {
     const entry = findElement(state, element.id, slug);
     if (!entry || !(entry.element.type === "container" || entry.element.type === "grid")) continue;
     if (entry.parentId === undefined) continue;
     const parent = entry.parentId ? findElement(state, entry.parentId, slug)?.element : undefined;
     const flow = flowOf(parent, childrenRects(entry.parentId), device);
-    const childUnder = under.some((candidate) => findElement(state, candidate.element.id, slug)?.parentId === element.id);
-    if (childUnder && flowOf(entry.element, childrenRects(element.id), device).axis === flow.axis) continue;
     const { rect } = element;
     const nearTop = y - rect.y < EDGE_BAND;
     const nearBottom = rect.y + rect.height - y < EDGE_BAND;
     const nearLeft = x - rect.x < EDGE_BAND;
     const nearRight = rect.x + rect.width - x < EDGE_BAND;
+    const edgeAxis = (box: Rect): "x" | "y" => {
+      const edge = nearestEdge(box, x, y);
+      return edge === "left" || edge === "right" ? "x" : "y";
+    };
+    const besideAxis: "x" | "y" = flow.axis === "grid" ? edgeAxis(rect) : flow.axis;
+    const childUnder = under.find((candidate) => findElement(state, candidate.element.id, slug)?.parentId === element.id);
+    if (childUnder) {
+      // The line a drop against that child would draw: along this container's flow, or in a grid along the child's nearest edge.
+      const inner = flowOf(entry.element, childrenRects(element.id), device);
+      if ((inner.axis === "grid" ? edgeAxis(childUnder.element.rect) : inner.axis) === besideAxis) continue;
+    }
     const beside = flow.axis === "grid" ? nearTop || nearBottom || nearLeft || nearRight : flow.axis === "y" ? nearTop || nearBottom : nearLeft || nearRight;
     if (beside) {
       const placed = placeAmong(entry.parentId, element);

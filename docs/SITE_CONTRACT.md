@@ -649,11 +649,12 @@ of v1):
 | `armature:elements:map` | kit → editor | Every builder element with its id, type, parent, page, border box, computed padding and margin, and for images/containers the inner box. Sent with `fields:map` and once per animation frame while scrolling. |
 | `armature:element:hover`, `armature:element:select` | both ways | Hover and selection by element id (`source` as in v1). Alt-click selects the parent. |
 | `armature:element:contextmenu` | kit → editor | A right-click on an element, with its position. |
+| `armature:element:drag` | kit → editor | An element dragged by itself on the page: `phase` "start" once the pointer has gone down on it and moved a few pixels (under that, a click still selects and a double-click still edits), then "move" for every pointer move, and "end" on release or "cancel" on Esc, with `x`/`y` in the frame's pixels. The frame owns the pointer while it is down there, so the kit forwards it; the editor decides the drop exactly as for a drag from its toolbar. The kit swallows the click that follows a drag and refuses the browser's own drag of links and pictures in edit mode. (Kit 2.5.0.) |
 | `armature:slot` | kit → editor | The mounted slots and their defaults changed (a route change). |
 | `armature:element:edit:start` / `input` / `commit` / `cancel` | kit → editor | In-place editing of a heading or button (a string) or the Text Editor (a rich-text document). |
 | `armature:element:edit:start` / `armature:element:edit:stop` | editor → kit | Begin or end in-place editing. |
 | `armature:richtext:command` / `armature:richtext:state` | both ways | Formatting commands from the floating toolbar and the marks in force at the caret. |
-| `armature:scroll` | editor → kit | Scroll the frame (auto-scroll while dragging). |
+| `armature:scroll` | editor → kit | Scroll the frame (auto-scroll while dragging). The kit scrolls at once, whatever the site's `scroll-behavior`: a smooth scroll a few pixels at a time, each interrupting the last, would barely move. |
 | `armature:key` | kit → editor | Adds copy, paste, paste style, duplicate, delete, preview and arrow keys. |
 
 While an element is typed into, the kit's renderer leaves that element's DOM alone (layout
