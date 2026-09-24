@@ -11,6 +11,15 @@ import { EngineSession, type SiteStyle } from "../ast/session.ts";
 import { detectSite } from "../runner/detect.ts";
 import { missingEnvMessage, resolveEnv } from "../runner/env.ts";
 import { head, openPreview, prepareWorkingCopy, type Preview, type PreviewOptions } from "../runner/preview.ts";
+
+/** Paths git reports as changed or untracked right now. */
+function dirtyPaths(dir: string): string[] {
+  const result = spawnSync("git", ["status", "--porcelain=v1", "--untracked-files=all", "--no-renames"], { cwd: dir, encoding: "utf8" });
+  return (result.stdout ?? "")
+    .split("\n")
+    .filter((line) => line.length > 3)
+    .map((line) => line.slice(3).trim());
+}
 import type { OpenRequest } from "../shared/api.ts";
 import type { PreviewStatus, SiteInfo } from "../shared/types.ts";
 import { sourceFor, type EngineConfig } from "./config.ts";
@@ -21,6 +30,8 @@ export type SiteState = {
   request: OpenRequest;
   status: PreviewStatus;
   preview: Preview | null;
+  /** Files the site's own tooling changed while starting (a generated route tree, say): not the person's edits. */
+  toolingTouched: string[];
   /** The working copy, once cloned. */
   dir: string | null;
   project: Project | null;
@@ -82,6 +93,7 @@ export class SiteRegistry {
       request,
       status: { phase: "cloning", message: "Fetching the site's code…", startedAt: Date.now() },
       preview: null,
+      toolingTouched: [],
       dir: null,
       project: null,
       session: null,
@@ -154,6 +166,8 @@ export class SiteRegistry {
       state.baseCommit = preview.headCommit;
       this.inspect(state, preview.headCommit);
     }
+    state.toolingTouched = dirtyPaths(preview.dir);
+    if (state.toolingTouched.length > 0) state.log.push(`Ignoring files the site's tooling rewrote on start: ${state.toolingTouched.join(", ")}`);
     state.status = { phase: "ready", url: preview.url, timings: preview.timings };
   }
 

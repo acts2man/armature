@@ -259,7 +259,7 @@ function start(): void {
     const out: RichRun[] = [];
     for (const child of Array.from(node.childNodes)) {
       if (child.nodeType === Node.TEXT_NODE) {
-        const text = (child.textContent ?? "").replace(/ /g, " ");
+        const text = (child.textContent ?? "").replace(/\u00a0/g, " ");
         if (text) out.push({ ...inherited, text });
       } else if (child.nodeType === Node.ELEMENT_NODE) {
         const element = child as HTMLElement;

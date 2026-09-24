@@ -44,7 +44,7 @@ function parseJsonObject<T>(raw: string | undefined, name: string, fallback: T):
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
     return parsed as T;
   } catch (error) {
-    throw new Error(`${name} must be a JSON object: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`${name} must be a JSON object: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 

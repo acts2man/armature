@@ -167,13 +167,15 @@ export function startDevServer(dir: string, port: number, options: { editorOrigi
         reject(new Error(`The preview server stopped before it was ready (exit ${code}).\n${buffer.slice(-1500)}`));
       }
     });
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (!settled) {
         settled = true;
         child.kill();
         reject(new Error(`The preview server did not start within 120 seconds.\n${buffer.slice(-1500)}`));
       }
     }, 120_000);
+    // Never keep the parent alive just for this timer.
+    timer.unref();
   });
 }
 

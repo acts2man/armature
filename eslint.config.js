@@ -36,4 +36,10 @@ export default defineConfig([
     files: ["src/visual/**/*.{ts,tsx}", "src/builder/**/*.{ts,tsx}"],
     rules: { "react-hooks/preserve-manual-memoization": "off" },
   },
+  {
+    // The code engine's editor: the same hand-written editor code as src/visual, and its
+    // control specs mix small components with plain helpers on purpose.
+    files: ["engine/editor/**/*.{ts,tsx}"],
+    rules: { "react-hooks/preserve-manual-memoization": "off", "react-refresh/only-export-components": "off" },
+  },
 ]);

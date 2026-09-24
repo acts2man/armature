@@ -1,3 +1,4 @@
+import React, { Suspense } from "react";
 import { Navigate, createBrowserRouter, RouterProvider } from "react-router";
 import { RequireAuth, RequirePasswordChosen, RequireStaff } from "@/auth/RequireAuth.tsx";
 import { CHOOSE_PASSWORD_PATH } from "@/auth/passwordGate.ts";
@@ -29,6 +30,9 @@ import { SiteConnection, SiteEditingSettings, SiteHistorySettings, SiteServicesS
 import { Team } from "@/pages/Team.tsx";
 import { VisualEditor } from "@/visual/VisualEditor.tsx";
 
+// The code engine (proof of concept, behind a flag): loaded only when its route is opened.
+const EngineRoute = React.lazy(() => import("../engine/editor/EngineEditor.tsx"));
+
 const router = createBrowserRouter([
   { path: "/signin", element: <SignIn /> },
   { path: "/invite/:token", element: <InviteAccept /> },
@@ -43,6 +47,14 @@ const router = createBrowserRouter([
         children: [
           // The visual editor is a full-screen workspace with its own frame.
           { path: "/sites/:siteId/visual/:pageSlug?", element: <VisualEditor /> },
+          {
+            path: "/sites/:siteId/engine",
+            element: (
+              <Suspense fallback={null}>
+                <EngineRoute />
+              </Suspense>
+            ),
+          },
           {
             element: <AppShell />,
             children: [

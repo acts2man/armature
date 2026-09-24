@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, test, type FrameLocator, type Page } from "@playwright/test";
-import { installMocks, SITE_ID } from "../../../tests/e2e/mocks.ts";
+import { AGENCY_ID, installMocks, SITE_ID } from "../../../tests/e2e/mocks.ts";
 import { ENGINE_URL } from "../../playwright.config.ts";
 
 const SITE_DIR = process.env["ENGINE_SITE_DIR"] ?? "";
@@ -43,12 +43,10 @@ const read = (file: string) => readFileSync(resolve(SITE_DIR, file), "utf8");
 async function openEditor(page: Page, path = "/"): Promise<{ frame: FrameLocator; ms: number }> {
   await installMocks(page, { fixture: "treetestprep", role: "staff" });
   // The fixture's site row points at the kit branch; the engine edits the original code on main.
-  await page.route("**/rest/v1/sites*", async (route) => {
-    const response = await route.fetch();
-    const body = (await response.json()) as unknown;
-    const patch = (row: Record<string, unknown>) => ({ ...row, branch: "main" });
-    const patched = Array.isArray(body) ? body.map((row) => patch(row as Record<string, unknown>)) : patch(body as Record<string, unknown>);
-    await route.fulfill({ response, body: JSON.stringify(patched), headers: { ...response.headers(), "content-type": "application/json" } });
+  const siteRow = { id: SITE_ID, agency_id: AGENCY_ID, name: "Tree Test Prep", repo_owner: "acts2man", repo_name: "treetestprep", branch: "main", live_url: "https://treetestprep.com", github_installation_id: 123, status: "connected", last_published_at: "2026-09-20T15:00:00Z", created_at: "2026-09-01T00:00:00Z" };
+  await page.route("**/rest/v1/sites?*", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    await route.fulfill({ status: 200, contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify([siteRow]) });
   });
   await page.addInitScript((url: string) => {
     localStorage.setItem("armature:engine", "1");

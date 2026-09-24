@@ -16,6 +16,8 @@ import { collectChanges, readDiff } from "./changes.ts";
 import { merge3 } from "./merge3.ts";
 
 export type PublishInput = {
+  /** Files the site's own tooling rewrites when the dev server starts (a generated route tree, say): never published. */
+  ignore?: string[];
   /** The working copy (a git clone with uncommitted edits). */
   dir: string;
   repo: ContentRepo;
@@ -49,9 +51,10 @@ async function readOrNull(repo: ContentRepo, path: string, ref: string): Promise
 export async function publishChanges(input: PublishInput): Promise<PublishResult> {
   const { dir, repo, baseCommitSha, message } = input;
   const resolutions = input.resolutions ?? {};
+  const ignore = input.ignore ?? [];
 
   try {
-    const changes = collectChanges(dir);
+    const changes = collectChanges(dir, ignore);
     if (changes.length === 0) return { ok: false, code: "nothing", message: "Nothing to publish yet." };
 
     const head = await repo.getBranchHead();
@@ -116,7 +119,7 @@ export async function publishChanges(input: PublishInput): Promise<PublishResult
       commitSha: result.commitSha,
       commitUrl: result.commitUrl,
       files: files.map((file) => file.path),
-      diff: readDiff(dir),
+      diff: readDiff(dir, ignore),
       rebased,
     };
   } catch (error) {

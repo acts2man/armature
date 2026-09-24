@@ -111,7 +111,7 @@ export function createEngineServer(config: EngineConfig): EngineServer {
 
   route("GET", "/changes", ({ query }) => {
     const state = sites.ready(query.get("site") ?? "");
-    return { ok: true, files: collectChanges(state.dir), diff: readDiff(state.dir), headCommit: head(state.dir) };
+    return { ok: true, files: collectChanges(state.dir, state.toolingTouched), diff: readDiff(state.dir, state.toolingTouched), headCommit: head(state.dir) };
   });
 
   route("POST", "/publish", async ({ body }) => {
@@ -124,6 +124,7 @@ export function createEngineServer(config: EngineConfig): EngineServer {
       repo,
       baseCommitSha: state.baseCommit,
       message,
+      ignore: state.toolingTouched,
       ...(resolutions ? { resolutions } : {}),
       // The working copy's HEAD is always the published base, so the base version
       // of a file comes from local git instead of a round trip.

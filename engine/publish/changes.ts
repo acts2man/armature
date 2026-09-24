@@ -59,7 +59,7 @@ function numstat(dir: string): Map<string, { additions: number; deletions: numbe
 }
 
 /** Every changed file in the working copy, sorted by path. */
-export function collectChanges(dir: string): ChangedFile[] {
+export function collectChanges(dir: string, ignore: string[] = []): ChangedFile[] {
   const raw = git(dir, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames"]);
   const stats = numstat(dir);
   const entries = raw.split("\0");
@@ -103,7 +103,7 @@ export function collectChanges(dir: string): ChangedFile[] {
     });
   }
 
-  return changes.sort((x, y) => (x.path < y.path ? -1 : x.path > y.path ? 1 : 0));
+  return changes.filter((change) => !ignore.includes(change.path)).sort((x, y) => (x.path < y.path ? -1 : x.path > y.path ? 1 : 0));
 }
 
 /** A unified diff for a file that git does not know yet, in the shape `git diff` would print. */
@@ -119,15 +119,15 @@ function untrackedDiff(dir: string, path: string): string {
 }
 
 /** The full diff of the working copy: tracked changes from git, plus every untracked file. */
-export function readDiff(dir: string): string {
-  let diff = git(dir, ["diff", "HEAD", "--no-renames", "--no-color"]);
+export function readDiff(dir: string, ignore: string[] = []): string {
+  let diff = git(dir, ["diff", "HEAD", "--no-renames", "--no-color", "--", ".", ...ignore.map((path) => `:(exclude)${path}`)]);
   if (diff !== "" && !diff.endsWith("\n")) diff += "\n";
-  for (const change of collectChanges(dir)) {
+  for (const change of collectChanges(dir, ignore)) {
     if (change.status !== "added") continue;
     // Staged additions are already in `git diff HEAD`; only untracked ones are missing.
     if (isTracked(dir, change.path)) continue;
     if (change.binary) {
-      let size = 0;
+      let size: number;
       try {
         size = statSync(join(dir, change.path)).size;
       } catch {
