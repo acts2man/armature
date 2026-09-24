@@ -112,7 +112,7 @@ export type SiteRow = {
   branch: string | null;
   live_url: string | null;
   github_installation_id: number | null;
-  status: "connected" | "needs_attention" | "hosting_only";
+  status: "connected" | "needs_attention" | "hosting_only" | "needs_setup";
   last_published_at: string | null;
   created_at: string;
   /** What clients may do in the visual editor (page builder migration). Absent before it is applied. */

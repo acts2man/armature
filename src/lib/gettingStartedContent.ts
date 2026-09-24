@@ -149,7 +149,7 @@ export const GETTING_STARTED_SECTIONS: readonly Section[] = [
     key: "set-up-site",
     title: "3. Set up the site with the 'Set up this site' prompt",
     what:
-      "One-time per site. Claude Code writes the Armature files (schema, pages, kit) on a test copy branch called armature/setup, so the live site keeps rendering while the setup happens. Only when you press 'Go live' are the files merged into the connected branch — through GitHub's API, never a force-push.",
+      "One-time per site. Claude Code writes the Armature files (schema, pages, kit) directly on the site's connected branch. There is no test branch: before it pushes, Claude builds the site as it is today, takes screenshots of every page, does the setup, takes screenshots again, and compares them page-by-page (pixels, visible text, links, image alts and head tags). Nothing gets pushed unless every page matches. If anything goes wrong once it lands, Site settings → Undo setup restores the pre-setup state as one revert commit.",
     steps: [
       {
         text:
@@ -159,31 +159,31 @@ export const GETTING_STARTED_SECTIONS: readonly Section[] = [
       },
       {
         text:
-          "Press 'Copy prompt'. Then open Claude Code on the web, pick this same repository, and paste. Claude will do the setup on the armature/setup branch — it never touches your connected branch until you press Go live.",
+          "Press 'Copy prompt'. Then open Claude Code on the web, pick this same repository, and paste. Claude works directly on the connected branch and takes BEFORE screenshots of every page before it changes anything.",
         screenshot: "03-setup-claude-code",
-        caption: "The Claude Code screen with the pasted prompt and armature/setup checked out.",
+        caption: "The Claude Code screen with the pasted prompt; the terminal below shows the BEFORE screenshots being captured page by page.",
       },
       {
         text:
-          "Come back to Armature. As soon as the branch is pushed, 'Preview' appears — this is Netlify's branch preview URL. Open it and look through the site. Nothing on the connected branch has changed yet.",
-        screenshot: "03-setup-preview",
-        caption: "The site Dashboard with the Preview link visible and the armature/setup branch under it.",
+          "Claude does the setup, rebuilds, and takes AFTER screenshots. It compares them: no more than 0.5% pixel difference per page, and the visible text, links, image alt attributes and head tags must match exactly. Only when every page passes does it push.",
+        screenshot: "03-setup-verify",
+        caption: "The BEFORE / AFTER comparison in Claude Code's terminal, page by page.",
       },
       {
         text:
-          "When you are happy with the preview, press 'Go live'. Armature merges armature/setup into the connected branch through GitHub's API (a real merge commit, never a force-push). Netlify rebuilds once and the site is set up.",
-        screenshot: "03-setup-go-live",
-        caption: "The Go live confirm dialog and, after, the merged commit link.",
+          "Once Claude pushes and Netlify rebuilds, Armature reads the new data-armature-kit attribute on the site's HTML and flips the site from Needs setup to Connected on its own — no button to press. If anything looks wrong, open Site settings → Undo setup to restore the pre-setup state as one revert commit.",
+        screenshot: "03-setup-connected",
+        caption: "The Kit card on Site settings turning green as the site flips from Needs setup to Connected, with Undo setup right below.",
       },
     ],
     cost:
-      "One Netlify build per Go live. Netlify's Starter and free plans include a fixed number of build minutes each month; paid plans include unlimited builds.",
+      "One Netlify build per push. Netlify's Starter and free plans include a fixed number of build minutes each month; paid plans include unlimited builds. The BEFORE / AFTER screenshots run locally on the machine running Claude Code — no Netlify build is used for them.",
     troubleshoot:
-      "Preview still shows the old site. Netlify has not finished the branch build yet — wait a minute and refresh. Go live shows a conflict. Someone (or another Claude Code run) has committed to the connected branch since armature/setup was created. Ask Claude Code to rebase armature/setup onto the connected branch and push it again; Go live will then merge cleanly.",
+      "Claude stopped without pushing and said a page didn't match. That's working as intended. Read the diff line it printed (the pixel difference percentage, or the first line of the text / link / alt / head diff), tell Claude what to fix (usually a still-coded section wrapper that changed a class, or a head tag the kit hasn't been asked to render yet), and re-run the prompt. Something looks wrong on the live site after Claude pushed. Open Site settings → Undo setup: one confirmation and Armature commits the pre-setup files back to the connected branch as a single revert. Netlify rebuilds once and the live site is back to how it was.",
     video: {
-      placeholder: "Set up a site with Claude Code, from Copy prompt to a merged Go live.",
+      placeholder: "Set up a site with Claude Code, direct-to-connected-branch with BEFORE / AFTER verification.",
       captions:
-        "Copy prompt, paste into Claude Code, watch armature/setup get pushed, open Preview, press Go live and see the merged commit link.",
+        "Copy prompt, paste into Claude Code, watch BEFORE screenshots capture every page, the setup run, AFTER screenshots capture the same pages, the comparison pass and the push land.",
     },
   },
   {
@@ -298,7 +298,7 @@ export const GETTING_STARTED_SECTIONS: readonly Section[] = [
       },
       {
         text:
-          "Undo restores the previous version. Site settings > Kit history > Undo. Armature commits the previous version's files as a new commit (never a force-push). Netlify rebuilds and the site is back on the earlier kit.",
+          "Undo update restores the previous kit version. Site settings > Kit history > Undo. Armature commits the previous version's files as a new commit (never a force-push). Netlify rebuilds and the site is back on the earlier kit. (Undo update is not the same as Undo setup — Undo setup, in Section 3, rolls the whole site back to before Armature was installed on it.)",
         screenshot: "06-keep-updated-undo",
         caption: "The Kit history with an Undo button next to the last update.",
       },
@@ -354,6 +354,12 @@ export const GETTING_STARTED_SECTIONS: readonly Section[] = [
           "A publish hit a conflict. Someone else changed the same field while you were editing. The publish dialog offers three choices: 'Keep yours' (your version wins), 'Keep theirs' (their version stays), or 'Resolve field-by-field' (pick per field). Nothing is overwritten silently.",
         screenshot: "07-troubleshoot-conflict",
         caption: "The publish conflict dialog with the three choice buttons and the conflicting field named.",
+      },
+      {
+        text:
+          "The setup pushed, but the live site looks wrong. Open Site settings > Undo setup and press it. Armature commits the pre-setup files back to the connected branch as one revert commit (never a force-push); Netlify rebuilds once and the site is back to how it was before Armature was installed. The site flips back to Needs setup and you can re-run the prompt after Claude fixes whatever caused the mismatch. Undo setup is only offered for sites Armature saved as Needs setup with a snapshot on file — legacy sites need a manual revert on GitHub instead.",
+        screenshot: "07-troubleshoot-undo-setup",
+        caption: "The Site settings > Undo setup card with its confirmation dialog and the revert commit link that follows.",
       },
     ],
     troubleshoot:

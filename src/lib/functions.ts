@@ -30,7 +30,7 @@ export type FunctionName =
   | "kit-status"
   | "update-kit"
   | "undo-kit-update"
-  | "finish-setup"
+  | "undo-site-setup"
   | "agency-getting-started";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });

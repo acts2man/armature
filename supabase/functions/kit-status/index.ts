@@ -51,16 +51,22 @@ Deno.serve(
     // Snapshot the result back on public.sites so Projects can render the Kit column without
     // hitting GitHub for every row. The write is best-effort — if RLS or the network refuses,
     // the caller still gets the fresh status.
+    //
+    // Auto-flip: a site saved as needs_setup gets promoted to connected the moment kit-status
+    // sees ANY kit installed (verdict != "not_installed"). Troy dropped the test-branch flow
+    // in favour of writing the setup directly to the connected branch; the flip used to be
+    // driven by finish-setup, and this is what replaces it.
+    const patch: Record<string, unknown> = {
+      kit_version_in_repo: status.inRepo,
+      kit_version_live: status.live,
+      kit_verdict: status.verdict,
+      kit_probed_at: new Date().toISOString(),
+    };
+    if (site.status === "needs_setup" && status.verdict !== "not_installed") {
+      patch.status = "connected";
+    }
     try {
-      await admin
-        .from("sites")
-        .update({
-          kit_version_in_repo: status.inRepo,
-          kit_version_live: status.live,
-          kit_verdict: status.verdict,
-          kit_probed_at: new Date().toISOString(),
-        })
-        .eq("id", site.id);
+      await admin.from("sites").update(patch).eq("id", site.id);
     } catch (err) {
       console.error("[kit-status] could not update site snapshot columns:", err instanceof Error ? err.message : err);
     }

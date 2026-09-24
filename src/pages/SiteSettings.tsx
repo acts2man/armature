@@ -12,6 +12,7 @@ import { IconAlert, IconCheck, IconExternal, IconGithub, IconHistory, IconStetho
 import { KitStatusPanel } from "@/components/KitStatusPanel.tsx";
 import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
 import { SiteServicesPanel } from "@/components/SiteServicesPanel.tsx";
+import { UndoSetupCard } from "@/components/UndoSetupCard.tsx";
 import { Button, LinkButton, Notice, PageHeader, Panel, Pill, SrOnly, TabBar, tabClass } from "@/components/ui.tsx";
 import { formatDateTime, relativeTime } from "@/lib/format.ts";
 import { callFunction } from "@/lib/functions.ts";
@@ -164,6 +165,7 @@ export function SiteConnection() {
         </div>
       </Panel>
       {!hostingOnly && <KitStatusPanel site={site} />}
+      {!hostingOnly && <UndoSetupCard site={site} />}
     </div>
   );
 }

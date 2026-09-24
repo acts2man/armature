@@ -431,7 +431,7 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
               </LinkButton>
             }
           >
-            That's a one-time step done with Claude Code. Open the site — the setup box on the Dashboard has a ready-to-paste prompt that does the work on a test-copy branch (armature/setup). Once you're happy with Preview, press Go live inside Armature.
+            That's a one-time step done with Claude Code. Open the site — the setup box on the Dashboard has a ready-to-paste prompt. Claude works directly on the connected branch, takes BEFORE screenshots of every page, does the setup, takes AFTER screenshots, and pushes only when every page matches. If anything looks wrong on the live site once it lands, Site settings has Undo setup to restore the pre-setup state as one revert commit.
           </Notice>
         ) : data.site ? (
           <Notice

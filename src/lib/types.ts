@@ -57,6 +57,13 @@ export type Site = {
   /** Where the Armature kit folder lives inside the site's repository. */
   kit_path?: string;
   /**
+   * The head SHA of the connected branch at the moment site-connect saved this
+   * site as needs_setup (migration 20260924001100). undo-site-setup reads it
+   * to restore the tree to that snapshot as one revert commit. Null on a site
+   * saved before this snapshot was added, or already fully connected on save.
+   */
+  pre_setup_commit_sha?: string | null;
+  /**
    * Snapshot of the last kit-status probe (migration 20260924000800). Populated
    * by every call to the `kit-status` edge function so the Projects Kit column
    * can render without hitting GitHub on every render. Null / missing before

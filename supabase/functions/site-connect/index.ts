@@ -85,13 +85,19 @@ Deno.serve(
     }
 
     const status = result.allPassed ? "connected" : "needs_setup";
-    const repoFields = {
+    // Snapshot the connected branch's current head SHA when we save the site as
+    // needs_setup. Undo setup uses it later to restore the pre-setup tree as
+    // one revert commit. On a fully-connected save (setup already done) we
+    // leave the column null — there is no pre-setup snapshot to remember.
+    const preSetupSha = status === "needs_setup" ? (result.headSha ?? null) : null;
+    const repoFields: Record<string, unknown> = {
       repo_owner: repoOwner,
       repo_name: repoName,
       branch,
       github_installation_id: result.installation.id,
       status,
     };
+    if (preSetupSha) repoFields.pre_setup_commit_sha = preSetupSha;
     const { data, error } = existing
       ? await caller.supabase
           .from("sites")

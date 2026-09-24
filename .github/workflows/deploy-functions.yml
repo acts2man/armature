@@ -48,6 +48,9 @@ jobs:
       - name: Delete stats-ingest (removed in kit 2.9.0; safe when already gone)
         if: steps.check.outputs.configured == 'true'
         run: supabase functions delete stats-ingest --project-ref "$SUPABASE_PROJECT_REF" || true
+      - name: Delete finish-setup (removed with the test-branch flow; safe when already gone)
+        if: steps.check.outputs.configured == 'true'
+        run: supabase functions delete finish-setup --project-ref "$SUPABASE_PROJECT_REF" || true
       - name: Deploy every function
         if: steps.check.outputs.configured == 'true'
         run: supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF" --use-api

@@ -87,6 +87,10 @@ export type MockOptions = {
   updateKit?: "ok" | "local-edits" | "error";
   /** What undo-kit-update returns; default "ok". */
   undoKit?: "ok" | "error";
+  /** Sets sites.pre_setup_commit_sha for the primary site — used by Undo setup. */
+  preSetupCommitSha?: string | null;
+  /** What undo-site-setup returns; default "ok". */
+  undoSiteSetup?: "ok" | "no-snapshot" | "error";
   /** github-setup responses (installations + list_repositories). */
   githubSetup?: {
     installations?: { installation_id: number; account_login: string; account_type: "User" | "Organization" }[];
@@ -144,6 +148,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     kit_version_live: options.kit?.version_live ?? "2.9.0",
     kit_verdict: options.kit?.verdict ?? "up_to_date",
     kit_probed_at: options.kit?.probed_at ?? new Date().toISOString(),
+    pre_setup_commit_sha: options.preSetupCommitSha === undefined ? null : options.preSetupCommitSha,
   };
 
   const moreSites = (options.moreSites ?? []).map((extra) => ({
@@ -595,6 +600,20 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
             updated_at: new Date().toISOString(),
           });
           return json(route, { ok: true, from: "2.8.0", to: "2.9.0", commit: { sha: commitSha, url: `https://github.com/${site.repo_owner}/${site.repo_name}/commit/${commitSha}` }, changed: { added: 12, changed: 3, removed: 1 }, update_id: id });
+        }
+        case "undo-site-setup": {
+          if (options.undoSiteSetup === "no-snapshot") {
+            return json(route, { ok: false, code: "invalid", message: "Armature does not have a pre-setup snapshot for this site, so Undo setup can't run." });
+          }
+          if (options.undoSiteSetup === "error") {
+            return json(route, { ok: false, code: "github_error", message: "GitHub answered with HTTP 502." });
+          }
+          const commitSha = "c0ffee1c0ffee1c0ffee1c0ffee1c0ffee1c0ffe";
+          return json(route, {
+            ok: true,
+            commit: { sha: commitSha, url: `https://github.com/${site.repo_owner}/${site.repo_name}/commit/${commitSha}` },
+            changed: { restored: 4, deleted: 12 },
+          });
         }
         case "undo-kit-update": {
           if (options.undoKit === "error") return json(route, { ok: false, code: "invalid", message: "This update was recorded before Armature started saving the previous commit." });

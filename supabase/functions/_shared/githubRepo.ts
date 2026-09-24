@@ -157,9 +157,11 @@ export function createGithubContentRepo(
       const tree = await call<{ tree?: { path?: string; type?: string; sha?: string; size?: number }[]; truncated?: boolean }>(
         `/repos/${repo}/git/trees/${treeSha}?recursive=1`,
       );
-      const prefix = directory.replace(/\/+$/, "") + "/";
+      const trimmed = directory.replace(/\/+$/, "").replace(/^\.\/?$/, "");
+      const whole = trimmed === "";
+      const prefix = whole ? "" : trimmed + "/";
       return (tree.tree ?? [])
-        .filter((entry) => entry.type === "blob" && typeof entry.path === "string" && entry.path.startsWith(prefix) && typeof entry.sha === "string")
+        .filter((entry) => entry.type === "blob" && typeof entry.path === "string" && typeof entry.sha === "string" && (whole || (entry.path as string).startsWith(prefix)))
         .map((entry) => ({ path: entry.path as string, sha: entry.sha as string, size: entry.size ?? 0 }));
     },
 
