@@ -334,9 +334,21 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           }
           return json(route, []);
         }
+        case "site_storage_totals":
+          return json(route, [{ site_id: SITE_ID, file_count: 0, total_bytes: 0 }]);
         default:
           return json(route, []);
       }
+    }
+
+    // --- storage ---------------------------------------------------------------
+    // The SiteStoragePanel reads and writes to the site-files bucket. The mocks just
+    // pretend the folder is empty; anything the panel might send back is accepted.
+    if (path.startsWith("/storage/v1/")) {
+      if (path.includes("/object/list/")) return json(route, []);
+      if (request.method() === "POST" && path.includes("/object/")) return json(route, { path: path.split("/object/")[1], Key: "site-files", Id: "mock" });
+      if (request.method() === "DELETE" && path.includes("/object/")) return json(route, { data: [] });
+      return json(route, {});
     }
 
     // --- functions -------------------------------------------------------------

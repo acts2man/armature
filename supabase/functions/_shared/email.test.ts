@@ -17,10 +17,10 @@ const withKey = (): Env => ({ RESEND_API_KEY: "re_test" });
 
 function stubResend(handler: (body: unknown) => Response): () => void {
   const original = globalThis.fetch;
-  globalThis.fetch = (async (input, init) => {
+  globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    if (url.includes("api.resend.com")) return handler(init?.body ? JSON.parse(String(init.body)) : {});
-    return new Response("not stubbed", { status: 501 });
+    if (url.includes("api.resend.com")) return Promise.resolve(handler(init?.body ? JSON.parse(String(init.body)) : {}));
+    return Promise.resolve(new Response("not stubbed", { status: 501 }));
   }) as typeof globalThis.fetch;
   return () => {
     globalThis.fetch = original;
