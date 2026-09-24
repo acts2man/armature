@@ -10,6 +10,7 @@ import { AgencyClients } from "@/pages/AgencyClients.tsx";
 import { AgencyRequests } from "@/pages/AgencyRequests.tsx";
 import { AgencySettings } from "@/pages/AgencySettings.tsx";
 import { AgencyTeam } from "@/pages/AgencyTeam.tsx";
+import { AgencyHelp, ClientHelp } from "@/pages/Help.tsx";
 import { ChangeRequestDetail } from "@/pages/ChangeRequestDetail.tsx";
 import { ChangeRequests } from "@/pages/ChangeRequests.tsx";
 import { ChoosePassword } from "@/pages/ChoosePassword.tsx";
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
               { path: "/fleet", element: <Navigate to="/projects" replace /> },
               { path: "/github/setup", element: <GithubSetup /> },
               { path: "/account", element: <Account /> },
+              { path: "/help", element: <ClientHelp /> },
               {
                 element: <RequireStaff />,
                 children: [
@@ -73,6 +75,7 @@ const router = createBrowserRouter([
                   { path: "/agency/clients", element: <AgencyClients /> },
                   { path: "/agency/settings", element: <AgencySettings /> },
                   { path: "/agency/team", element: <AgencyTeam /> },
+                  { path: "/agency/help", element: <AgencyHelp /> },
                 ],
               },
               {

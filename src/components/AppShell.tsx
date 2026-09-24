@@ -25,7 +25,7 @@ import { isHostingOnly } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { OPEN_CHANGE_REQUEST_STATUSES, SITE_ROLE_LABELS, type Agency } from "@/lib/types.ts";
 import type { IconProps } from "./icons.tsx";
-import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconLogout, IconMenu, IconSettings, IconTeam, IconUser, WireA } from "./icons.tsx";
+import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconHelp, IconLogout, IconMenu, IconSettings, IconTeam, IconUser, WireA } from "./icons.tsx";
 import { useIsStaffFor, useSiteQuery } from "./SiteLayout.tsx";
 import { siteNavItems } from "./siteNav.ts";
 import { SiteSwitcher } from "./SiteSwitcher.tsx";
@@ -198,6 +198,7 @@ function AgencySidebarContent({ collapsed, onNavigate }: SidebarProps) {
     { key: "agency-clients", to: "/agency/clients", label: "Clients", icon: IconUser },
     { key: "agency-team", to: "/agency/team", label: "Team", icon: IconTeam },
     { key: "agency-settings", to: "/agency/settings", label: "Settings", icon: IconSettings },
+    { key: "agency-help", to: "/agency/help", label: "Help", icon: IconHelp },
   ];
 
   return (
@@ -284,7 +285,7 @@ function NoSiteSidebarContent({ collapsed, onNavigate }: SidebarProps) {
     <div className={clsx("flex h-full flex-col justify-between gap-6 p-4 pt-4", collapsed ? "sm:px-2" : "sm:px-3")}>
       <div className="flex flex-col gap-5">
         <ClientBrand agency={agency} collapsed={collapsed} />
-        <NavList items={[{ key: "account", to: "/account", label: "Settings", icon: IconSettings }]} collapsed={collapsed} onNavigate={onNavigate} label="Main" />
+        <NavList items={[{ key: "account", to: "/account", label: "Settings", icon: IconSettings }, { key: "help", to: "/help", label: "Help", icon: IconHelp }]} collapsed={collapsed} onNavigate={onNavigate} label="Main" />
       </div>
       <UserBlock
         name={displayName(user)}

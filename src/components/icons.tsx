@@ -256,6 +256,14 @@ export const IconInfo = make(
     <path d="M12 11v5M12 7.5v.5" />
   </>,
 );
+export const IconHelp = make(
+  "Help",
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.4-1 2-2.5 2.5v1.5" />
+    <path d="M12 17.5v.5" />
+  </>,
+);
 export const IconXCircle = make(
   "XCircle",
   <>
