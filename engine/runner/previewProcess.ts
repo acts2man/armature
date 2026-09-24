@@ -6,7 +6,7 @@
  *
  *   node --import tsx engine/runner/previewProcess.ts <siteDir> <port> <configJson>
  */
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -22,7 +22,8 @@ type ViteModule = {
 async function main() {
   const [siteDir, portArg, configJson] = process.argv.slice(2);
   if (!siteDir || !portArg) throw new Error("usage: previewProcess <siteDir> <port> <configJson>");
-  const root = resolve(siteDir);
+  // Vite reports module ids by their real path, so a symlinked working copy must be resolved first.
+  const root = realpathSync(resolve(siteDir));
   const port = Number(portArg);
   const options = JSON.parse(configJson ?? "{}") as { editorOrigins: string[]; env: Record<string, string>; host?: string; /** Stop when the parent closes our stdin (set by the runner, which holds a pipe open). */ exitOnStdinEnd?: boolean };
 

@@ -155,7 +155,15 @@ export function useEngineDrag(opts: {
   /** Call from a pointerdown handler on anything draggable. The drag starts after a few pixels of movement. */
   const beginDrag = useCallback((event: React.PointerEvent, source: EngineDragSource) => {
     if (event.button !== 0) return;
-    pending.current = { source, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, target: event.currentTarget as HTMLElement };
+    const target = event.currentTarget as HTMLElement;
+    pending.current = { source, startX: event.clientX, startY: event.clientY, pointerId: event.pointerId, target };
+    // Capture at once: the pointer leaves the small handle onto the cross-origin frame within a
+    // few pixels, and without capture the parent window would never see the moves that follow.
+    try {
+      target.setPointerCapture(event.pointerId);
+    } catch {
+      // capture is a nicety; the window listeners still see moves over the parent's own elements
+    }
   }, []);
 
   /** Re-run the hit test at the current pointer position (a lazy resolve just finished). */

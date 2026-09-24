@@ -1,0 +1,116 @@
+diff --git a/src/lib/pageDefaults.ts b/src/lib/pageDefaults.ts
+index 9792f29..6a97ac8 100644
+--- a/src/lib/pageDefaults.ts
++++ b/src/lib/pageDefaults.ts
+@@ -14,7 +14,7 @@ export const PAGE_DEFAULTS: Record<string, Record<string, Record<string, Default
+       email: "Treetestprep@gmail.com",
+       nav: [
+         { label: "Home", href: "/" },
+-        { label: "Course Overview", href: "/events/location/" },
++        { label: "The Course", href: "/events/location/" },
+         { label: "Exam Information", href: "/exam-information/" },
+         { label: "The Inspiration", href: "/about-us/" },
+         { label: "Meet The Instructors", href: "/meet-your-instructors/" },
+@@ -34,7 +34,7 @@ export const PAGE_DEFAULTS: Record<string, Record<string, Record<string, Default
+       image: "/assets/flowering-tree-in-bloom-beside-a-marsh-with-hills-behind-it.webp",
+       image_alt: "Flowering tree in bloom beside a marsh with hills behind it",
+       links_heading: "Navigation Links",
+-      copyright: "© 2026 Tree Test Prep. All Rights Reserved.",
++      copyright: "© 2026 Tree Test Prep. Every right reserved.",
+       privacy: { label: "Privacy Policy", href: "https://treetestprep.com/privacy-policy" },
+       terms: { label: "Terms of Service", href: "https://treetestprep.com/terms-of-service" },
+       credit_prefix: "Site designed by",
+@@ -49,15 +49,15 @@ export const PAGE_DEFAULTS: Record<string, Record<string, Record<string, Default
+       image: "",
+     },
+     hero: {
+-      title: "Become An ISA Certified Arborist",
+-      body: "Take your tree care career to the next level by becoming an ISA Certified Arborist. Let your customers know that you possess the high degree of knowledge that it takes to become certified by the International Society of Arboriculture.",
++      title: "Become a Certified Arborist This Autumn",
++      body: "Take your tree care career further by becoming an ISA Certified Arborist.",
+       schedule: "Tuesdays · 6:00 – 8:30 PM",
+       dates: "Dates: Sep 15, 22, 29 · Oct 6, 13, 20, 27 · Nov 3, 2026",
+-      badge: "/assets/isa-certified-arborist-credential-badge.webp",
+-      badge_alt: "ISA Certified Arborist credential badge",
++      badge: "/assets/new-badge.png",
++      badge_alt: "The ISA Certified Arborist badge",
+       video_title: "Tree Test Prep course video",
+       video: "https://fast.wistia.net/embed/iframe/mjst5n61w1?seo=true&videoFoam=true",
+-      cta: { label: "Register for the course", href: "/class-registration-page/" },
++      cta: { label: "Register now", href: "/class-registration-page/" },
+     },
+     course: {
+       heading:
+diff --git a/src/pages/Home.tsx b/src/pages/Home.tsx
+index 4bfc089..7e70457 100644
+--- a/src/pages/Home.tsx
++++ b/src/pages/Home.tsx
+@@ -23,8 +23,8 @@ export default function Home() {
+ 
+       <section className="hero" aria-labelledby="hero-title">
+         <div className="hero-shade" />
+-        <div className="wrap hero-inner">
+-          <h1 id="hero-title">{copy.text("hero", "title")}</h1>
++        <div className="wrap hero-inner ae-dd434c">
++          <h1 id="hero-title" className="ae-b486a3">{copy.text("hero", "title")}</h1>
+           <div className="hero-grid">
+             <img
+               className="credential"
+@@ -62,12 +62,22 @@ export default function Home() {
+       <section className="course wrap" id="course">
+         <div className="course-copy">
+           <h2>{copy.text("course", "heading")}</h2>
++          <h2>New heading</h2>
+           <div className="mobile-inline-image">
+             <img
+               src={copy.text("course", "image")}
+               alt={courseImageAlt}
+             />
+           </div>
++          <p className="exam-note" id="exam">
++            {examNote.includes(examLink.label) ? (<>
++              {examNote.split(examLink.label)[0]}
++              <a href={examLink.href}>{examLink.label}</a>
++              {examNote.split(examLink.label)[1]?.split(isaLink.label)[0]}
++              {examNote.includes(isaLink.label) && <a href={isaLink.href}>{isaLink.label}</a>}
++              {examNote.split(isaLink.label)[1]}
++            </>) : examNote}
++          </p>
+           <ul className="week-list">
+             {weeks.map((week) => (
+               <li key={week.text}>{week.text}</li>
+@@ -76,19 +86,6 @@ export default function Home() {
+           <div className="week-nine">
+             <span>{copy.text("course", "week_nine")}</span>
+           </div>
+-          <p className="exam-note" id="exam">
+-            {examNote.includes(examLink.label) ? (
+-              <>
+-                {examNote.split(examLink.label)[0]}
+-                <a href={examLink.href}>{examLink.label}</a>
+-                {examNote.split(examLink.label)[1]?.split(isaLink.label)[0]}
+-                {examNote.includes(isaLink.label) && <a href={isaLink.href}>{isaLink.label}</a>}
+-                {examNote.split(isaLink.label)[1]}
+-              </>
+-            ) : (
+-              examNote
+-            )}
+-          </p>
+           <Link className="button outline-button" to={courseCta.href as string}>
+             {courseCta.label}
+           </Link>
+diff --git a/src/styles/globals.css b/src/styles/globals.css
+index d58d811..540590c 100644
+--- a/src/styles/globals.css
++++ b/src/styles/globals.css
+@@ -336,3 +336,8 @@ button, a { -webkit-tap-highlight-color: transparent; }
+   .hero-copy { font-size: 15px; }
+   .course-image, .faq-image, .footer-image { height: 310px; }
+ }
++
++/* armature:start — rules written by the Armature editor; edit freely */
++@media (min-width: 1031px) { .ae-dd434c.ae-dd434c.ae-dd434c { padding-top: 23px; } }
++@media (max-width: 767px) { .ae-b486a3.ae-b486a3.ae-b486a3 { font-size: 24px; } }
++/* armature:end */
+Binary file added: public/assets/new-badge.png (70 bytes)
+ 

@@ -1,4 +1,39 @@
 {
-  "editor": {},
-  "measuredAt": "2026-09-24T01:07:10.608Z"
+  "editor": {
+    "firstEditorOpenMs": 19369,
+    "open /events/location/": 3280,
+    "open /exam-information/": 2900,
+    "open /about-us/": 2656,
+    "open /meet-your-instructors/": 2806,
+    "open /contact-us/": 2624,
+    "open /class-registration-page/": 3191,
+    "runner cloneMs": 1152,
+    "runner installMs": 2,
+    "runner startMs": 10196,
+    "runner totalMs": 11350,
+    "runner cachedInstall": true,
+    "runner cachedClone": true
+  },
+  "measuredAt": "2026-09-24T02:58:57.529Z",
+  "runnerCli": {
+    "note": "engine/cli.ts open acts2man/treetestprep main, on this machine (2 vCPU sandbox), 2026-09-24",
+    "firstEverInstall": {
+      "installMs": 252000,
+      "note": "npm install from the public registry with a cold npm cache (bun could not reach the lockfile's private mirror)"
+    },
+    "freshCloneWarmNpmCache": {
+      "cloneMs": 972,
+      "installMs": 28969,
+      "startMs": 15225,
+      "totalMs": 45168
+    },
+    "laterOpen": {
+      "cloneMs": 1335,
+      "installMs": 2,
+      "startMs": 8928,
+      "totalMs": 10265,
+      "cachedInstall": true,
+      "cachedClone": true
+    }
+  }
 }

@@ -77,15 +77,24 @@ export function applyCssRule(stylesheet: string, className: string, device: Devi
   return `${trimmedBefore}\n\n${printBlock(rules)}`;
 }
 
-/** Breakpoints from the site's own CSS: the most common max-width values, else Tailwind's defaults. */
+/**
+ * Breakpoints from the site's own CSS: in each band, the max-width query closest to the
+ * conventional value (767px for phones, 1023px for tablets), else Tailwind's defaults.
+ * Sites scatter one-off queries (560px, 1250px) around their main layout switch, so
+ * "closest to convention" picks the layout switch far more often than "most used".
+ */
 export function detectBreakpoints(css: string): Breakpoints {
-  const counts = new Map<number, number>();
-  for (const match of css.matchAll(/max-width:\s*(\d+)px/g)) {
-    const value = Number(match[1]);
-    counts.set(value, (counts.get(value) ?? 0) + 1);
-  }
-  const values = Array.from(counts.keys()).sort((a, b) => a - b);
-  const phoneMax = values.find((value) => value >= 480 && value <= 900);
-  const tabletMax = values.find((value) => value > (phoneMax ?? 0) && value >= 900 && value <= 1300);
+  const values = new Set<number>();
+  for (const match of css.matchAll(/max-width:\s*(\d+)px/g)) values.add(Number(match[1]));
+  const closest = (low: number, high: number, target: number): number | undefined => {
+    let best: number | undefined;
+    for (const value of values) {
+      if (value < low || value > high) continue;
+      if (best === undefined || Math.abs(value - target) < Math.abs(best - target)) best = value;
+    }
+    return best;
+  };
+  const phoneMax = closest(480, 900, 767);
+  const tabletMax = closest(Math.max(901, (phoneMax ?? 0) + 1), 1300, 1023);
   return { tablet: phoneMax ? phoneMax + 1 : 768, desktop: tabletMax ? tabletMax + 1 : 1024 };
 }

@@ -186,7 +186,7 @@ export function EngineOverlays({
       )}
 
       {selected && !editing && !drag && isContainerRect(selected) && (
-        <div role="toolbar" aria-label={`${label(selected)} tools`} data-testid="element-toolbar" data-kind="container" className="group pointer-events-auto absolute flex items-center overflow-hidden rounded-[4px] bg-accent shadow-pop" style={containerTabPosition(selected, 3)}>
+        <div role="toolbar" aria-label={`${label(selected)} tools`} data-testid="element-toolbar" data-kind="container" className="group pointer-events-auto absolute z-[60] flex items-center overflow-hidden rounded-[4px] bg-accent shadow-pop" style={containerTabPosition(selected, 3)}>
           <TabButton label="Add an element inside" onClick={() => actions.onAddInside(selected.id)} testId="element-add">
             <IconPlus size={14} />
           </TabButton>
@@ -210,7 +210,7 @@ export function EngineOverlays({
       )}
 
       {selected && !editing && !drag && !isContainerRect(selected) && (
-        <div role="toolbar" aria-label={`${label(selected)} tools`} data-testid="element-toolbar" data-kind="widget" className="group pointer-events-auto absolute flex items-center overflow-hidden rounded-[4px] bg-accent shadow-pop" style={widgetTabPosition(selected)}>
+        <div role="toolbar" aria-label={`${label(selected)} tools`} data-testid="element-toolbar" data-kind="widget" className="group pointer-events-auto absolute z-[60] flex items-center overflow-hidden rounded-[4px] bg-accent shadow-pop" style={widgetTabPosition(selected)}>
           <span className="hidden items-center border-r border-white/30 group-hover:flex">
             {selected.parentId && (
               <TabButton label="Select the parent" onClick={() => actions.onSelectParent(selected.id)} testId="element-parent">

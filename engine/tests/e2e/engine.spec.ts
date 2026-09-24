@@ -57,13 +57,49 @@ async function openEditor(page: Page, path = "/"): Promise<{ frame: FrameLocator
   const frame = page.frameLocator('[data-testid="sheet"] iframe');
   await expect(frame.locator("[data-ae]").first()).toBeAttached({ timeout: 180_000 });
   await expect(page.getByTestId("engine-status")).toHaveAttribute("data-phase", "ready", { timeout: 180_000 });
+  // The canvas keeps the frame invisible until the bridge has answered (the first client compile can take a while).
+  await expect(page.locator('[data-testid="sheet"] iframe')).toHaveClass(/opacity-100/, { timeout: 180_000 });
   return { frame, ms: Date.now() - started };
 }
 
-async function select(page: Page, frame: FrameLocator, selector: string, nth = 0) {
+/**
+ * Playwright maps clicks into a CSS-scaled iframe without the scale, so positions are
+ * worked out here: the element's box inside the frame, scaled onto the sheet.
+ */
+async function pointIn(page: Page, frame: FrameLocator, selector: string, nth = 0, at: { dx: number; dy: number } | "centre" = "centre"): Promise<{ x: number; y: number; rect: { x: number; y: number; width: number; height: number } }> {
   const target = frame.locator(selector).nth(nth);
   await target.scrollIntoViewIfNeeded();
-  await target.click({ force: true });
+  // The site scrolls smoothly (html { scroll-behavior: smooth }): wait until the box stops moving.
+  const measure = () =>
+    target.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    });
+  let rect = await measure();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await page.waitForTimeout(120);
+    const next = await measure();
+    if (Math.abs(next.y - rect.y) < 0.5 && Math.abs(next.x - rect.x) < 0.5) {
+      rect = next;
+      break;
+    }
+    rect = next;
+  }
+  await page.waitForTimeout(150);
+  const sheet = await page.getByTestId("sheet").boundingBox();
+  const scale = Number(await page.getByTestId("canvas").getAttribute("data-scale"));
+  if (!sheet) throw new Error("no sheet");
+  const inner = at === "centre" ? { dx: Math.min(rect.width / 2, 40), dy: rect.height / 2 } : at;
+  return { x: sheet.x + (rect.x + inner.dx) * scale, y: sheet.y + (rect.y + inner.dy) * scale, rect };
+}
+
+async function select(page: Page, frame: FrameLocator, selector: string, nth = 0) {
+  const point = await pointIn(page, frame, selector, nth);
+  // Hover first: the outline proves the bridge is live for this frame load before the click goes in.
+  await page.mouse.move(point.x - 3, point.y - 3);
+  await page.mouse.move(point.x, point.y);
+  await expect(page.locator('[data-testid^="hover-"]')).toBeVisible({ timeout: 15_000 });
+  await page.mouse.click(point.x, point.y);
   await expect(page.getByTestId("engine-inspector")).toBeVisible();
   await expect(page.getByTestId("element-selection")).toBeVisible();
 }
@@ -91,6 +127,7 @@ test("every public page opens in the editor", async ({ page }) => {
     const frame = page.frameLocator('[data-testid="sheet"] iframe');
     await expect(frame.locator("[data-ae]").first()).toBeAttached({ timeout: 120_000 });
     await expect(page.getByTestId("engine-status")).toHaveAttribute("data-phase", "ready", { timeout: 120_000 });
+    await expect(page.locator('[data-testid="sheet"] iframe')).toHaveClass(/opacity-100/, { timeout: 120_000 });
     timings[`open ${path}`] = Date.now() - started;
     await expect(frame.locator("main, header").first()).toBeVisible();
   }
@@ -125,6 +162,9 @@ test("click and edit the home hero headline, a paragraph, a button and a picture
   await page.getByTestId("engine-alt-input").fill("The ISA Certified Arborist badge");
   await page.getByTestId("engine-alt-input").press("Enter");
   await waitForChange("src/lib/pageDefaults.ts", 'badge_alt: "The ISA Certified Arborist badge"');
+  // The preview hot-reloads after the alt edit and the selection is resolved again; let it settle before the upload.
+  await expect(page.getByTestId("engine-alt-input")).toHaveValue("The ISA Certified Arborist badge");
+  await page.waitForTimeout(1500);
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==", "base64");
   await page.getByTestId("engine-replace-picture").setInputFiles({ name: "new-badge.png", mimeType: "image/png", buffer: png });
   await waitForChange("src/lib/pageDefaults.ts", 'badge: "/assets/new-badge.png"');
@@ -134,12 +174,17 @@ test("click and edit the home hero headline, a paragraph, a button and a picture
 
 test("padding on desktop only, font size on the phone only", async ({ page }) => {
   const { frame } = await openEditor(page, "/");
-  await select(page, frame, ".hero-inner");
+  // Select the headline, then step up to its wrapper box through the breadcrumbs.
+  await select(page, frame, "h1#hero-title");
+  await page.getByTestId("breadcrumbs").getByRole("button", { name: "Box" }).last().click();
+  await expect(page.getByTestId("edit-title")).toContainText(/box/i);
+  await expect(page.getByTestId("engine-source-location").or(page.getByTestId("engine-inspector"))).toBeVisible();
   await page.getByTestId("inspector-tab-style").click();
   const paddingTop = page.getByTestId("engine-style-padding-top");
   await paddingTop.fill("23");
   await paddingTop.press("Enter");
-  await expect.poll(() => read("src/styles/globals.css")).toMatch(/@media \(min-width: 1024px\) \{ \.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6} \{ padding-top: 23px; \} \}/);
+  // The media query uses the site's own desktop breakpoint, read from its CSS.
+  await expect.poll(() => read("src/styles/globals.css")).toMatch(/@media \(min-width: \d+px\) \{ \.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6} \{ padding-top: 23px; \} \}/);
   await expect(frame.locator(".hero-inner")).toHaveCSS("padding-top", "23px");
   await page.screenshot({ path: resolve(SHOTS, "05-padding-desktop.png") });
 
@@ -149,7 +194,7 @@ test("padding on desktop only, font size on the phone only", async ({ page }) =>
   const fontSize = page.getByTestId("engine-style-font-size");
   await fontSize.fill("24");
   await fontSize.press("Enter");
-  await expect.poll(() => read("src/styles/globals.css")).toMatch(/@media \(max-width: 767px\) \{ \.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6} \{ font-size: 24px; \} \}/);
+  await expect.poll(() => read("src/styles/globals.css")).toMatch(/@media \(max-width: \d+px\) \{ \.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6}\.ae-[a-f0-9]{6} \{ font-size: 24px; \} \}/);
   await expect(frame.locator("h1#hero-title")).toHaveCSS("font-size", "24px");
   await page.screenshot({ path: resolve(SHOTS, "06-font-size-phone.png") });
   await page.getByTestId("engine-device-desktop").click();
@@ -160,30 +205,38 @@ test("padding on desktop only, font size on the phone only", async ({ page }) =>
 
 test("drag an element to a new spot within its section, and insert a heading", async ({ page }) => {
   const { frame } = await openEditor(page, "/");
-  await select(page, frame, ".week-nine");
+  // The exam note paragraph sits after the week list; drag it above the list.
+  await select(page, frame, "p.exam-note");
+  await expect(page.getByTestId("edit-title")).toContainText(/Paragraph|Text/);
+  // The drop point, worked out before the pointer goes down so nothing scrolls mid-drag.
+  const listTop = await pointIn(page, frame, "ul.week-list", 0, { dx: 120, dy: 4 });
+  await page.waitForTimeout(300);
   const handle = page.getByTestId("element-move");
-  const target = frame.locator("h2").first();
-  const targetBox = await target.boundingBox();
-  const sheetBox = await page.getByTestId("sheet").boundingBox();
-  const scale = Number(await page.getByTestId("canvas").getAttribute("data-scale"));
-  if (!targetBox || !sheetBox) throw new Error("no boxes");
   const handleBox = await handle.boundingBox();
   if (!handleBox) throw new Error("no handle");
-  await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+  const grip = { x: handleBox.x + handleBox.width / 2, y: handleBox.y + handleBox.height / 2 };
+  await page.mouse.move(grip.x, grip.y);
   await page.mouse.down();
-  // Above the section's heading: the drop line should appear before the h2.
-  const x = sheetBox.x + (targetBox.x + targetBox.width / 2) * scale;
-  const y = sheetBox.y + (targetBox.y + 4) * scale;
-  await page.mouse.move(x, y, { steps: 12 });
+  // A hand moves through the handle before it leaves it; the drag starts within those first pixels.
+  await page.mouse.move(grip.x + 4, grip.y + 4);
+  await page.mouse.move(grip.x + 9, grip.y + 9);
+  await page.mouse.move(listTop.x, listTop.y + 40, { steps: 6 });
+  await page.mouse.move(listTop.x, listTop.y, { steps: 12 });
   await expect(page.getByTestId("drop-line")).toBeVisible();
   await page.screenshot({ path: resolve(SHOTS, "07-drag-in-progress.png") });
   await page.mouse.up();
   await expect.poll(() => {
     const code = read("src/pages/Home.tsx");
-    return code.indexOf('className="week-nine"') < code.indexOf("<h2>{copy.text(\"course\", \"heading\")}</h2>");
+    const heading = code.indexOf("<h2>{copy.text(\"course\", \"heading\")}</h2>");
+    const note = code.indexOf('className="exam-note"');
+    const list = code.indexOf('<ul className="week-list">');
+    return heading < note && note < list;
   }).toBe(true);
+  await expect(page.getByTestId("element-selection")).toBeVisible();
 
   await select(page, frame, "h2", 0);
+  // Back to the Elements tiles (the selection stays): a tile inserts after the selected element.
+  await page.getByTestId("edit-back").click();
   await page.getByTestId("engine-tile-heading").click();
   await waitForChange("src/pages/Home.tsx", ">New heading</h2>");
   await expect(frame.locator("h2", { hasText: "New heading" })).toBeVisible();
@@ -209,6 +262,9 @@ test("header menu and footer text edit with a shared note", async ({ page }) => 
 
 test("the instructors list says it comes from live data", async ({ page }) => {
   const { frame } = await openEditor(page, "/meet-your-instructors/");
+  // The list is empty here (the site's database is not reachable from the test machine), so the
+  // bridge gives the empty box a little room to click on once the page has settled.
+  await expect(frame.locator(".instructor-list")).toHaveAttribute("data-ae-empty", { timeout: 20_000 });
   await select(page, frame, ".instructor-list");
   const note = page.getByTestId("engine-note").filter({ hasText: /live data/ });
   await expect(note).toBeVisible();
@@ -227,20 +283,24 @@ test("publish (GitHub mocked) shows a clean, minimal diff and the site still bui
   expect(files).toContain("src/styles/globals.css");
   expect(files).toContain("public/assets/new-badge.png");
   const diff = await page.getByTestId("engine-diff").innerText();
-  writeFileSync(resolve(SHOTS, "publish-diff.patch"), diff);
   // Minimal: only the edited lines change; nothing else in those files is reformatted.
   const removed = diff.split("\n").filter((line) => line.startsWith("-") && !line.startsWith("---"));
   const added = diff.split("\n").filter((line) => line.startsWith("+") && !line.startsWith("+++"));
-  expect(removed.length).toBeLessThanOrEqual(12);
-  expect(added.length).toBeLessThanOrEqual(24);
+  // Seven edited lines in the defaults table, a moved thirteen-line paragraph, two classes, one inserted heading and five stylesheet lines.
+  expect(removed.length).toBeLessThanOrEqual(24);
+  expect(added.length).toBeLessThanOrEqual(30);
   expect(diff).not.toContain("import ");
+  expect(diff.match(/^@@/gm)?.length ?? 0).toBeLessThanOrEqual(8);
   await page.screenshot({ path: resolve(SHOTS, "12-publish-dialog.png") });
-  await dialog.getByRole("button", { name: /^Publish/ }).click();
+  const modal = page.getByRole("dialog").last();
+  await modal.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page.getByTestId("engine-commit-link")).toBeVisible({ timeout: 30_000 });
   await page.screenshot({ path: resolve(SHOTS, "13-published.png") });
   const changes = await engine<{ files: unknown[] }>(`/changes?site=${SITE_ID}`);
   expect(changes.files).toHaveLength(0);
 
+  // Written only now: a new file appearing in the repository mid-test makes the dashboard's dev server reload the page.
+  writeFileSync(resolve(SHOTS, "publish-diff.patch"), diff);
   const build = spawnSync("npx", ["vite", "build"], { cwd: SITE_DIR, encoding: "utf8", timeout: 600_000, env: { ...process.env, CI: "1" } });
   writeFileSync(resolve(SHOTS, "build-output.txt"), `${build.stdout}\n${build.stderr}`.slice(-6000));
   expect(build.status, build.stderr.slice(-2000)).toBe(0);

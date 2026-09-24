@@ -61,24 +61,30 @@ function removeChild(parent: t.JSXElement | t.JSXFragment, element: t.JSXElement
   parent.children = parent.children.filter((child) => !remove.has(child));
 }
 
-/** Insert `element` so it becomes the `index`-th element child of `parent`, on its own line. */
+/**
+ * Insert `element` so it becomes the `index`-th element child of `parent`, on its own line.
+ * Whitespace text is written relative to the parent: recast adds the parent's own
+ * indentation when it prints a new text node, so "\n" plus the extra two spaces lands the
+ * child exactly under its siblings.
+ */
 function insertChild(parent: t.JSXElement | t.JSXFragment, element: t.JSXElement, index: number, code: string): void {
   const elements = elementChildren(parent);
   const indent = indentOf(parent, code);
-  const newline = t.jsxText(`\n${indent.child}`);
+  const extra = " ".repeat(Math.max(0, indent.child.length - indent.close.length));
+  const newline = () => t.jsxText(`\n${extra}`);
   if (elements.length === 0) {
-    parent.children = [t.jsxText(`\n${indent.child}`), element, t.jsxText(`\n${indent.close}`)];
+    parent.children = [newline(), element, t.jsxText("\n")];
     return;
   }
   if (index >= elements.length) {
     const last = elements[elements.length - 1]!;
     const at = parent.children.indexOf(last) + 1;
-    parent.children.splice(at, 0, newline, element);
+    parent.children.splice(at, 0, newline(), element);
     return;
   }
   const target = elements[index]!;
   const at = parent.children.indexOf(target);
-  parent.children.splice(at, 0, element, t.jsxText(`\n${indent.child}`));
+  parent.children.splice(at, 0, element, newline());
 }
 
 export type StructureResult = { code: string; loc: Loc | null };
@@ -112,8 +118,10 @@ export function moveElement(parsed: ParsedFile, file: string, target: Loc, paren
   let targetIndex = index;
   if (oldParent === newParent.element && oldIndex < targetIndex) targetIndex -= 1;
   removeChild(oldParent, located.element);
-  insertChild(newParent.element, located.element, targetIndex, parsed.code);
-  return printWithLocation(parsed, file, located.element);
+  // A fresh copy (no memory of its original text) is printed at the new indentation.
+  const moved = t.cloneNode(located.element, true, false);
+  insertChild(newParent.element, moved, targetIndex, parsed.code);
+  return printWithLocation(parsed, file, moved);
 }
 
 /** Clean JSX for a new element. Tailwind classes only when the site runs Tailwind. */

@@ -17,6 +17,7 @@ import { resolveNode, ResolveError } from "./resolve.ts";
 import { indexSiteCss, siteCssSets, type CssIndex } from "./sitecss.ts";
 import { deleteElement, duplicateElement, insertElement, moveElement, printWithLocation } from "./structure.ts";
 import { findStringAt, setJsxChildren, setStringLiteral } from "./text.ts";
+import { formatLikeSite } from "./format.ts";
 
 export type SiteStyle = {
   tailwind: boolean;
@@ -145,6 +146,35 @@ export class EngineSession {
       throw error;
     }
     return { ok: false, message: "Unknown edit." };
+  }
+
+  /**
+   * The site's Prettier keeps a structural edit in the site's style. Formatting can move the
+   * edited element's line, so its location is looked up again in the formatted text when possible.
+   */
+  private formatted(file: string, printed: string, loc: Loc | null): string {
+    const formatted = formatLikeSite(this.project, file, printed);
+    if (formatted !== printed && loc) {
+      // Re-find the element: the marker approach is gone, so match the same opening tag text on the nearest line.
+      const printedLines = printed.split("\n");
+      const tagLine = printedLines[loc.line - 1] ?? "";
+      const tag = /<[A-Za-z][\w.]*/.exec(tagLine.slice(loc.col))?.[0];
+      if (tag) {
+        const formattedLines = formatted.split("\n");
+        let best: number | null = null;
+        for (let index = 0; index < formattedLines.length; index += 1) {
+          const line = formattedLines[index] ?? "";
+          const col = line.indexOf(tag);
+          if (col === -1) continue;
+          if (best === null || Math.abs(index + 1 - loc.line) < Math.abs(best - loc.line)) best = index + 1;
+        }
+        if (best !== null) {
+          loc.line = best;
+          loc.col = (formattedLines[best - 1] ?? "").indexOf(tag);
+        }
+      }
+    }
+    return formatted;
   }
 
   private parsedOrFail(file: string): ParsedFile {
@@ -311,7 +341,7 @@ export class EngineSession {
     const parsed = this.parsedOrFail(loc.file);
     const result = moveElement(parsed, loc.file, loc, parentLoc, index);
     if (!result) throw new EditError("This element cannot be moved there.");
-    return this.commit("Move element", [{ path: loc.file, content: result.code }], result.loc);
+    return this.commit("Move element", [{ path: loc.file, content: this.formatted(loc.file, result.code, result.loc) }], result.loc);
   }
 
   private remove(target: NodeRef): EditResult {
@@ -319,7 +349,7 @@ export class EngineSession {
     const parsed = this.parsedOrFail(loc.file);
     const result = deleteElement(parsed, loc.file, loc);
     if (!result) throw new EditError("This element cannot be deleted here.");
-    return this.commit("Delete element", [{ path: loc.file, content: result.code }], null);
+    return this.commit("Delete element", [{ path: loc.file, content: this.formatted(loc.file, result.code, null) }], null);
   }
 
   private duplicate(target: NodeRef): EditResult {
@@ -327,7 +357,7 @@ export class EngineSession {
     const parsed = this.parsedOrFail(loc.file);
     const result = duplicateElement(parsed, loc.file, loc);
     if (!result) throw new EditError("This element cannot be duplicated here.");
-    return this.commit("Duplicate element", [{ path: loc.file, content: result.code }], result.loc);
+    return this.commit("Duplicate element", [{ path: loc.file, content: this.formatted(loc.file, result.code, result.loc) }], result.loc);
   }
 
   private insert(parentRef: NodeRef, index: number, kind: Extract<EditOp, { op: "insert" }>["kind"]): EditResult {
@@ -338,6 +368,6 @@ export class EngineSession {
     const parsed = this.parsedOrFail(loc.file);
     const result = insertElement(parsed, loc.file, loc, index, kind, this.tailwindActive());
     if (!result) throw new EditError("The element could not be added there.");
-    return this.commit(`Add ${kind}`, [{ path: loc.file, content: result.code }], result.loc);
+    return this.commit(`Add ${kind}`, [{ path: loc.file, content: this.formatted(loc.file, result.code, result.loc) }], result.loc);
   }
 }

@@ -97,15 +97,85 @@ or `?engine=1` once, then `/sites/<id>/engine?page=/`). The product is unchanged
 
 ## The proof on Tree Test Prep (main)
 
-RESULTS_TABLE
+Run with Playwright against acts2man/treetestprep at commit `f0e9c54` (branch `main`), the
+dashboard with Supabase mocked and GitHub mocked, on 2026-09-24 (`engine/tests/e2e/engine.spec.ts`,
+screenshots in `docs/code-engine/`). The site is a TanStack Start (Vite, SSR) + React site whose
+public pages are styled with plain CSS; its words come from `usePageCopy()` with defaults in
+`src/lib/pageDefaults.ts` and overrides in its Supabase database.
+
+| What | Result | Notes |
+| --- | --- | --- |
+| Every public page opens in the editor (7 pages) | **Works** | Tagged, bridged, selectable. The admin, auth and dashboard routes are listed as private and not opened. |
+| Click and edit the home hero headline | **Works** | Traced through `usePageCopy("home")` to `PAGE_DEFAULTS.home.hero.title`; the inspector notes the site can also load it from its database. |
+| Edit a paragraph (hero body) | **Works** | Same path; the words are a plain string, so the note says formatting cannot be kept. |
+| Edit a button (hero call to action, a TanStack `<Link>`) | **Works** | Reached through the usage tag (`data-ae-p`), words and address from `PAGE_DEFAULTS.home.hero.cta`. |
+| Change a picture's alt text and replace the picture | **Works** | The new file lands in `public/assets/` next to the old one; the address and alt change in `pageDefaults.ts`. |
+| Padding on desktop only | **Works** (plain-CSS fallback) | Tailwind is not loaded on these pages, so the element gets `ae-xxxxxx` and one rule in `src/styles/globals.css` under `@media (min-width: 981px)`, the site's own breakpoint read from its CSS. |
+| Font size on the phone only | **Works** (plain-CSS fallback) | `@media (max-width: 767px)`, the site's own phone breakpoint; the desktop view is unchanged. |
+| Drag an element to a new spot within its section | **Works** | The exam-note paragraph moved above the week list from its handle, with the drop line and ghost ("Paragraph before List"). |
+| Insert a new heading | **Works** | `<h2>New heading</h2>` after the selected heading; without Tailwind classes because the page does not run Tailwind. |
+| Edit the header menu text | **Works** | Through `NavLinks` (a prop, a `.map` index and the shared defaults table); the inspector says the change applies to every page. |
+| Edit the footer text | **Works** | Shared-component note as above. |
+| Instructors list shows the live-data note | **Works** | "This comes from live data": the list is drawn from a Supabase query. On the test machine the site's database is unreachable, so the list is empty and the empty box gets room to click. |
+| Publish (GitHub mocked) with a readable diff | **Works** | One commit of 4 files: `pageDefaults.ts` (+7 −7), `Home.tsx` (+12 −15), `globals.css` (+5), the new picture. `docs/code-engine/publish-diff.patch`. |
+| The diff is minimal | **Partly** | Only edited lines change, except that a moved block is re-printed in recast's style (one `(<>` line instead of Prettier's layout). The engine runs the site's Prettier on a touched file when that file was Prettier-clean; Tree Test Prep's page files are not, so the guard skipped it. |
+| The edited site still builds | **Works** | `vite build` on the edited copy succeeds (`docs/code-engine/build-output.txt`). |
+| Rich text (bold, italic, links) written as JSX | **Works on literal JSX**; not exercised on this site | Tree Test Prep's words are strings in a table, so formatting cannot be kept there and the inspector says so. Covered by unit tests on the Lovable fixture. |
+| Tailwind class writes with breakpoint prefixes | **Works on Tailwind pages**; not exercised on this site's public pages | Unit-tested on the Lovable fixture (standard scale, arbitrary values, `lg:` / `md:max-lg:` / `max-md:`, tailwind-merge, the important modifier, `cn()` calls). Tree Test Prep loads Tailwind only on its admin routes. |
+| Move between containers in another file, edit items of a `.map` list as elements | **Doesn't** (by design) | Moves are within one file; list items keep their words editable but are not moved or deleted one by one. The note says so. |
+| Words that come from a computation | **Doesn't** (by design) | The hero schedule line is `copy.text(...).split("·")[0]`; it shows "This is controlled by code". |
+| Site's own Supabase from the preview | Not testable here | The sandbox's proxy blocks the site's Supabase, so the preview shows the code defaults, which is what the engine edits anyway. Live overrides in the database would win on the live site; the inspector says so.
 
 ### Open times
 
-TIMINGS
+From `docs/code-engine/timings.json` (this machine: a 2 vCPU sandbox).
+
+| Open | Time | What happens |
+| --- | --- | --- |
+| First ever open of a site (cold npm cache) | **about 4 min 15 s** | Clone, `npm install` from the public registry (bun cannot reach the lockfile's private Lovable mirror), start. |
+| Fresh clone with a warm npm cache | **45 s** | Clone 1 s, install 29 s, start and first page 15 s. |
+| Later open (clone and dependencies cached) | **10 s** on the runner, **19 s** to a usable editor | Fetch and reset 1 s, start 9 s, then the browser compiles the first page's modules (Vite on demand). |
+| Moving to another page in the same session | **2.6 to 3.3 s** | Each page compiles on its first visit. |
+
+A production runner keeps the site's working copy and dependencies warm, so the 10 to 19 s
+figure is the everyday one; the 4 minutes happens once per site (and again when its lockfile
+changes).
 
 ### Notes from the real site
 
-NOTES
+- **Lovable lockfiles point at a private registry.** `bun.lock` lists every package at
+  `europe-west1-npm.pkg.dev/lovable-core-prod/...`, which only Lovable's own sandboxes can
+  reach; `bun install --frozen-lockfile` fails with 403s. The runner falls back to
+  `npm install --no-package-lock` from the public registry (the versions resolve from
+  `package.json`'s ranges) and leaves `bun.lock` untouched.
+- **Tailwind is installed but not loaded on the public pages.** `src/styles.css` imports
+  Tailwind but nothing imports it; the root layout links `src/styles/globals.css` (plain CSS)
+  and only the admin routes import a Tailwind stylesheet. Detection is per page, so the
+  public pages take the plain-CSS fallback and the admin pages would get classes.
+- **The site's own tooling rewrites a generated file on start.** TanStack's router plugin
+  regenerates `src/routeTree.gen.ts` when the dev server starts (here with absolute paths,
+  because the test cache reaches the clone through a symlink). Files the tooling changes before
+  any edit are recorded and never published.
+- **Words have a database override path.** Every `copy.text()` value can be replaced by a row
+  in the site's `page_content_overrides` table. The engine edits the code default and says so;
+  a site that has overridden a field in its admin will keep showing the override until it is
+  cleared there. Making the engine write to that table as well is a small adapter, not a
+  change to the approach.
+- **The preview runs inside a sandboxed iframe.** The site's Supabase client cannot use
+  `localStorage` there (Chromium refuses it for the third-party frame), which the site
+  catches; nothing on the public pages depends on it.
+- **A hydration warning came from line numbers, not from the tags.** Lovable's config adds
+  its own `data-tsd-source` line numbers; prepending an import to a file shifted them on the
+  client only. The bridge import is appended instead, so server and client agree.
+- **Test mechanics worth knowing.** Playwright maps clicks into a CSS-scaled iframe without the
+  scale, so the proof computes positions itself; the site scrolls smoothly, so positions are
+  read once the box stops moving; and a new file written into the Armature repository while
+  the dashboard's dev server runs reloads the dashboard page, so the diff file is written at
+  the end of the test.
+- **Fixed while proving.** The container grip sat under the margin handle (both at the top
+  edge); the handle tabs now sit above the spacing handles. The empty-box helper looped the
+  bridge's own mutation observer and could mutate the DOM before React hydrated; it now runs
+  once the page has settled and marks each box once.
 
 ## Where the preview runners should live
 

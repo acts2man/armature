@@ -1,0 +1,51 @@
+          [0m[1;2m 12.18 kB[0m[2m │ gzip:   2.50 kB[0m
+[2m.output/server/[0m[36m_libs/supabase__functions-js.mjs                    [0m[1;2m 12.52 kB[0m[2m │ gzip:   3.47 kB[0m
+[2m.output/server/[0m[36m_ssr/SiteChrome-DrKV1XWZ.mjs                        [0m[1;2m 13.31 kB[0m[2m │ gzip:   3.12 kB[0m
+[2m.output/server/[0m[36m_libs/lucide-react.mjs                              [0m[1;2m 14.61 kB[0m[2m │ gzip:   3.18 kB[0m
+[2m.output/server/[0m[36m_libs/tanstack__react-query.mjs                     [0m[1;2m 14.75 kB[0m[2m │ gzip:   4.11 kB[0m
+[2m.output/server/[0m[36m_ssr/auth-CPWvavwd.mjs                              [0m[1;2m 14.76 kB[0m[2m │ gzip:   4.03 kB[0m
+[2m.output/server/[0m[36m_libs/radix-ui__react-collection.mjs                [0m[1;2m 16.57 kB[0m[2m │ gzip:   3.69 kB[0m
+[2m.output/server/[0m[36m_ssr/admin.pages._slug-BZBZXCJM.mjs                 [0m[1;2m 17.22 kB[0m[2m │ gzip:   3.77 kB[0m
+[2m.output/server/[0m[36m_libs/h3+rou3+srvx.mjs                              [0m[1;2m 17.40 kB[0m[2m │ gzip:   4.99 kB[0m
+[2m.output/server/[0m[36m_ssr/pageDefaults-BNUzWnSl.mjs                      [0m[1;2m 17.63 kB[0m[2m │ gzip:   5.73 kB[0m
+[2m.output/server/[0m[36m_libs/@radix-ui/react-avatar+[...].mjs              [0m[1;2m 18.78 kB[0m[2m │ gzip:   4.77 kB[0m
+[2m.output/server/[0m[36m_ssr/router-DjUf4cI6.mjs                            [0m[1;2m 19.31 kB[0m[2m │ gzip:   4.65 kB[0m
+[2m.output/server/[0m[36m_ssr/admin-3TgcZ0i_.mjs                             [0m[1;2m 20.52 kB[0m[2m │ gzip:   4.48 kB[0m
+[2m.output/server/[0m[36m_libs/@floating-ui/dom+[...].mjs                    [0m[1;2m 25.38 kB[0m[2m │ gzip:   6.57 kB[0m
+[2m.output/server/[0m[36m_libs/@floating-ui/core+[...].mjs                   [0m[1;2m 25.55 kB[0m[2m │ gzip:   6.32 kB[0m
+[2m.output/server/[0m[36mindex.mjs                                           [0m[1;2m 28.70 kB[0m[2m │ gzip:   7.35 kB[0m
+[2m.output/server/[0m[36m_libs/@floating-ui/react-dom+[...].mjs              [0m[1;2m 32.68 kB[0m[2m │ gzip:   8.25 kB[0m
+[2m.output/server/[0m[36m_libs/supabase__supabase-js.mjs                     [0m[1;2m 39.82 kB[0m[2m │ gzip:  11.63 kB[0m
+[2m.output/server/[0m[36m_libs/supabase__phoenix.mjs                         [0m[1;2m 50.54 kB[0m[2m │ gzip:  12.76 kB[0m
+[2m.output/server/[0m[36m_ssr/server-Di-yhGlt.mjs                            [0m[1;2m 52.04 kB[0m[2m │ gzip:  13.63 kB[0m
+[2m.output/server/[0m[36m_libs/sonner.mjs                                    [0m[1;2m 53.58 kB[0m[2m │ gzip:  12.11 kB[0m
+[2m.output/server/[0m[36m_libs/@radix-ui/react-dropdown-menu+[...].mjs       [0m[1;2m 59.21 kB[0m[2m │ gzip:  11.64 kB[0m
+[2m.output/server/[0m[36m_libs/@radix-ui/react-dialog+[...].mjs              [0m[1;2m 74.32 kB[0m[2m │ gzip:  17.55 kB[0m
+[2m.output/server/[0m[36m_libs/supabase__realtime-js+unenv.mjs               [0m[1;2m 81.93 kB[0m[2m │ gzip:  20.94 kB[0m
+[2m.output/server/[0m[36m_libs/tailwind-merge.mjs                            [0m[1;2m 88.92 kB[0m[2m │ gzip:  15.71 kB[0m
+[2m.output/server/[0m[36m_libs/supabase__postgrest-js.mjs                    [0m[1;2m110.15 kB[0m[2m │ gzip:  23.14 kB[0m
+[2m.output/server/[0m[36m_libs/tanstack__query-core.mjs                      [0m[1;2m110.86 kB[0m[2m │ gzip:  25.82 kB[0m
+[2m.output/server/[0m[36m_libs/@tanstack/router-core+[...].mjs               [0m[1;2m125.13 kB[0m[2m │ gzip:  26.45 kB[0m
+[2m.output/server/[0m[36m_libs/@supabase/storage-js+[...].mjs                [0m[1;2m126.29 kB[0m[2m │ gzip:  23.51 kB[0m
+[2m.output/server/[0m[36m_libs/supabase__auth-js.mjs                         [0m[1;2m320.11 kB[0m[2m │ gzip:  64.96 kB[0m
+[2m.output/server/[0m[36m_libs/@tanstack/react-router+[...].mjs              [0m[33;1m676.18 kB[0m[2m │ gzip: 141.84 kB[0m
+
+[32m✓ built in 851ms[39m
+[info] [nitro] Using auto generated worker name: `acts2man-treetestprep`
+[info] Generated [36m.output/server/wrangler.json[39m
+[info] Generated [36m.wrangler/deploy/config.json[39m
+[info] Generated [36m.output/public/_headers[39m
+[info] Generated [36m.output/nitro.json[39m
+[success] [nitro] You can preview this build using `npx vite preview`
+[success] [nitro] You can deploy this build using `npx nitro deploy --prebuilt`
+
+[33mThe plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the [1mresolve.tsconfigPaths[22m option. You can remove the plugin and set [1mresolve.tsconfigPaths: true[22m in your Vite config instead.[39m
+[33m[plugin tanstack-start-core::server-fn:client] /tmp/claude-0/-home-user-armature/0777039f-7d5c-5100-a9e7-8991edc8310d/scratchpad/treetestprep/src/lib/pageSeo.functions.ts:6:27 createServerFn().inputValidator() is deprecated. Use createServerFn().validator() instead.[39m
+[33m[plugin builtin:vite-reporter] [33;1m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[0m[39m
+[33m[plugin tanstack-start-core::server-fn:ssr] /tmp/claude-0/-home-user-armature/0777039f-7d5c-5100-a9e7-8991edc8310d/scratchpad/treetestprep/src/lib/pageSeo.functions.ts?tss-serverfn-split:6:27 createServerFn().inputValidator() is deprecated. Use createServerFn().validator() instead.[39m
+[33m[plugin tanstack-start-core::server-fn:ssr] /tmp/claude-0/-home-user-armature/0777039f-7d5c-5100-a9e7-8991edc8310d/scratchpad/treetestprep/src/lib/pageSeo.functions.ts:6:27 createServerFn().inputValidator() is deprecated. Use createServerFn().validator() instead.[39m
+[warn] `inlineDynamicImports` option is ignored because the `codeSplitting` option is specified.

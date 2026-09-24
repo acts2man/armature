@@ -176,6 +176,8 @@ describe("tracing on a Lovable-style Vite + Tailwind site", () => {
     expect(moved.ok).toBe(true);
     let code = project.read(file) ?? "";
     expect(code.indexOf('<p className="mt-4')).toBeLessThan(code.indexOf("<h1"));
+    // The moved element takes the indentation of its new siblings.
+    expect(code).toContain('\n        <p className="mt-4 text-lg text-gray-600">{tagline}</p>\n        <h1');
     expect(moved.ok && moved.select).toEqual(locOf(project, file, '<p className="mt-4'));
     const inserted = session.apply({ op: "insert", parent: refTo(project, file, '<section className="hero-title', { tag: "section" }), index: 1, kind: "heading" });
     expect(inserted.ok).toBe(true);

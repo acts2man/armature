@@ -116,12 +116,23 @@ function start(): void {
     return out;
   };
 
-  /** Empty boxes have no height to click on; in edit mode they get a little room, as page builders do. */
+  /**
+   * Empty boxes have no height to click on; in edit mode they get a little room, as page
+   * builders do. Never before the page has settled (React must hydrate the server HTML
+   * untouched), and never twice for the same element (the mutation observer would loop).
+   */
+  const startedAt = Date.now();
   const giveEmptyBoxesRoom = () => {
+    if (document.readyState !== "complete" || Date.now() - startedAt < 2000) return;
     for (const element of Array.from(document.querySelectorAll<HTMLElement>(`[${TAG}]`))) {
+      if (element.hasAttribute("data-ae-empty")) continue;
       if (element.childNodes.length === 0 && !MEDIA.has(element.tagName) && element.tagName !== "BR" && element.tagName !== "HR" && element.tagName !== "INPUT" && getComputedStyle(element).display !== "none" && element.getBoundingClientRect().height < 8) {
+        suppress += 1;
         element.style.minHeight = "32px";
         element.setAttribute("data-ae-empty", "");
+        window.setTimeout(() => {
+          suppress = Math.max(0, suppress - 1);
+        }, 0);
       }
     }
   };
@@ -511,6 +522,8 @@ function start(): void {
       send({ type: `${PREFIX}ready`, protocolVersion: PROTOCOL, bridgeVersion: BRIDGE_VERSION, route: window.location.pathname, title: document.title, kitVersion: "engine", sections: [], slots: [], layouts: [], tailwind: tailwindActive() });
       observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, characterData: true });
       schedule(true);
+      // One more full map once the page has settled, so empty boxes get their room even when nothing else changes.
+      window.setTimeout(() => schedule(true), 2600);
       return;
     }
     if (!nonce || message.nonce !== nonce) return;
