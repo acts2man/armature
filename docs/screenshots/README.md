@@ -57,13 +57,18 @@ Elements), `builder-edit-container-layout` (Edit Container, whose first tab is L
 `builder-page-settings` (page settings in the left panel), `builder-rich-text-toolbar`
 (a text element edited in place with the floating toolbar), `builder-image-resize` (an
 image's width handle mid-drag with its live value), `builder-spacing-handles` (a section's
-top padding handle mid-drag), `builder-history-versions` (an older publish previewed on the
+top padding handle mid-drag), `builder-number-steppers` (Margin top stepped three times; every
+number has ▲ ▼, Shift steps 10, holding repeats), `builder-font-size-toolbar` (A− / A+ over a
+selected heading, per device), `builder-history-versions` (an older publish previewed on the
 canvas), `builder-publish-dialog` (a layout and the site settings in one publish).
 
 ## The WordPress-style dashboard (`wp-*`)
 
 Captured by `npx tsx tests/e2e/dashboard-screenshots.ts` at 1440×900 (`*-desktop.png`) and
-390×844 (`*-phone.png`, full page): `wp-site-dashboard` (staff) and `wp-site-dashboard-client`,
+390×844 (`*-phone.png`, full page): `wp-projects` (the agency's sites), `wp-clients` (the agency's
+client logins with their sites and actions), `wp-site-switcher` (the site menu open in the site
+sidebar), `wp-editor-number-controls` (a heading's Advanced tab with the steppers; at 390 px the
+editor hands over to the form editor), `wp-site-dashboard` (staff) and `wp-site-dashboard-client`,
 `wp-sidebar-collapsed`, `wp-phone-menu` (the slide-out menu), `wp-pages` (row actions always in
 view), `wp-pages-add-new`, `wp-pages-trash`, `wp-media` (details panel open), `wp-media-list`,
 `wp-contact` (an entry open), `wp-contact-settings` (email recipients), `wp-appearance-globals`

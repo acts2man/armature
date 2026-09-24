@@ -133,6 +133,24 @@ await shoot("builder-page-settings", async (page) => {
   await page.waitForTimeout(300);
 });
 
+await shoot("builder-number-steppers", async (page) => {
+  await open(page);
+  await pick(page, ".ae-hdbuilds");
+  await page.getByTestId("inspector-tab-advanced").click();
+  const layout = page.getByTestId("group-layout");
+  await layout.getByTestId("step-up").first().waitFor();
+  const box = layout.getByTestId("number-input").filter({ has: page.getByLabel("Margin top", { exact: true }) });
+  await box.getByTestId("step-up").click({ clickCount: 3 });
+  await page.waitForTimeout(300);
+});
+
+await shoot("builder-font-size-toolbar", async (page) => {
+  await open(page);
+  await pick(page, ".ae-hdbuilds");
+  await page.getByTestId("font-size-strip").waitFor();
+  await page.getByTestId("font-size-strip").hover();
+});
+
 await shoot("builder-rich-text-toolbar", async (page) => {
   await open(page);
   await frame(page).locator(".ae-txtbuild").evaluate((node) => node.scrollIntoView({ block: "start" }));

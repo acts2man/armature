@@ -6,7 +6,14 @@
  *   npx tsx tests/e2e/dashboard-screenshots.ts     (both dev servers must be running: see playwright.config.ts)
  */
 import { chromium, type Page } from "@playwright/test";
-import { COMMIT_SHA, SITE_ID, STAFF_ID, installMocks, sampleSubmissions, type MockOptions } from "./mocks.ts";
+import { COMMIT_SHA, SITE_ID, STAFF_ID, editorUrl, installMocks, sampleSubmissions, type MockOptions } from "./mocks.ts";
+
+/** The other sites the agency looks after, for the Projects list, the Clients screen and the site switcher. */
+const MORE_SITES = [
+  { id: "22222222-2222-4222-8222-222222222222", name: "Birch Lane Bakery", status: "connected" as const },
+  { id: "33333333-3333-4333-8333-333333333333", name: "Cedar Ridge Dental", status: "needs_attention" as const },
+  { id: "44444444-4444-4444-8444-444444444444", name: "Driftwood Kayaks", status: "hosting_only" as const },
+];
 
 const OUT = "docs/screenshots";
 const DASHBOARD = "http://localhost:5173";
@@ -36,7 +43,8 @@ async function shoot(name: string, route: string, options: MockOptions = {}, run
     });
     await page.goto(`${DASHBOARD}${route}`);
     await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => undefined);
-    await page.getByRole("heading", { level: 1 }).first().waitFor();
+    // Every screen has an h1; the visual editor (full-screen, outside the shell) has the editor root instead.
+    await page.locator('h1, [data-testid="visual-editor"]').first().waitFor();
     if (run) {
       try {
         await run(page);
@@ -52,6 +60,25 @@ async function shoot(name: string, route: string, options: MockOptions = {}, run
 }
 
 await shoot("wp-site-dashboard", `/sites/${SITE_ID}`);
+await shoot("wp-projects", "/projects", { moreSites: MORE_SITES });
+await shoot("wp-clients", "/agency/clients", { extraSites: MORE_SITES.map(({ id, name }) => ({ id, name })) });
+await shoot("wp-site-switcher", `/sites/${SITE_ID}/pages`, { moreSites: MORE_SITES }, async (page) => {
+  const open = page.getByRole("button", { name: "Open menu" });
+  if (await open.isVisible()) await open.click();
+  // On a phone the sidebar exists twice (the hidden desktop one and the drawer); use the one showing.
+  await page.getByTestId("site-switcher").locator("visible=true").click();
+  await page.getByTestId("site-menu").locator("visible=true").waitFor();
+}, false);
+await shoot("wp-editor-number-controls", editorUrl(), {}, async (page) => {
+  const frame = page.frameLocator('iframe[title$="live site"]');
+  await frame.locator("h1").waitFor({ timeout: 20_000 });
+  await page.getByTestId("visual-editor").and(page.locator('[data-builder="on"]')).waitFor();
+  await page.getByRole("button", { name: /Phone view/ }).click();
+  await page.waitForTimeout(1200);
+  await frame.locator(".ae-hdbuilds").click();
+  await page.getByTestId("inspector-tab-advanced").click();
+  await page.getByTestId("group-layout").getByTestId("step-up").first().waitFor();
+}, false);
 await shoot("wp-site-dashboard-client", `/sites/${SITE_ID}`, { role: "client" });
 await shoot("wp-sidebar-collapsed", `/sites/${SITE_ID}/pages`, {}, async (page) => {
   const toggle = page.getByTestId("sidebar-collapse");
