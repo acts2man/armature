@@ -11,6 +11,7 @@ import { useEffect, useId, useMemo, useState, type DragEvent, type ReactNode } f
 import { Link, useSearchParams } from "react-router";
 import { IconCheck, IconCopy, IconGrid, IconImage, IconListBullet, IconSearch, IconTrash, IconUpload, IconVideo, IconX } from "@/components/icons.tsx";
 import { useSite } from "@/components/SiteLayout.tsx";
+import { SiteStoragePanel } from "@/components/SiteStoragePanel.tsx";
 import { Button, Drawer, EmptyState, Field, IconButton, Input, Modal, Notice, PageHeader, Pill, Segmented, Select, Skeleton, SrOnly, Textarea, useToast } from "@/components/ui.tsx";
 import { formatBytes, mediaEntries, mediaUsage, thumbnailUrl, type MediaEntry } from "@/builder/media.ts";
 import { useMediaActions } from "@/hooks/useMediaActions.ts";
@@ -460,6 +461,8 @@ export function SiteMedia() {
         <div className="min-w-0">{body}</div>
         {details && wide && <aside className="sticky top-6 rounded-card border border-line bg-panel p-5">{details}</aside>}
       </div>
+
+      <SiteStoragePanel agencyId={site.agency_id} siteId={site.id} canWrite={isStaff || loaded?.editingLevel === "style" || loaded?.editingLevel === "builder"} />
       {!wide && (
         <Drawer open={!!details} onClose={() => setSelected(null)} title="Details">
           <div className="p-4">{details}</div>
