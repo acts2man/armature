@@ -99,15 +99,15 @@ test("View as client shows the site as the client sees it, saves nothing, and Ex
   await page.getByTestId("view-as-sam@alderstone.example").click();
   await expect(page).toHaveURL(new RegExp(`/sites/${SITE_ID}$`));
 
-  // The banner names the client; the shell is the client's: brand, no Back to Fleet, no Site settings, no agency menu.
+  // The banner names the client; the shell is the client's: brand, no Back to Projects, no Site settings, no agency menu.
   const banner = page.getByTestId("view-as-banner");
   await expect(banner).toContainText("Viewing as Sam Alder");
   await expect(banner).toContainText("sam@alderstone.example");
   const sidebar = page.getByTestId("sidebar");
   await expect(sidebar.getByTestId("site-sidebar")).toContainText("Reputation Guardians");
-  expect(await sidebar.getByTestId("back-to-fleet").count()).toBe(0);
+  expect(await sidebar.getByTestId("back-to-projects").count()).toBe(0);
   expect(await sidebar.getByTestId("nav-settings").count()).toBe(0);
-  expect(await sidebar.getByTestId("nav-fleet").count()).toBe(0);
+  expect(await sidebar.getByTestId("nav-projects").count()).toBe(0);
   await expect(sidebar.getByTestId("nav-users")).toBeVisible();
 
   // The Users screen takes its client branch.
@@ -119,7 +119,7 @@ test("View as client shows the site as the client sees it, saves nothing, and Ex
   await page.goto("/agency/clients");
   await expect(page).toHaveURL(new RegExp(`/sites/${SITE_ID}$`));
   await expect(page.getByTestId("view-as-banner")).toContainText("Viewing as Sam Alder");
-  expect(await page.getByTestId("sidebar").getByTestId("nav-fleet").count()).toBe(0);
+  expect(await page.getByTestId("sidebar").getByTestId("nav-projects").count()).toBe(0);
 
   // A write is refused in the browser with a readable reason; nothing reaches the server.
   let writes = 0;
@@ -138,7 +138,7 @@ test("View as client shows the site as the client sees it, saves nothing, and Ex
   await expect(page).toHaveURL(/\/agency\/clients$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Clients");
   await expect(page.getByTestId("view-as-banner")).toHaveCount(0);
-  await expect(page.getByTestId("sidebar").getByTestId("nav-fleet")).toBeVisible();
+  await expect(page.getByTestId("sidebar").getByTestId("nav-projects")).toBeVisible();
 });
 
 test("a client cannot reach the Clients screen", async ({ page }) => {
