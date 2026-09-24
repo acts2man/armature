@@ -127,7 +127,7 @@ export function PageSettingsPanel({
         )}
 
         <p className="text-[12px] font-bold uppercase tracking-wide text-muted">Search results</p>
-        <Field label="Title" htmlFor="page-seo-title" hint="Empty uses the page title. About 60 characters shows in full.">
+        <Field label="Title in search results" htmlFor="page-seo-title" hint="Empty uses the page title. About 60 characters shows in full.">
           <Input id="page-seo-title" value={seo.title ?? ""} maxLength={200} onChange={(event) => setSeo({ ...seo, title: event.target.value || undefined })} />
           <div className="mt-1 text-right">
             <CharCount value={seo.title ?? ""} target={TITLE_TARGET} hardLimit={100} />

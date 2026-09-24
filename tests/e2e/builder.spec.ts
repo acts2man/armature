@@ -53,8 +53,9 @@ test.describe("the kit on the public site", () => {
     await page.route(/^https:\/\/(fonts\.googleapis\.com|fonts\.gstatic\.com)\//, (route) => route.abort());
     await page.goto(`${DEMO_SITE_URL}/contact/`, { waitUntil: "domcontentloaded" });
     await expect(page.locator(".ae-root .ae-cthead01")).toHaveText("Let's talk about your home");
-    await expect(page).toHaveTitle("Contact | Alder & Stone");
-    await expect(page.locator("meta[name='description']")).toHaveAttribute("content", /Get in touch/);
+    // The kit combines the page's SEO title with the site's title pattern (see content/site-kit.json → seo.titlePattern).
+    await expect(page).toHaveTitle("Get in touch | Alder & Stone Custom Homes");
+    await expect(page.locator("meta[name='description']")).toHaveAttribute("content", /Alder & Stone studio/);
     await expect(page.locator(".ae-ctbutton a.ae-btn")).toHaveAttribute("href", "mailto:hello@alderstone.example");
     await expect(page.locator(".ae-ctdivide")).toHaveAttribute("role", "separator");
     expect(await page.locator("html").getAttribute("data-armature-mode")).toBeNull();
@@ -552,8 +553,11 @@ test.describe("the inspector", () => {
     await openEditor(page, { role: "client", editingLevel: "builder" });
     await waitForReady(page);
     await page.getByRole("button", { name: /Phone view/ }).click();
+    await expect(page.getByTestId("canvas")).toHaveAttribute("data-scale", "1.000");
+    await settled(page);
     await siteFrame(page).locator(".ae-btnbuild").scrollIntoViewIfNeeded();
     await siteFrame(page).locator(".ae-btnbuild").click({ position: { x: 4, y: 4 } });
+    await expect(page.getByTestId("inspector-tab-advanced")).toBeVisible();
     await page.getByTestId("inspector-tab-advanced").click();
     await expect(page.getByTestId("group-layout")).toBeVisible();
     await expect(page.getByTestId("group-custom-css")).toHaveCount(0);
@@ -1353,7 +1357,10 @@ test.describe("the media library", () => {
     await page.getByRole("button", { name: "Media library" }).click();
     const picker = page.getByTestId("media-picker");
     const item = (src: string) => picker.locator(`[data-testid="media-item"][data-src="${src}"]`);
-    await expect(item("/assets/hero.svg").getByTestId("media-used")).toHaveText("Used on Home");
+    // hero.svg is used as the Home page's hero image AND as the Contact page's Open Graph share
+    // picture (the SEO feature added in 2.6.0), so the usage list carries both pages in
+    // alphabetical order.
+    await expect(item("/assets/hero.svg").getByTestId("media-used")).toHaveText("Used on Contact, Home");
     await expect(item("/assets/team.svg").getByTestId("media-used")).toHaveText("Used on About");
     await page.getByLabel("Search media").fill("team");
     await expect(picker.getByTestId("media-item")).toHaveCount(1);

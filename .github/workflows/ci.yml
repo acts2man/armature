@@ -33,7 +33,10 @@ jobs:
       - run: npm ci --prefix examples/demo-site
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-      - uses: actions/upload-artifact@v5
+      # v5 was forced to Node 24 in a September 2025 GitHub Actions runner update and
+      # printed a deprecation warning on every run; v6 is the first release built for
+      # Node 24, so the warning is gone.
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-report

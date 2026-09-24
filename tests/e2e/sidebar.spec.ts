@@ -7,10 +7,14 @@
 import { expect, test, type Page } from "@playwright/test";
 import { SITE_ID, installMocks } from "./mocks.ts";
 
-/** The items a connected site shows today, in order. Requests (change requests to the agency) sits between Contact and Appearance. */
-const STAFF_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Requests", "Appearance", "Users", "Site settings"];
-const CLIENT_ITEMS = ["Dashboard", "Media", "Pages", "Contact", "Requests", "Appearance", "Users"];
-const HIDDEN = ["nav-stats", "nav-posts"];
+/**
+ * The items a connected site shows today, in order. Stats and Posts land between
+ * Dashboard and Media (WordPress order); Requests (change requests to the agency)
+ * sits between Contact and Appearance.
+ */
+const STAFF_ITEMS = ["Dashboard", "Stats", "Posts", "Media", "Pages", "Contact", "Requests", "Appearance", "Users", "Site settings"];
+const CLIENT_ITEMS = ["Dashboard", "Stats", "Posts", "Media", "Pages", "Contact", "Requests", "Appearance", "Users"];
+const HIDDEN: string[] = [];
 
 const sidebar = (page: Page) => page.getByTestId("sidebar");
 const itemLabels = (page: Page) => sidebar(page).getByTestId("site-sidebar").locator("ul a").evaluateAll((links) => links.map((link) => link.textContent?.trim()));

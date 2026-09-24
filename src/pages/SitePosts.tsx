@@ -104,6 +104,7 @@ export function SitePosts() {
                   const status = statusOf(post);
                   const indexEntry = indexBySlug.get(post.slug);
                   const author = post.settings.authorName || indexEntry?.authorName || "";
+                  const liveUrl = status === "published" && site.live_url ? `${site.live_url.replace(/\/+$/, "")}/blog/${post.slug}/` : null;
                   return (
                     <tr key={post.slug} className="border-b border-line last:border-b-0 text-[14px]" data-testid={`post-row-${post.slug}`}>
                       <td className="px-4 py-3">
@@ -116,7 +117,14 @@ export function SitePosts() {
                       <td className="px-4 py-3 text-muted">{(post.settings.categories ?? []).join(", ") || "—"}</td>
                       <td className="px-4 py-3 text-muted">{post.settings.publishedAt ? new Date(post.settings.publishedAt).toLocaleDateString() : "—"}</td>
                       <td className="px-4 py-3 text-right">
-                        <Link to={`/sites/${site.id}/posts/${post.slug}`} className="text-[13px] font-semibold text-primary hover:underline">Edit</Link>
+                        <div className="inline-flex items-center gap-3 text-[13px] font-semibold">
+                          <Link to={`/sites/${site.id}/posts/${post.slug}`} className="text-primary hover:underline" data-testid={`post-edit-${post.slug}`}>Edit</Link>
+                          {liveUrl ? (
+                            <a href={liveUrl} target="_blank" rel="noreferrer" className="text-text hover:underline" data-testid={`post-preview-${post.slug}`}>Preview</a>
+                          ) : (
+                            <span className="text-muted" title="A post can be previewed once it is published">Preview</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
