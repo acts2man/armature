@@ -12,6 +12,7 @@ import { computePageHead, type HeadTag } from "./seo.ts";
 import type { KitSnapshot, KitStore } from "./store.ts";
 import { chromeSlug, isChromeSlug, type ChromePart, type Element, type LayoutDoc, type SiteSectionProps } from "./types.ts";
 import { cssIdent, googleFontsHref } from "./values.ts";
+import { KIT_VERSION } from "./version.ts";
 import { getWidget } from "./widgets.tsx";
 
 export type KitRuntime = {
@@ -254,7 +255,9 @@ export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: L
   usePageSeo(layout);
   void builderPage;
   // Page settings the site's own frame responds to: <html data-armature-canvas="full"> for a
-  // full-canvas page (hide the header and footer) and data-armature-hide-title.
+  // full-canvas page (hide the header and footer) and data-armature-hide-title. The kit
+  // version is stamped on the root element so Armature can tell what is actually live on
+  // the site (not just what is in the repo).
   const canvas = layout?.pageSettings?.fullCanvas ? "full" : null;
   const hideTitle = !!layout?.pageSettings?.hideTitle;
   useEffect(() => {
@@ -262,6 +265,7 @@ export function ArmaturePage({ slug, layout: given }: { slug: string; layout?: L
     const html = document.documentElement;
     if (canvas) html.setAttribute("data-armature-canvas", canvas);
     if (hideTitle) html.setAttribute("data-armature-hide-title", "");
+    html.setAttribute("data-armature-kit", KIT_VERSION);
     return () => {
       html.removeAttribute("data-armature-canvas");
       html.removeAttribute("data-armature-hide-title");

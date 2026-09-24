@@ -40,7 +40,8 @@ import { createKitStore, type ContentTree, type LinkValue, type ListValue } from
 import type { LayoutDoc, PostDoc, PostIndex, SiteKit } from "./types.ts";
 import { CORE_WIDGETS, registerWidgets, type WidgetRender } from "./widgets.tsx";
 
-export const KIT_VERSION = "2.7.0";
+export { KIT_VERSION } from "./version.ts";
+import { KIT_VERSION } from "./version.ts";
 export { PROTOCOL_VERSION };
 
 /** Every widget the kit ships, by type: the core widgets, then the library. */
@@ -185,6 +186,7 @@ export { ArmaturePost, ArmaturePostList, useBuilderPosts } from "./posts.tsx";
 export { computePageHead, renderHeadHtml, sitemapXml, robotsTxt, absoluteUrl, applyTitlePattern, structuredDataLd, type HeadTag, type PageHeadOpts, type SitemapEntry } from "./seo.ts";
 export { rssXml } from "./rss.ts";
 export { installStatsBeacon, sendBeacon, buildBeaconPayload, shouldSkipBeacon, type StatsConfig, type BeaconPayload } from "./stats.ts";
+export { KIT_RELEASES, CURRENT_KIT_VERSION, compareKitVersions, isKitVersion, parseKitVersionFromSource, releasesBetween, setupStepsSince, type KitReleaseNote, type KitSetupStep } from "./manifest.ts";
 export { CHROME_SLUGS, isChromeSlug, chromeSlug } from "./types.ts";
 export { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
 export { Icon } from "./icon.tsx";
