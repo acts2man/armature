@@ -19,7 +19,7 @@ test("Globals: the preview follows a colour change and Save publishes the kit", 
   const state = await installMocks(page);
   await skipTours(page);
   await page.goto(`/sites/${SITE_ID}/appearance`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Appearance");
+  await expect(page.getByRole("heading", { level: 1, name: "Appearance" })).toBeVisible();
   const preview = page.getByTestId("globals-preview");
   await expect(preview).toContainText("A headline in your heading font");
   const before = await preview.locator("h1").evaluate((node) => getComputedStyle(node).fontFamily);
