@@ -21,11 +21,19 @@ test("the table lists every page with type, last publish and who, and every row 
   await page.goto(`/sites/${SITE_ID}/pages`);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Pages");
   await expect(page.getByTestId("pages-count")).toHaveText("3 pages");
-  // The demo site: Home and About are coded (with form fields), Contact is built in the editor.
+  // The demo site: Home's layout holds a builder container between its coded sections (Builder, with form fields),
+  // About has no layout (Coded), Contact exists only as a layout (Builder).
   const home = page.getByTestId("page-row-home");
-  await expect(home).toContainText("Coded");
-  await expect(home).toContainText("Dana Whitfield");
+  await expect(home).toContainText("Builder");
+  await expect(page.getByTestId("page-row-about")).toContainText("Coded");
   await expect(page.getByTestId("page-row-contact")).toContainText("Builder");
+  // "By" is the person's name from their profile, never an id or email.
+  await expect(home).toContainText("Dana Whitfield");
+  await expect(home).not.toContainText("dana@agency.example");
+  await expect(home).not.toContainText(STAFF_ID);
+  // Row actions are in view without hovering.
+  await expect(page.getByTestId("page-actions-home")).toHaveCSS("opacity", "1");
+  await expect(page.getByTestId("edit-visually-home")).toBeVisible();
   for (const slug of ["home", "about", "contact"]) {
     await expect(page.getByTestId(`edit-visually-${slug}`)).toHaveAttribute("href", `/sites/${SITE_ID}/visual?page=${slug}`);
     await expect(page.getByTestId(`page-title-${slug}`)).toHaveAttribute("href", `/sites/${SITE_ID}/visual?page=${slug}`);
@@ -34,9 +42,11 @@ test("the table lists every page with type, last publish and who, and every row 
   }
   await expect(page.getByTestId("edit-text-home")).toHaveAttribute("href", `/sites/${SITE_ID}/pages/home`);
   expect(await page.getByTestId("edit-text-contact").count()).toBe(0);
-  // Duplicate and Trash only on builder pages.
+  // Duplicate and Trash only on pages that exist as a layout alone (a coded page stays in the site's code).
   expect(await page.getByTestId("trash-home").count()).toBe(0);
-  await expect(page.getByTestId("trash-contact")).toBeAttached();
+  expect(await page.getByTestId("duplicate-home").count()).toBe(0);
+  await expect(page.getByTestId("trash-contact")).toBeVisible();
+  await expect(page.getByTestId("duplicate-contact")).toBeVisible();
   // The header & footer is not a page: one line under the table, with its text editor.
   await expect(page.getByTestId("chrome-row")).toContainText("Its words and pictures also edit by clicking them on any page");
   expect(await page.getByTestId("edit-visually-shared").count()).toBe(0);
@@ -130,4 +140,25 @@ test("a client at the content level sees no Add New Page, Duplicate or Trash", a
   expect(await page.getByTestId("duplicate-contact").count()).toBe(0);
   expect(await page.getByTestId("trash-contact").count()).toBe(0);
   await expect(page.getByTestId("edit-visually-contact")).toHaveAttribute("href", `/sites/${SITE_ID}/visual?page=contact`);
+});
+
+test("on a phone the table becomes stacked cards, nothing is cut off, and the screen never scrolls sideways", async ({ page }) => {
+  await installMocks(page, { rows: { publishes } });
+  await skipTours(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/sites/${SITE_ID}/pages`);
+  await expect(page.getByTestId("pages-cards")).toBeVisible();
+  expect(await page.getByRole("table").count()).toBe(0);
+  const home = page.getByTestId("page-row-home");
+  await expect(home).toBeVisible();
+  await expect(home).toContainText("Builder");
+  await expect(home).toContainText("by Dana Whitfield");
+  await expect(home.getByTestId("edit-visually-home")).toBeVisible();
+  await expect(home.getByTestId("page-actions-home")).toHaveCSS("opacity", "1");
+  // Every card fits the phone: no element wider than the screen, no sideways scroll.
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  expect(await home.evaluate((node) => node.scrollWidth <= node.clientWidth)).toBe(true);
+  // The title opens the editor on that page.
+  await page.getByTestId("page-title-contact").click();
+  await expect(page).toHaveURL(/\/visual\?page=contact$/);
 });

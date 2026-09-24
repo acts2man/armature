@@ -8,7 +8,7 @@ The two screens with an approved design file to compare against:
 
 | Screen | Design file | Screenshot |
 | --- | --- | --- |
-| Agency fleet | `docs/4-agency-fleet.html` | `agency-fleet-desktop.png` |
+| Agency Projects (called Fleet when captured; the file names keep the old name) | `docs/4-agency-fleet.html` | `agency-fleet-desktop.png` |
 | Client home | `docs/2-client-dashboard.html` | `client-home-desktop.png` |
 | Visual editor | `docs/1-visual-editor.html` | `visual-editor-text-selected.png` |
 
@@ -64,8 +64,8 @@ canvas), `builder-publish-dialog` (a layout and the site settings in one publish
 
 Captured by `npx tsx tests/e2e/dashboard-screenshots.ts` at 1440×900 (`*-desktop.png`) and
 390×844 (`*-phone.png`, full page): `wp-site-dashboard` (staff) and `wp-site-dashboard-client`,
-`wp-sidebar-collapsed`, `wp-phone-menu` (the slide-out menu), `wp-pages` (row actions on
-hover), `wp-pages-add-new`, `wp-pages-trash`, `wp-media` (details panel open), `wp-media-list`,
+`wp-sidebar-collapsed`, `wp-phone-menu` (the slide-out menu), `wp-pages` (row actions always in
+view), `wp-pages-add-new`, `wp-pages-trash`, `wp-media` (details panel open), `wp-media-list`,
 `wp-contact` (an entry open), `wp-contact-settings` (email recipients), `wp-appearance-globals`
 (the editor and the live preview), `wp-appearance-header`, `wp-appearance-footer`,
 `wp-appearance-menus` (a menu with a dropdown), `wp-users` (row actions), `wp-users-add`,

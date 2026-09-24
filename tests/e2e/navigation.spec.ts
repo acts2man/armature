@@ -4,7 +4,7 @@
  * name in the top bar opens a small menu, and every "Edit visually" link carries its page.
  */
 import { expect, test, type FrameLocator, type Page } from "@playwright/test";
-import { SITE_ID, editorUrl, installMocks } from "./mocks.ts";
+import { SITE_ID, demoLayouts, editorUrl, installMocks } from "./mocks.ts";
 
 const siteFrame = (page: Page): FrameLocator => page.frameLocator(`iframe[title$="live site"]`);
 
@@ -117,5 +117,28 @@ test.describe("the coded header and footer", () => {
     await expect(siteFrame(page).locator("h1")).toBeVisible({ timeout: 20_000 });
     await page.getByTestId("layer-shared.footer.copyright").click();
     await expect(page.getByTestId("inspector").getByTestId("chrome-note")).toContainText("Your agency can make them editable.");
+  });
+
+  test("once the header is built in the editor, the note says so for the header and names the footer as the one still coded", async ({ page }) => {
+    const builtHeader = { version: 1, pageSlug: "_header", path: "/", label: "Header", root: [{ id: "hdrbuilt", type: "heading", props: { text: "Built header" }, style: {}, advanced: {}, meta: { createdBy: "test", updatedAt: "" } }] };
+    await installMocks(page, { role: "client", layouts: { ...demoLayouts, _header: builtHeader } });
+    await skipTours(page);
+    await page.goto(editorUrl("home"));
+    await expect(siteFrame(page).locator("h1")).toBeVisible({ timeout: 20_000 });
+    await page.getByTestId("layer-shared.header.brand").click();
+    const inspector = page.getByTestId("inspector");
+    await expect(inspector.getByTestId("chrome-note")).toHaveAttribute("data-built", "yes");
+    await expect(inspector.getByTestId("chrome-note")).toContainText("The header is built in the editor now, so this coded header no longer shows on the site. Change the header under Appearance › Header.");
+    await page.getByTestId("layer-shared.footer.copyright").click();
+    await expect(inspector.getByTestId("chrome-note")).toHaveAttribute("data-built", "no");
+    await expect(inspector.getByTestId("chrome-note")).toContainText("The footer is part of the site's code (the header is built in the editor). Your agency can make it editable.");
+    // Appearance says the same from the files.
+    await page.goto(`/sites/${SITE_ID}/appearance/footer`);
+    await expect(page.getByTestId("part-footer-state")).toContainText("The header is already built in the editor.");
+    await page.goto(`/sites/${SITE_ID}/appearance/header`);
+    await expect(page.getByTestId("part-header")).toContainText("builder part");
+    await expect(page.getByTestId("part-header-state")).toContainText("It holds 1 element. It has no Nav Menu widget.");
+    await page.goto(`/sites/${SITE_ID}/appearance/menus`);
+    await expect(page.getByTestId("menus-state")).toContainText("The header built in the editor has a Nav Menu waiting for one.");
   });
 });

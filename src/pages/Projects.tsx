@@ -1,5 +1,5 @@
 /**
- * Fleet — the agency's single view of every client site and what the agency
+ * Projects — the agency's single view of every client site and what the agency
  * charges for it: status, open requests, the yearly total for hosting, domain
  * and email, and the next renewal. Every number comes from the database.
  */
@@ -38,24 +38,24 @@ import { OPEN_CHANGE_REQUEST_STATUSES, type ChangeRequest, type Site, type SiteB
 
 type NewestRequest = ChangeRequest & { site: { id: string; name: string } | null; creator: { full_name: string | null; email: string | null } | null };
 
-type FleetData = {
+type ProjectsData = {
   sites: Site[];
   /** Open change requests per site id. */
   openCounts: Record<string, number>;
   /** The site_billing view, per site id. Sites without a services record have no row. */
   billing: Record<string, SiteBilling>;
-  /** The most recently updated open request across the fleet, with who asked. */
+  /** The most recently updated open request across every project, with who asked. */
   newest: NewestRequest | null;
 };
 
-export type FleetRow = { site: Site; openCount: number; billing: SiteBilling | undefined; renewal: RenewalState | null };
+export type ProjectRow = { site: Site; openCount: number; billing: SiteBilling | undefined; renewal: RenewalState | null };
 
 type SortKey = "name" | "total" | "renewal";
 type SortDir = "asc" | "desc";
 
 const COLUMNS = "2.2fr 1.1fr 1.1fr 0.9fr 1.2fr";
 
-async function loadFleet(): Promise<FleetData> {
+async function loadProjects(): Promise<ProjectsData> {
   const [sitesResult, requestsResult, billingResult, newestResult] = await Promise.all([
     supabase.from("sites").select("*").order("name"),
     supabase.from("change_requests").select("site_id, status").in("status", OPEN_CHANGE_REQUEST_STATUSES),
@@ -112,14 +112,14 @@ export function RenewalCell({ renewal }: { renewal: RenewalState | null }) {
   );
 }
 
-function siteLine(row: FleetRow): string {
+function siteLine(row: ProjectRow): string {
   const site = row.site;
   if (isHostingOnly(site)) return site.live_url ? `${site.live_url.replace(/^https?:\/\//, "")}. No repository yet` : "No repository yet";
   const repo = `${site.repo_owner}/${site.repo_name}`;
   return site.last_published_at ? `${repo}. Published ${relativeTime(site.last_published_at)}` : `${repo}. Not published yet`;
 }
 
-function OpenRequestsCell({ row }: { row: FleetRow }) {
+function OpenRequestsCell({ row }: { row: ProjectRow }) {
   if (row.openCount === 0) return <span className="text-[13px] text-muted">None</span>;
   return (
     <Link to={`/sites/${row.site.id}/requests`} onClick={(event) => event.stopPropagation()} className="inline-flex">
@@ -142,7 +142,7 @@ function SortHeader({ label, active, dir, onClick }: { label: string; active: bo
   );
 }
 
-function SitesTable({ rows, sort, onSort }: { rows: FleetRow[]; sort: { key: SortKey; dir: SortDir }; onSort: (key: SortKey) => void }) {
+function SitesTable({ rows, sort, onSort }: { rows: ProjectRow[]; sort: { key: SortKey; dir: SortDir }; onSort: (key: SortKey) => void }) {
   const navigate = useNavigate();
   const head = [
     <SortHeader key="name" label="Site" active={sort.key === "name"} dir={sort.dir} onClick={() => onSort("name")} />,
@@ -266,7 +266,7 @@ function RequestPanel({ newest }: { newest: NewestRequest | null }) {
   );
 }
 
-function StatsRow({ rows }: { rows: FleetRow[] }) {
+function StatsRow({ rows }: { rows: ProjectRow[] }) {
   const hostingOnly = rows.filter((row) => isHostingOnly(row.site)).length;
   const connected = rows.length - hostingOnly;
   const yearly = rows.reduce((total, row) => total + (row.billing?.yearly_total_cents ?? 0), 0);
@@ -285,9 +285,9 @@ function StatsRow({ rows }: { rows: FleetRow[] }) {
   );
 }
 
-function FleetSkeleton() {
+function ProjectsSkeleton() {
   return (
-    <div className="flex flex-col gap-5" role="status" aria-label="Loading the fleet">
+    <div className="flex flex-col gap-5" role="status" aria-label="Loading projects">
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         {[0, 1, 2, 3].map((index) => (
           <Card key={index} className="space-y-3">
@@ -309,7 +309,7 @@ function FleetSkeleton() {
   );
 }
 
-function compare(a: FleetRow, b: FleetRow, key: SortKey): number {
+function compare(a: ProjectRow, b: ProjectRow, key: SortKey): number {
   if (key === "name") return a.site.name.localeCompare(b.site.name);
   if (key === "total") return (a.billing?.yearly_total_cents ?? -1) - (b.billing?.yearly_total_cents ?? -1);
   // Renewal: dated rows first (earliest first), undated last.
@@ -318,22 +318,22 @@ function compare(a: FleetRow, b: FleetRow, key: SortKey): number {
   return da.localeCompare(db) || a.site.name.localeCompare(b.site.name);
 }
 
-function matchesSearch(row: FleetRow, needle: string): boolean {
+function matchesSearch(row: ProjectRow, needle: string): boolean {
   if (!needle) return true;
   const hay = [row.site.name, row.site.repo_owner, row.site.repo_name, row.site.live_url, siteStatusLabel(row.site)].filter(Boolean).join(" ").toLowerCase();
   return hay.includes(needle);
 }
 
-export function Fleet() {
+export function Projects() {
   const { agencies } = useAuth();
   const agencyIds = [...agencies.map((membership) => membership.agency.id)].sort();
-  const query = useQuery({ queryKey: ["fleet", agencyIds], queryFn: loadFleet });
+  const query = useQuery({ queryKey: ["projects", agencyIds], queryFn: loadProjects });
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: "name", dir: "asc" });
 
   const onSort = (key: SortKey) => setSort((current) => (current.key === key ? { key, dir: current.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "total" ? "desc" : "asc" }));
 
-  const rows: FleetRow[] = useMemo(() => {
+  const rows: ProjectRow[] = useMemo(() => {
     const data = query.data;
     if (!data) return [];
     return data.sites
@@ -354,10 +354,10 @@ export function Fleet() {
 
   let body: ReactNode;
   if (query.isPending) {
-    body = <FleetSkeleton />;
+    body = <ProjectsSkeleton />;
   } else if (query.isError) {
     body = (
-      <Notice kind="danger" title="The fleet could not be loaded">
+      <Notice kind="danger" title="Projects could not be loaded">
         {query.error.message}
       </Notice>
     );
@@ -373,11 +373,11 @@ export function Fleet() {
 
     const searchBox = (
       <div className="relative">
-        <label htmlFor="fleet-search" className="sr-only">
+        <label htmlFor="projects-search" className="sr-only">
           Search sites
         </label>
         <IconSearch size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-        <Input id="fleet-search" type="search" placeholder="Search sites" value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 w-44 pl-9 text-[13px] sm:w-56" />
+        <Input id="projects-search" type="search" placeholder="Search sites" value={search} onChange={(event) => setSearch(event.target.value)} className="h-9 w-44 pl-9 text-[13px] sm:w-56" />
       </div>
     );
 
@@ -410,7 +410,7 @@ export function Fleet() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title="Fleet" description="Every client site you manage, what you charge for it, and what needs you first." action={addAction} />
+      <PageHeader title="Projects" description="Every client site you manage, what you charge for it, and what needs you first." action={addAction} />
       {body}
     </div>
   );

@@ -1271,6 +1271,8 @@ export function EditorWorkspace({
   }, [selectedId, sectionFieldMap, schema]);
   const selectedOnCanvas = selectedPath !== null && canvasRoots.has(fieldRoot(selectedPath));
   const currentLayout = builderView.layouts[activeSlug];
+  /** Which of the header and footer are built in the editor (in the draft, so a part built this session counts). */
+  const builtParts = useMemo(() => ({ header: !!builderView.layouts["_header"], footer: !!builderView.layouts["_footer"] }), [builderView.layouts]);
   const changedIds = useMemo(() => changedElementIds(builderView.layouts[activeSlug], baseline.layouts[activeSlug]), [builderView.layouts, baseline.layouts, activeSlug]);
   const sectionsInUse = useMemo(() => new Set((currentLayout?.root ?? []).flatMap((element) => (element.type === "site-section" ? [String(element.props["key"])] : []))), [currentLayout]);
 
@@ -1562,7 +1564,7 @@ export function EditorWorkspace({
               </div>
             ) : panelView === "auto" && selectedPath ? (
               <div className="min-h-0 flex-1 overflow-y-auto" data-testid="field-editor">
-                <FieldEditor schema={schema} baseline={published} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={site.live_url} actions={fieldActions} replaceRequest={replaceRequest} isStaff={isStaff} />
+                <FieldEditor schema={schema} baseline={published} draft={draft} selectedPath={selectedPath} selectedOnCanvas={selectedOnCanvas} liveUrl={site.live_url} actions={fieldActions} replaceRequest={replaceRequest} isStaff={isStaff} builtParts={builtParts} />
               </div>
             ) : (
               <ElementsPanel
@@ -1717,6 +1719,7 @@ export function EditorWorkspace({
             replaceRequest={replaceRequest}
             builder={builder}
             isStaff={isStaff}
+            builtParts={builtParts}
             actions={fieldActions}
           />
         )}

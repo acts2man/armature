@@ -12,7 +12,7 @@ import { AgencyTeam } from "@/pages/AgencyTeam.tsx";
 import { ChangeRequestDetail } from "@/pages/ChangeRequestDetail.tsx";
 import { ChangeRequests } from "@/pages/ChangeRequests.tsx";
 import { ChoosePassword } from "@/pages/ChoosePassword.tsx";
-import { Fleet } from "@/pages/Fleet.tsx";
+import { Projects } from "@/pages/Projects.tsx";
 import { GithubSetup } from "@/pages/GithubSetup.tsx";
 import { Home } from "@/pages/Home.tsx";
 import { InviteAccept } from "@/pages/InviteAccept.tsx";
@@ -59,12 +59,14 @@ const router = createBrowserRouter([
             element: <AppShell />,
             children: [
               { path: "/", element: <Home /> },
+              // The old address of Projects (bookmarks, the invite email's link).
+              { path: "/fleet", element: <Navigate to="/projects" replace /> },
               { path: "/github/setup", element: <GithubSetup /> },
               { path: "/account", element: <Account /> },
               {
                 element: <RequireStaff />,
                 children: [
-                  { path: "/fleet", element: <Fleet /> },
+                  { path: "/projects", element: <Projects /> },
                   { path: "/sites/new", element: <AddSite /> },
                   { path: "/agency/requests", element: <AgencyRequests /> },
                   { path: "/agency/settings", element: <AgencySettings /> },

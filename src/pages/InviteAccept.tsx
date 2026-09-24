@@ -28,7 +28,7 @@ export function InviteAccept() {
   const accept = useMutation<InviteAcceptResponse | Failure, Error, string>({
     mutationFn: async (inviteToken) => {
       const result = await callFunction<InviteAcceptResponse>("invite-accept", { token: inviteToken });
-      // Reload memberships so the site (or the fleet) is visible as soon as the person continues.
+      // Reload memberships so the site (or Projects) is visible as soon as the person continues.
       if (result.ok) await refresh();
       return result;
     },
@@ -79,11 +79,11 @@ export function InviteAccept() {
       <Notice
         kind="success"
         title="You now have access"
-        action={site_id ? <LinkButton to={`/sites/${site_id}`}>Open your site</LinkButton> : <LinkButton to="/fleet">Go to the fleet</LinkButton>}
+        action={site_id ? <LinkButton to={`/sites/${site_id}`}>Open your site</LinkButton> : <LinkButton to="/projects">Go to Projects</LinkButton>}
       >
         {site_id
           ? "You can now edit this site's pages and send change requests from your dashboard."
-          : "You are now part of the agency team and can see every site in the fleet."}
+          : "You are now part of the agency team and can see every site under Projects."}
       </Notice>
     );
   } else {

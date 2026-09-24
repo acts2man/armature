@@ -17,6 +17,7 @@ import { useSite } from "@/components/SiteLayout.tsx";
 import { Button, EmptyState, Field, Input, LinkButton, Modal, Notice, PageHeader, Panel, Pill, Select, Skeleton, SrOnly, TabBar, Toggle, tabClass } from "@/components/ui.tsx";
 import { useKitPublish } from "@/hooks/useKitPublish.ts";
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
+import { describeMenuUsage, menuUsage, partState } from "@/lib/chromeState.ts";
 import { addItem, addMenu, flattenItems, indentItem, moveItem, outdentItem, removeItem, removeMenu, renameMenu, updateItem } from "@/lib/menus.ts";
 import { isHostingOnly } from "@/lib/services.ts";
 import { writeNewPageHandoff } from "@/visual/pages.ts";
@@ -228,6 +229,17 @@ function PartEditor({ part, loaded }: { part: ChromePart; loaded: ContentGetResp
   const firstPage = loaded.schema.pages.find((page) => page.slug !== SHARED_SLUG)?.slug ?? Object.keys(loaded.layouts ?? {}).find((key) => !key.startsWith("_")) ?? "home";
   const editHref = `/sites/${site.id}/visual?page=${encodeURIComponent(firstPage)}&part=${part}`;
   const codedFields = loaded.schema.pages.find((page) => page.slug === SHARED_SLUG)?.sections.find((section) => section.key === part);
+  const menus = loaded.siteKit?.menus ?? [];
+  const state = partState(built, menus);
+  const otherBuilt = !!loaded.layouts?.[chromeSlug(part === "header" ? "footer" : "header")];
+  /** What the built part holds today, read from its file: how many elements, and which menu its Nav Menu shows. */
+  const holds = state.built
+    ? `It holds ${state.elements} ${state.elements === 1 ? "element" : "elements"}. ${
+        state.navMenus.length === 0
+          ? "It has no Nav Menu widget."
+          : state.navMenus.map((nav) => (nav.menu ? `Its Nav Menu shows “${nav.menu.name}” (${nav.menu.items.length} ${nav.menu.items.length === 1 ? "item" : "items"}).` : menus.length === 0 ? "Its Nav Menu has no menu to show yet: create one under Menus, then pick it in the editor." : "Its Nav Menu has no menu chosen yet: pick one in the editor.")).join(" ")
+      }`
+    : null;
 
   const build = () => {
     const layout = starterPart(part);
@@ -249,6 +261,9 @@ function PartEditor({ part, loaded }: { part: ChromePart; loaded: ContentGetResp
               <p>
                 The {part} is a builder part: it shows on every page and edits like any page. Open it in the editor to change its logo, its menu, its colours and its spacing; publish and it goes live with everything else.
               </p>
+              <p className="text-muted" data-testid={`part-${part}-state`}>
+                {holds}
+              </p>
               <div className="flex flex-wrap gap-2">
                 <LinkButton to={editHref} data-testid={`edit-${part}`}>
                   <IconPencil size={16} /> Edit the {part} visually
@@ -266,6 +281,10 @@ function PartEditor({ part, loaded }: { part: ChromePart; loaded: ContentGetResp
                 {isStaff
                   ? `The ${part} is still part of the site's code. Build one in the editor and it replaces the coded ${part} on every page as soon as it is published; the coded one stays as the fallback until then.`
                   : `The ${part} is part of the site's code. ${codedFields ? "Its words and pictures edit by clicking them on any page in the editor." : ""} Your agency can make it fully editable.`}
+              </p>
+              <p className="text-muted" data-testid={`part-${part}-state`}>
+                {otherBuilt ? `The ${part === "header" ? "footer" : "header"} is already built in the editor. ` : ""}
+                {part === "header" ? (menus.length === 0 ? "There are no menus yet; a built header starts with an empty Nav Menu until one is created under Menus." : `${menus.length} ${menus.length === 1 ? "menu is" : "menus are"} ready for a built header's Nav Menu (${menus.map((menu) => menu.name).join(", ")}).`) : otherBuilt ? "" : "Nothing is built in the editor yet."}
               </p>
               {codedFields && (
                 <p className="text-muted">
@@ -338,6 +357,8 @@ function MenusEditor({ loaded }: { loaded: ContentGetResponse }) {
   const canEdit = isStaff || loaded.editingLevel !== "content";
   const changed = !deepEqual(menus, published.menus ?? []);
   const menu = menus.find((entry) => entry.id === current) ?? menus[0] ?? null;
+  const usage = menu ? menuUsage(menu.id, loaded.layouts ?? {}) : [];
+  const headerBuilt = !!loaded.layouts?.[chromeSlug("header")];
   const pages: PageOption[] = useMemo(
     () => [
       ...loaded.schema.pages.filter((page) => page.slug !== SHARED_SLUG).map((page) => ({ slug: page.slug, label: page.label })),
@@ -391,13 +412,17 @@ function MenusEditor({ loaded }: { loaded: ContentGetResponse }) {
 
       {!menu ? (
         <EmptyState title="No menus yet" icon={<IconLayout size={18} />} action={canEdit ? <Button size="sm" onClick={() => setNaming({ mode: "new", name: "" })} data-testid="menu-create">Create a menu</Button> : undefined}>
-          A menu is a list of pages and links. The Nav Menu widget in the header shows one; you can have several (a main menu, a footer menu).
+          A menu is a list of pages and links. The Nav Menu widget in the header shows one; you can have several (a main menu, a footer menu).{" "}
+          <span data-testid="menus-state">{headerBuilt ? "The header built in the editor has a Nav Menu waiting for one." : "The header is still coded (see Appearance › Header); a menu shows on the site once the header is built in the editor."}</span>
         </EmptyState>
       ) : (
         <Panel
           title={
-            <span className="inline-flex items-center gap-2">
+            <span className="inline-flex flex-wrap items-center gap-2">
               {menu.name}
+              <span data-testid="menu-usage">
+                <Pill tone={usage.length > 0 ? "blue" : "grey"}>{describeMenuUsage(usage)}</Pill>
+              </span>
               {canEdit && (
                 <button type="button" className="text-[12px] font-semibold text-accent underline-offset-2 hover:underline" onClick={() => setNaming({ mode: "rename", name: menu.name })} data-testid="menu-rename">
                   Rename

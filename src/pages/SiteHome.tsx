@@ -196,15 +196,9 @@ export function SiteHome() {
                 <IconEye size={16} /> View site
               </LinkButton>
             )}
-            {hostingOnly ? (
-              isStaff && (
-                <LinkButton to={`/sites/new?upgrade=${site.id}`}>
-                  <IconGithub size={16} /> Connect repository
-                </LinkButton>
-              )
-            ) : (
-              <LinkButton to={`${root}/visual`}>
-                <IconPencil size={16} /> Edit your site
+            {hostingOnly && isStaff && (
+              <LinkButton to={`/sites/new?upgrade=${site.id}`}>
+                <IconGithub size={16} /> Connect repository
               </LinkButton>
             )}
           </>
@@ -227,7 +221,7 @@ export function SiteHome() {
             Edit your site
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-testid="shortcuts">
-            <Shortcut to={`${root}/visual`} icon={<IconPencil size={18} />} title="Edit a page" detail="Click anything on the page and change it." testId="shortcut-edit" />
+            <Shortcut to={`${root}/pages`} icon={<IconPencil size={18} />} title="Edit a page" detail="Pick a page under Pages, then click anything on it and change it." testId="shortcut-edit" />
             <Shortcut to={`${root}/pages`} icon={<IconPage size={18} />} title="All pages" detail="Every page, its address and when it last went live." testId="shortcut-pages" />
             {BUILT.appearance && <Shortcut to={`${root}/appearance`} icon={<IconPalette size={18} />} title="Colours and fonts" detail="The site's look, changed everywhere at once." testId="shortcut-appearance" />}
             {BUILT.media && <Shortcut to={`${root}/media`} icon={<IconImage size={18} />} title="Pictures" detail="Upload, replace and describe the site's images." testId="shortcut-media" />}

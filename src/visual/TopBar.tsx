@@ -117,7 +117,7 @@ export function TopBar({
   const [siteMenu, setSiteMenu] = useState(false);
   const [pageMenu, setPageMenu] = useState(false);
   const [publishMenu, setPublishMenu] = useState(false);
-  const home = isStaff ? "/fleet" : `/sites/${siteId}`;
+  const home = isStaff ? "/projects" : `/sites/${siteId}`;
   const brandName = isStaff ? "Armature" : agency?.portal_name?.trim() || "Client portal";
   const mod = modKey();
 
@@ -181,7 +181,7 @@ export function TopBar({
                 Publish history
               </Link>
               {isStaff && (
-                <Link to="/fleet" role="menuitem" className={menuItemClass}>
+                <Link to="/projects" role="menuitem" className={menuItemClass}>
                   All sites
                 </Link>
               )}

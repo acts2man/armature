@@ -192,9 +192,7 @@ function BrandingForm({ agency, isOwner }: { agency: Agency; isOwner: boolean })
               </div>
               <span className="flex h-9 items-center rounded-control bg-ink-2 px-3 text-[13px] font-semibold text-white">Dashboard</span>
               <span className="flex h-9 items-center px-3 text-[13px]">Pages</span>
-              <span className="flex h-11 items-center justify-center rounded-control text-[14px] font-semibold" style={{ backgroundColor: previewColor, color: isLightColor(previewColor) ? "#16202b" : "#ffffff" }}>
-                Edit site visually
-              </span>
+              <span className="flex h-9 items-center px-3 text-[13px]">Requests</span>
             </div>
             <div className="flex items-center gap-3 bg-ground p-3">
               <span className="inline-flex h-9 items-center rounded-control px-4 text-[14px] font-semibold" style={{ backgroundColor: previewColor, color: isLightColor(previewColor) ? "#16202b" : "#ffffff" }}>
@@ -224,8 +222,8 @@ function ClientsPanel({ agencyId }: { agencyId: string }) {
         title="Client sites"
         detail={body}
         action={
-          <LinkButton to="/fleet" variant="secondary" size="sm">
-            Open the fleet
+          <LinkButton to="/projects" variant="secondary" size="sm">
+            Open Projects
           </LinkButton>
         }
       />

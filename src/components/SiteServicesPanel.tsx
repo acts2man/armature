@@ -228,7 +228,7 @@ function ServicesDrawer({ siteId, siteName, services, open, onClose }: { siteId:
     },
     onSuccess: async () => {
       toast.show("Hosting & services saved");
-      await Promise.all([queryClient.invalidateQueries({ queryKey: servicesQueryKey(siteId) }), queryClient.invalidateQueries({ queryKey: ["fleet"] })]);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: servicesQueryKey(siteId) }), queryClient.invalidateQueries({ queryKey: ["projects"] })]);
       onClose();
     },
   });
@@ -435,7 +435,7 @@ export function SiteServicesPanel({ siteId, siteName }: { siteId: string; siteNa
             </Button>
           }
         >
-          Record what you charge for hosting, the domain and email, and the renewal dates, so Fleet can total it up and warn you before something lapses.
+          Record what you charge for hosting, the domain and email, and the renewal dates, so Projects can total it up and warn you before something lapses.
         </EmptyState>
       </div>
     );

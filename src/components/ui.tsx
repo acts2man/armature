@@ -572,7 +572,7 @@ export function tabClass({ isActive }: { isActive: boolean }): string {
 // --- data tables ------------------------------------------------------------------------
 
 /**
- * Grid-based table rows like the fleet screen: a 40px header, 58px rows, 1px
+ * Grid-based table rows like the Projects screen: a 40px header, 58px rows, 1px
  * dividers. `columns` is a CSS grid-template-columns value; give each cell its own
  * element. Use with `role="table"` semantics for screen readers.
  */

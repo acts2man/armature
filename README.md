@@ -18,7 +18,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 **For the agency**
 
 - Sign in with email and password, or with an emailed sign-in link.
-- **Fleet**: every connected site with its status, last publish and open change requests.
+- **Projects**: every client site with its status, last publish, open change requests, billing totals and renewals (its old address, `/fleet`, still works).
 - **Add a site**: install the GitHub App, type the repository (`owner/name` or its GitHub URL) and branch, and run the connection checklist.
 - **Change requests** across every site, with a status and a note back to the client.
 - **Team**: invite clients to a site by email and see who has access.
@@ -27,7 +27,7 @@ This is version 0.1: everything is manual and deliberate. There are no AI featur
 
 **For everyone who edits: the visual editor**
 
-- **Edit site visually** opens the live website inside the dashboard. Click a headline and type on the page, click a picture to replace it (or drop a file onto it), click a button to change its label and link, and add, reorder (drag) and delete FAQ or list items in the inspector while the page updates live.
+- **Pages** is the one way in: pick a page and the visual editor opens the live website inside the dashboard. Click a headline and type on the page, click a picture to replace it (or drop a file onto it), click a button to change its label and link, and add, reorder (drag) and delete FAQ or list items in the inspector while the page updates live.
 - Desktop, tablet and phone views; undo and redo (Ctrl/Cmd+Z); one draft per site across every page, saved in the browser and offered back with Keep / Discard; keyboard shortcuts (`?` lists them); a three-step first-run tour; Preview mode. Anything the editor cannot do is asked for under **Requests** on the site's dashboard (there is no request bar in the editor).
 - One Publish commits every changed field and picture on every page in one commit, with a summary grouped by page, then "Published. Live in about 2 minutes" and the commit link. Conflicts name the fields someone else changed and offer to reload while keeping the rest of the draft.
 - Every connection state is spelled out: loading, connecting, a site that has no bridge ("use the page editor"), a site that blocks framing (with the exact header to add), a different protocol version.

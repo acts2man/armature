@@ -2,11 +2,12 @@
  * The frame around every signed-in screen: a dark ink sidebar on the left, the screen on
  * the right, WordPress-admin style.
  *
- *   - Outside a site, agency staff get the agency menu (Fleet, Change requests, Team,
+ *   - Outside a site, agency staff get the agency menu (Projects, Change requests, Team,
  *     Settings) under the Armature wordmark.
  *   - Inside a site (/sites/:id/*) everyone gets that site's menu (src/components/siteNav.ts)
- *     with the site's name and a site switcher at the top; staff also get "Back to Fleet"
- *     above them. Agency-only things live under "Site settings" at the bottom.
+ *     with the site's name and a site switcher (src/components/SiteSwitcher.tsx) at the
+ *     top; staff also get "Back to Projects" above them. Agency-only things live under
+ *     "Site settings" at the bottom. Pages is the one way into the editor.
  *   - Clients never see the agency menu or the word Armature: their sidebar carries the
  *     agency's portal name and always shows a site (the one in the URL, else their first).
  *
@@ -22,11 +23,13 @@ import { isHostingOnly } from "@/lib/services.ts";
 import { supabase } from "@/lib/supabase.ts";
 import { OPEN_CHANGE_REQUEST_STATUSES, SITE_ROLE_LABELS, type Agency } from "@/lib/types.ts";
 import type { IconProps } from "./icons.tsx";
-import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconLogout, IconMenu, IconPencil, IconSettings, IconTeam, WireA } from "./icons.tsx";
+import { IconArrowLeft, IconBranch, IconChevronDown, IconGlobe, IconLogout, IconMenu, IconSettings, IconTeam, WireA } from "./icons.tsx";
 import { useIsStaffFor, useSiteQuery } from "./SiteLayout.tsx";
 import { siteNavItems } from "./siteNav.ts";
+import { SiteSwitcher } from "./SiteSwitcher.tsx";
+import type { SiteOption } from "./siteSwitch.ts";
 import { useUnreadCount } from "@/hooks/useMessages.ts";
-import { CountBadge, Drawer, Monogram, Notice, Select, Skeleton } from "./ui.tsx";
+import { CountBadge, Drawer, Monogram, Notice, Skeleton } from "./ui.tsx";
 
 type NavItem = {
   key: string;
@@ -164,8 +167,6 @@ function useSiteCount(enabled: boolean): number | undefined {
   return query.data;
 }
 
-type SiteOption = { id: string; name: string };
-
 /** Every site the agency looks after, for the switcher (RLS limits it to the person's agencies). */
 function useAgencySites(enabled: boolean) {
   return useQuery({
@@ -173,7 +174,7 @@ function useAgencySites(enabled: boolean) {
     enabled,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.from("sites").select("id, name").order("name");
+      const { data, error } = await supabase.from("sites").select("id, name, status").order("name");
       if (error) throw new Error(error.message);
       return (data ?? []) as SiteOption[];
     },
@@ -189,7 +190,7 @@ function AgencySidebarContent({ collapsed, onNavigate }: SidebarProps) {
   const current = agency ?? agencies[0]?.agency ?? null;
 
   const items: NavItem[] = [
-    { key: "fleet", to: "/fleet", label: "Fleet", icon: IconGlobe },
+    { key: "projects", to: "/projects", label: "Projects", icon: IconGlobe },
     { key: "agency-requests", to: "/agency/requests", label: "Change requests", icon: IconBranch, badge: openCount },
     { key: "agency-team", to: "/agency/team", label: "Team", icon: IconTeam },
     { key: "agency-settings", to: "/agency/settings", label: "Settings", icon: IconSettings },
@@ -296,8 +297,8 @@ function NoSiteSidebarContent({ collapsed, onNavigate }: SidebarProps) {
 
 // --- inside a site ------------------------------------------------------------------------
 
-function SiteSwitcher({ siteId, siteName, sites, collapsed, onNavigate }: SidebarProps & { siteId: string; siteName: string; sites: SiteOption[] }) {
-  const navigate = useNavigate();
+/** The site's name at the top of its menu: a switcher when there is more than one site to open, a plain block otherwise. */
+function SiteName({ siteId, siteName, sites, isStaff, collapsed, onNavigate }: SidebarProps & { siteId: string; siteName: string; sites: SiteOption[]; isStaff: boolean }) {
   if (collapsed) {
     return (
       <div className="flex justify-center" title={siteName}>
@@ -313,32 +314,7 @@ function SiteSwitcher({ siteId, siteName, sites, collapsed, onNavigate }: Sideba
       </div>
     );
   }
-  return (
-    <div className="flex items-center gap-2.5">
-      <Monogram name={siteName || "?"} size="md" tone="white" />
-      <div className="min-w-0 flex-1">
-        <label htmlFor="site-switcher" className="sr-only">
-          Site
-        </label>
-        <Select
-          id="site-switcher"
-          data-testid="site-switcher"
-          value={siteId}
-          onChange={(event) => {
-            onNavigate?.();
-            navigate(`/sites/${event.target.value}`);
-          }}
-          className="border-ink-2 bg-ink font-semibold text-white hover:border-ink-line"
-        >
-          {sites.map((site) => (
-            <option key={site.id} value={site.id}>
-              {site.name}
-            </option>
-          ))}
-        </Select>
-      </div>
-    </div>
-  );
+  return <SiteSwitcher siteId={siteId} siteName={siteName} sites={sites} isStaff={isStaff} onNavigate={onNavigate} />;
 }
 
 function SiteSidebarContent({ siteId, collapsed, onNavigate }: SidebarProps & { siteId: string }) {
@@ -348,13 +324,11 @@ function SiteSidebarContent({ siteId, collapsed, onNavigate }: SidebarProps & { 
   const site = query.data ?? null;
   const isStaff = useIsStaffFor(site);
   const agencySites = useAgencySites(staffAnywhere);
-  // On a page's form editor, "Edit site visually" opens that same page.
-  const pageMatch = useMatch("/sites/:siteId/pages/:slug");
   const membership = sites.find((entry) => entry.site.id === siteId);
   const root = `/sites/${siteId}`;
   const name = displayName(user);
 
-  const switcherSites: SiteOption[] = staffAnywhere ? (agencySites.data ?? []) : sites.map((entry) => ({ id: entry.site.id, name: entry.site.name }));
+  const switcherSites: SiteOption[] = staffAnywhere ? (agencySites.data ?? []) : sites.map((entry) => ({ id: entry.site.id, name: entry.site.name, status: entry.site.status }));
   const siteName = site?.name ?? membership?.site.name ?? switcherSites.find((entry) => entry.id === siteId)?.name ?? "";
   const hostingOnly = site ? isHostingOnly(site) : true;
   const unread = useUnreadCount(site ? siteId : undefined);
@@ -365,20 +339,20 @@ function SiteSidebarContent({ siteId, collapsed, onNavigate }: SidebarProps & { 
       <div className="flex flex-col gap-4">
         {staffAnywhere ? (
           <Link
-            to="/fleet"
+            to="/projects"
             onClick={onNavigate}
-            title={collapsed ? "Back to Fleet" : undefined}
-            data-testid="back-to-fleet"
+            title={collapsed ? "Back to Projects" : undefined}
+            data-testid="back-to-projects"
             className={clsx("flex h-11 items-center gap-2 rounded-control text-[13px] font-medium text-ink-text hover:bg-ink-2/60 hover:text-white", collapsed ? "justify-center px-0" : "px-2")}
           >
             <IconArrowLeft size={16} />
-            <span className={collapsed ? "sr-only" : undefined}>Back to Fleet</span>
+            <span className={collapsed ? "sr-only" : undefined}>Back to Projects</span>
           </Link>
         ) : (
           <ClientBrand agency={agency} collapsed={collapsed} />
         )}
 
-        {siteName ? <SiteSwitcher siteId={siteId} siteName={siteName} sites={switcherSites} collapsed={collapsed} onNavigate={onNavigate} /> : <Skeleton className="h-11 rounded-control bg-ink-2" />}
+        {siteName ? <SiteName siteId={siteId} siteName={siteName} sites={switcherSites} isStaff={staffAnywhere} collapsed={collapsed} onNavigate={onNavigate} /> : <Skeleton className="h-11 rounded-control bg-ink-2" />}
 
         {site ? (
           <NavList items={items} collapsed={collapsed} onNavigate={onNavigate} label={siteName} />
@@ -392,18 +366,6 @@ function SiteSidebarContent({ siteId, collapsed, onNavigate }: SidebarProps & { 
       </div>
 
       <div className="flex flex-col gap-3">
-        {site && !hostingOnly && (
-          <NavLink
-            to={`${root}/visual${pageMatch?.params.slug ? `?page=${encodeURIComponent(pageMatch.params.slug)}` : ""}`}
-            onClick={onNavigate}
-            title={collapsed ? "Edit site visually" : undefined}
-            data-testid="sidebar-edit-visually"
-            className={clsx("flex h-11 items-center justify-center gap-2 rounded-control bg-accent text-[14px] font-semibold text-accent-fg hover:opacity-90", collapsed ? "w-11 self-center" : "w-full")}
-          >
-            <IconPencil size={16} />
-            <span className={collapsed ? "sr-only" : undefined}>Edit site visually</span>
-          </NavLink>
-        )}
         <UserBlock
           name={name}
           line={

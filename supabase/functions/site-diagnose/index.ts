@@ -62,7 +62,7 @@ Deno.serve(
         label: "Your account can edit this site",
         status: "fail",
         detail: error instanceof Error ? error.message : "No access.",
-        fix: "If this is a hosting-only site, the agency connects its repository from Fleet. Otherwise ask the agency to add your account to this site (Team).",
+        fix: "If this is a hosting-only site, the agency connects its repository under Projects. Otherwise ask the agency to add your account to this site (Team).",
       });
       return { ok: true, allPassed: false, checks };
     }

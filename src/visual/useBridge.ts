@@ -70,7 +70,7 @@ export function useBridge(opts: { liveUrl: string | null; siteId: string; handle
         kind: "no_live_url",
         title: "This site has no live address yet",
         message: "The visual editor shows the live website, and this site does not have a live URL on record.",
-        fix: "The agency adds the live URL from Fleet. Until then, the page editor works as usual.",
+        fix: "The agency adds the live URL under Projects. Until then, the page editor works as usual.",
       }
     : !siteOrigin
       ? {
@@ -78,7 +78,7 @@ export function useBridge(opts: { liveUrl: string | null; siteId: string; handle
           kind: "bad_url",
           title: "The site's live address is not a valid URL",
           message: `"${liveUrl}" cannot be opened. It should look like https://www.example.com.`,
-          fix: "The agency can correct it from Fleet.",
+          fix: "The agency can correct it under Projects.",
         }
       : { status: "loading" };
 

@@ -69,6 +69,11 @@ export type MockOptions = {
   fixture?: "demo" | "treetestprep";
   /** The site kit content-get returns; defaults to the demo site's. */
   siteKit?: unknown;
+  /**
+   * More sites next to the main one, for the site switcher: the agency looks after them all,
+   * and a client is a member of them too. Each is the main site with these fields changed.
+   */
+  moreSites?: { id: string; name: string; status?: "connected" | "needs_attention" | "hosting_only" }[];
 };
 
 export type MockState = {
@@ -113,6 +118,9 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
     last_published_at: "2026-09-20T15:00:00Z",
     created_at: "2026-09-01T00:00:00Z",
   };
+
+  const moreSites = (options.moreSites ?? []).map((extra) => ({ ...site, ...extra, status: extra.status ?? "connected" }));
+  const allSites = () => [site, ...moreSites];
 
   const state: MockState = { publishRequests: [], builderPublishRequests: [], contentGets: 0, rows: JSON.parse(JSON.stringify(options.rows ?? {})) as MockState["rows"] };
   // The content "in the repository": a batch publish updates it, as a real one would.
@@ -187,7 +195,7 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, role === "staff" ? [{ role: "owner", agency }] : []);
         case "site_members": {
           // Auth's membership read (no site_id filter) versus the Users screen's table.
-          if (!url.searchParams.has("site_id")) return json(route, role === "client" ? [{ role: "client_owner", site }] : []);
+          if (!url.searchParams.has("site_id")) return json(route, role === "client" ? [{ role: "client_owner", site }, ...moreSites.map((extra) => ({ role: "client_editor", site: extra }))] : []);
           const rows = (state.rows["site_members"] ??= [{ site_id: SITE_ID, user_id: CLIENT_ID, role: "client_owner", created_at: "2026-09-02T09:00:00Z" }]);
           const matches = (row: Record<string, unknown>) => [...url.searchParams].every(([column, filter]) => !filter.startsWith("eq.") || String(row[column]) === filter.slice(3));
           if (request.method() === "PATCH") {
@@ -214,14 +222,16 @@ export async function installMocks(page: Page, options: MockOptions = {}): Promi
           return json(route, [agency]);
         case "profiles":
           return json(route, [{ id: STAFF_ID, email: "dana@agency.example", full_name: "Dana Whitfield", created_at: "2026-09-01T00:00:00Z", last_sign_in_at: new Date(Date.now() - 3600_000).toISOString() }, { id: CLIENT_ID, email: "sam@alderstone.example", full_name: "Sam Alder", created_at: "2026-09-02T00:00:00Z", last_sign_in_at: "2026-09-20T15:00:00Z" }]);
-        case "sites":
-          if (wantsCount) return countOf(1);
+        case "sites": {
+          if (wantsCount) return countOf(allSites().length);
           if (request.method() === "PATCH") {
             const patch = JSON.parse(request.postData() ?? "{}") as Record<string, unknown>;
             (state.rows["sites"] ??= []).push(patch);
             Object.assign(site, patch);
           }
-          return json(route, [site]);
+          const wanted = url.searchParams.get("id");
+          return json(route, wanted?.startsWith("eq.") ? allSites().filter((row) => row.id === wanted.slice(3)) : allSites());
+        }
         case "publishes":
           return json(route, state.rows["publishes"] ?? []);
         case "change_requests":

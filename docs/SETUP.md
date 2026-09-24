@@ -167,7 +167,7 @@ Now go back and finish the two places that needed this address:
    The first value is your agency's name. The second must be **exactly** the email address you signed up with. The third is the portal name your clients will see at the top of every page (if you leave it out, the agency name is used).
 
 6. Press **Run**. The result is one long id. That is your agency.
-7. Reload the dashboard. You now land on **Fleet**, and **Settings** in the sidebar lets you set the portal name, logo and accent colour.
+7. Reload the dashboard. You now land on **Projects**, and **Settings** in the sidebar lets you set the portal name, logo and accent colour.
 
 If step 6 says "No account with the email …", the address you typed does not match the one you signed up with (check for typos; capital letters do not matter), or you have not yet pressed **Create account** in step 2.
 
@@ -179,7 +179,7 @@ The site's developer must first make the repository follow the site contract: `c
 
 ### F1. Install the GitHub App on the site's repository
 
-1. In the dashboard, press **Fleet**, then **Add a site**.
+1. In the dashboard, press **Projects**, then **Add a site**.
 2. Press **Install the GitHub App**. GitHub opens.
 3. If you belong to several GitHub accounts or organisations, GitHub asks where to install. Choose the account that **owns the site's repository** (the person doing this step must be signed in to the dashboard as agency staff AND have the right to install apps on that GitHub organisation, normally as one of its owners. If you are a member but not an owner, GitHub records an install *request* and the dashboard says it is waiting for an owner to approve it; once they have, start again from **Add a site**. A client account cannot do this step: the dashboard only links installations for agency staff.)
 4. Choose **Only select repositories**, pick the site's repository, and press **Install**.
@@ -224,11 +224,11 @@ If the email address already has an account (for example a client who edits anot
 
 ### F6. Hosting-only clients, and what you charge
 
-Some clients you only host, or you look after their domain and email, and their site is not edited here. You can still keep them in Fleet.
+Some clients you only host, or you look after their domain and email, and their site is not edited here. You can still keep them under Projects.
 
-1. Press **Fleet**, then **Add a site**, then **Add a hosting-only client**. Enter the site name and its live address and press **Add client**. The site appears in Fleet with the status **Hosting only**; there are no pages to edit until a repository is connected, and the dashboard says so wherever a page would be.
+1. Press **Projects**, then **Add a site**, then **Add a hosting-only client**. Enter the site name and its live address and press **Add client**. The site appears under Projects with the status **Hosting only**; there are no pages to edit until a repository is connected, and the dashboard says so wherever a page would be.
 2. On any site's overview, the **Hosting & services** panel records what you charge: hosting (provider, yearly fee, start and renewal dates), the domain (name, registrar, who owns the account, fee and renewal), email (provider, number of mailboxes, a flat yearly amount or a price per mailbox, who manages it), automatic emails (the provider the website sends form notifications through, and the address they come from), the date the client accepted your agreement, and notes. Press **Edit**, type amounts in dollars, and watch the yearly total update as you go, for example "$200 hosting + 4 mailboxes × $30 = $320 / year".
-3. Fleet totals it up: **Yearly billing** across every site, **Renewals, next 30 days**, and per site the yearly total and the next renewal, marked amber when it is within 30 days and red when it has passed. Sort the table by name, yearly total or next renewal, or search it.
+3. Projects totals it up: **Yearly billing** across every site, **Renewals, next 30 days**, and per site the yearly total and the next renewal, marked amber when it is within 30 days and red when it has passed. Sort the table by name, yearly total or next renewal, or search it.
 4. When a hosting-only client's site is ready to be edited here, open it and press **Connect repository**. The same checklist runs as for a new site, and the site keeps its name, services and members.
 
 Clients never see this panel or any price: the database refuses them access to it outright.
@@ -239,12 +239,12 @@ The migration for this is `supabase/migrations/20260922000100_hosting_and_servic
 
 ## Part F7 — Turn on visual editing for a site
 
-The visual editor ("Edit site visually") shows the live website inside the dashboard. A site supports it once its developer has done two things, described in full in [SITE_CONTRACT.md](SITE_CONTRACT.md) under "Site contract v1.1":
+The visual editor (from **Pages**) shows the live website inside the dashboard. A site supports it once its developer has done two things, described in full in [SITE_CONTRACT.md](SITE_CONTRACT.md) under "Site contract v1.1":
 
 1. Copied `bridge/armature-bridge.ts` from this repository into the site and read every editable value through it, with the dashboard's address in `allowedOrigins` (for example `https://armature-sites.netlify.app`, exactly as it appears in the browser, no trailing slash).
 2. Made the site allow the dashboard to frame it: no `X-Frame-Options`, and a `Content-Security-Policy` header with `frame-ancestors 'self' https://armature-sites.netlify.app`.
 
-Then open the site in the dashboard and press **Edit site visually**. If the editor says "This site isn't set up for visual editing yet", the site has no bridge or the wrong origin in its allowlist; if it says the site refuses to be shown, it prints the exact header to add. Either way the page editor keeps working. A site that never adds the bridge simply keeps the form editor.
+Then open the site in the dashboard, press **Pages** and choose a page (Pages is the one way into the editor). If the editor says "This site isn't set up for visual editing yet", the site has no bridge or the wrong origin in its allowlist; if it says the site refuses to be shown, it prints the exact header to add. Either way the page editor keeps working. A site that never adds the bridge simply keeps the form editor.
 
 For the page builder (dragging widgets, styling, new pages), the site copies the `kit/` folder instead of the single bridge file and follows "Site contract v2" in [SITE_CONTRACT.md](SITE_CONTRACT.md). A site still on the bridge shows agency staff the note "This site uses an older kit version" inside the editor, with the steps.
 

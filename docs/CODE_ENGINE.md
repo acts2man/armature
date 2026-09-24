@@ -222,7 +222,7 @@ firewall allowing GitHub, the npm registry and the site's own services).
 
 ## The plan: making this Armature's main engine
 
-**What is reused as is.** The WordPress-style dashboard (Fleet, site overview, Pages, Media,
+**What is reused as is.** The WordPress-style dashboard (Projects, site overview, Pages, Media,
 Contact, Appearance, Users, Site settings), authentication and roles, the GitHub App
 connection and its publish path (`ContentRepo`, one commit, non-forced ref update, the
 `publishes` history), change requests, the editor's chrome (top bar, left panel, canvas,

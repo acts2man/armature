@@ -41,7 +41,7 @@ export function IconRail({ siteId, isStaff }: { siteId: string; isStaff: boolean
       </div>
       <div className="flex flex-col gap-1">
         {isStaff && (
-          <RailLink to="/fleet" label="All sites">
+          <RailLink to="/projects" label="All sites">
             <IconGlobe size={20} />
           </RailLink>
         )}

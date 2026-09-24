@@ -50,7 +50,7 @@ function renderApp(path: string) {
             element: <RequirePasswordChosen />,
             children: [
               { path: "/", element: <h1>Home screen</h1> },
-              { path: "/fleet", element: <h1>Fleet screen</h1> },
+              { path: "/projects", element: <h1>Projects screen</h1> },
               { path: "/sites/:siteId/pages", element: <h1>Pages screen</h1> },
             ],
           },
@@ -72,7 +72,7 @@ describe("passwordGateRedirect", () => {
   it("sends a flagged account to the password screen from anywhere else", () => {
     const user = flagged(true);
     expect(mustChangePassword(user)).toBe(true);
-    for (const path of ["/", "/fleet", "/sites/abc/pages/home", "/agency/settings"]) {
+    for (const path of ["/", "/projects", "/sites/abc/pages/home", "/agency/settings"]) {
       expect(passwordGateRedirect(user, path)).toBe(CHOOSE_PASSWORD_PATH);
     }
     expect(passwordGateRedirect(user, CHOOSE_PASSWORD_PATH)).toBeNull();
@@ -80,7 +80,7 @@ describe("passwordGateRedirect", () => {
 
   it("keeps everyone else where they are, and off the password screen", () => {
     for (const user of [flagged(false), null, { app_metadata: {} }]) {
-      expect(passwordGateRedirect(user, "/fleet")).toBeNull();
+      expect(passwordGateRedirect(user, "/projects")).toBeNull();
       expect(passwordGateRedirect(user, CHOOSE_PASSWORD_PATH)).toBe("/");
     }
   });
@@ -89,11 +89,11 @@ describe("passwordGateRedirect", () => {
 describe("the forced password screen", () => {
   it("blocks every other screen until the person has chosen a password, then lets them through", async () => {
     fakeAuth.user = flagged(true);
-    const router = renderApp("/fleet");
+    const router = renderApp("/projects");
 
-    // Landed on the password screen instead of the fleet, branded with the portal name only.
+    // Landed on the password screen instead of Projects, branded with the portal name only.
     expect(await screen.findByRole("heading", { name: "Choose your password" })).toBeTruthy();
-    expect(screen.queryByText("Fleet screen")).toBeNull();
+    expect(screen.queryByText("Projects screen")).toBeNull();
     expect(router.state.location.pathname).toBe(CHOOSE_PASSWORD_PATH);
     expect(screen.getByText("Acme Client Portal")).toBeTruthy();
     expect(document.body.textContent).not.toContain("Armature");
@@ -131,8 +131,8 @@ describe("the forced password screen", () => {
 
   it("does not get in the way of an account that never had the flag", async () => {
     fakeAuth.user = flagged(false);
-    renderApp("/fleet");
-    expect(await screen.findByText("Fleet screen")).toBeTruthy();
+    renderApp("/projects");
+    expect(await screen.findByText("Projects screen")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Choose your password" })).toBeNull();
   });
 });

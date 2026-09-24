@@ -168,7 +168,7 @@ export const CHANGE_REQUEST_STATUS_LABELS: Record<ChangeRequestStatus, string> =
   declined: "Declined",
 };
 
-/** Statuses that count as "open" on the fleet and home screens. */
+/** Statuses that count as "open" on the Projects and home screens. */
 export const OPEN_CHANGE_REQUEST_STATUSES: ChangeRequestStatus[] = ["new", "in_progress", "ready_for_review"];
 
 export const SITE_ROLE_LABELS: Record<SiteRole, string> = {

@@ -80,7 +80,7 @@ function HostingOnlyForm({ agencyId }: { agencyId: string }) {
       return (data as { id: string }).id;
     },
     onSuccess: async (siteId) => {
-      await queryClient.invalidateQueries({ queryKey: ["fleet"] });
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
       navigate(`/sites/${siteId}`);
     },
   });
@@ -174,7 +174,7 @@ function ConnectRepository({ agencyId, agencies, upgrade, onAgencyChange }: { ag
     },
     onSuccess: (result) => {
       if (result.site) {
-        void queryClient.invalidateQueries({ queryKey: ["fleet"] });
+        void queryClient.invalidateQueries({ queryKey: ["projects"] });
         void queryClient.invalidateQueries({ queryKey: ["site", result.site.id] });
       }
     },
@@ -418,7 +418,7 @@ export function AddSite() {
     const site = upgrade.data ?? null;
     if (upgrade.isError || !site) {
       return (
-        <Notice kind="warning" title="That site could not be found" action={<LinkButton to="/fleet" variant="secondary" size="sm">Back to Fleet</LinkButton>}>
+        <Notice kind="warning" title="That site could not be found" action={<LinkButton to="/projects" variant="secondary" size="sm">Back to Projects</LinkButton>}>
           {upgrade.isError ? upgrade.error.message : "It may have been removed, or it belongs to another agency."}
         </Notice>
       );

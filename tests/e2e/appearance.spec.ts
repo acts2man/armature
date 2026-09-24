@@ -42,10 +42,13 @@ test("Menus: create a menu, add pages and a link, nest one, publish into the kit
   await skipTours(page);
   await page.goto(`/sites/${SITE_ID}/appearance/menus`);
   await expect(page.getByText("No menus yet")).toBeVisible();
+  // The true state: the header is still coded, so no menu can show yet.
+  await expect(page.getByTestId("menus-state")).toContainText("The header is still coded");
   await page.getByTestId("menu-create").click();
   await page.getByTestId("menu-name").fill("Main menu");
   await page.getByTestId("menu-name-save").click();
   await expect(page.getByTestId("menu-select")).toHaveValue(/./);
+  await expect(page.getByTestId("menu-usage")).toHaveText("Not shown anywhere yet");
 
   await page.getByTestId("item-add").click();
   await page.getByTestId("item-page").selectOption("home");
@@ -113,6 +116,12 @@ test("Header: build it in the editor with a Site Logo and a Nav Menu, publish, a
   // Appearance › Header now says it is built, with a way back to the coded header.
   await page.goto(`/sites/${SITE_ID}/appearance/header`);
   await expect(page.getByTestId("part-header")).toContainText("builder part");
+  // The true state, read from the file: three elements, a Nav Menu with nothing to show yet.
+  await expect(page.getByTestId("part-header-state")).toContainText("It holds 3 elements. Its Nav Menu has no menu to show yet: create one under Menus, then pick it in the editor.");
+  await page.goto(`/sites/${SITE_ID}/appearance/footer`);
+  await expect(page.getByTestId("part-footer")).toContainText("still part of the site's code");
+  await expect(page.getByTestId("part-footer-state")).toContainText("The header is already built in the editor.");
+  await page.goto(`/sites/${SITE_ID}/appearance/header`);
   await expect(page.getByTestId("edit-header")).toHaveAttribute("href", `/sites/${SITE_ID}/visual?page=home&part=header`);
   await page.getByTestId("remove-header").click();
   await page.getByTestId("remove-header-confirm").click();

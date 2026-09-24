@@ -21,7 +21,7 @@ Deno.serve(
     const caller = await resolveCaller(req, env);
     const site = await loadAccessibleSite(caller.supabase, siteId);
     if (!site.live_url) {
-      throw new ArmatureError("invalid", `${site.name} has no live URL yet, so there is nothing to show in the visual editor. The agency can add one from Fleet.`);
+      throw new ArmatureError("invalid", `${site.name} has no live URL yet, so there is nothing to show in the visual editor. The agency can add one under Projects.`);
     }
     return await checkEmbed(site.live_url);
   }),

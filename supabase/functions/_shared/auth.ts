@@ -135,7 +135,7 @@ export function requireConnectedSite(site: SiteRow): ConnectedSiteRow {
   if (site.status === "hosting_only" || !site.repo_owner || !site.repo_name || !site.branch || site.github_installation_id === null) {
     throw new ArmatureError(
       "invalid",
-      `${site.name} is a hosting-only site: no repository is connected yet, so there are no pages to edit or publish. The agency can connect one from Fleet.`,
+      `${site.name} is a hosting-only site: no repository is connected yet, so there are no pages to edit or publish. The agency can connect one under Projects.`,
     );
   }
   return site as ConnectedSiteRow;

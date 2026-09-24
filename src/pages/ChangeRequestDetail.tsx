@@ -1,5 +1,5 @@
 /**
- * One change request, laid out like the fleet screen's request panel: what the
+ * One change request, laid out like the Projects screen's request panel: what the
  * client asked for, the screenshots they attached, the progress so far, and the
  * agency's status and note. Agency staff edit the status and note; clients read.
  */

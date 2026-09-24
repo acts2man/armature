@@ -82,7 +82,7 @@ export function GithubSetup() {
         title="Only agency staff can link a GitHub installation"
         action={
           <LinkButton to="/" variant="secondary">
-            Go home
+            Back to your dashboard
           </LinkButton>
         }
       >
@@ -91,7 +91,7 @@ export function GithubSetup() {
     );
   } else if (!installationId) {
     content = (
-      <Notice kind="warning" title="GitHub did not send back an installation id. Start again from Fleet → Add a site." action={addSiteLink("Add a site")}>
+      <Notice kind="warning" title="GitHub did not send back an installation id. Start again from Projects → Add a site." action={addSiteLink("Add a site")}>
         {setupAction === "request"
           ? "GitHub reports that the installation was requested and is waiting for an owner of your GitHub organisation to approve it. Once they have, start again from Add a site."
           : "This can happen when the page is opened directly rather than from GitHub's redirect."}

@@ -146,7 +146,7 @@ export async function runRepoChecks(input: RepoCheckInput): Promise<RepoCheckRes
     fail(
       "installation-linked",
       `Installation #${installation.id} is not linked to your agency`,
-      `Go to Fleet → Add a site → "Install the GitHub App" and finish the installation from this dashboard, so it is recorded for your agency. If the App was installed directly on GitHub, open it there and press "Configure": GitHub will send you back here to finish linking.`,
+      `Go to Projects → Add a site → "Install the GitHub App" and finish the installation from this dashboard, so it is recorded for your agency. If the App was installed directly on GitHub, open it there and press "Configure": GitHub will send you back here to finish linking.`,
     );
     return finish({ installation });
   }

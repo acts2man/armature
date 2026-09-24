@@ -77,7 +77,11 @@ nothing, never scrolls sideways, and never shows the word "Armature" to a client
 | Screen | Status | Covered by |
 | --- | --- | --- |
 | Sign in with password or magic link; password rules; the first-password gate | Works (rules and gate unit-tested; the sign-in screen itself is not driven by Playwright because Supabase auth is mocked) | `passwordGate.test.tsx`, `passwordRules.test.ts`, `loginMessage.test.ts` |
-| Fleet: sites, billing totals, renewals, open requests, search | Works | `screens.spec.ts`; `services.test.ts` (totals and renewals) |
+| Projects (called Fleet until 2026-09-24; `/fleet` redirects): sites, billing totals, renewals, open requests, search | Works | `screens.spec.ts`; `sidebar.spec.ts` "the old /fleet address lands on Projects"; `services.test.ts` (totals and renewals) |
+| The site switcher in the site menu: a real menu with search, keyboard, Escape and outside click, landing on the same section of the chosen site | **Fixed** (was a native `<select>` that always landed on the Dashboard) | `sidebar.spec.ts` "the site switcher is a real menu"; `siteSwitch.test.ts` |
+| Pages is the one way into the editor: no "Edit site visually" in the menu, no "Edit your site" on the dashboard | **Fixed** | `sidebar.spec.ts`; `dashboard.spec.ts` |
+| Pages table: Type from the layout's real content (a builder-native page no longer reads "Coded"), "By" is the person's name, row actions always in view, nothing clipped, stacked cards at 390px | **Fixed** | `pages.spec.ts`; `pageRows.test.ts`; `screens.spec.ts` |
+| Appearance › Header / Footer / Menus and the editor's coded-part note say what the files hold (which part is built, what it holds, which menu it shows, where each menu is shown) | **Fixed** (the note read "still coded" even once the header was built) | `appearance.spec.ts`; `navigation.spec.ts` "once the header is built"; `chromeState.test.ts`; `pages.test.ts` (the note) |
 | Add a site: GitHub App install, repository check, hosting-only client | Works | `screens.spec.ts`; Deno `siteChecks.test.ts`, `githubApp.test.ts` |
 | Site overview: attention list, recent publishes, hosting & services, client editing level, site health | Works | `builder.spec.ts` "agency staff set what clients may do"; `screens.spec.ts` |
 | Pages: every page with "Edit fields" and "Edit visually", connection line, the warning box | **Fixed** (per-page "Edit visually"; the Header & footer card no longer offers a visual edit that lands on Home; builder-only pages are listed too) | `navigation.spec.ts`; `problems.spec.ts`; `real-site.spec.ts` |
@@ -101,13 +105,14 @@ nothing, never scrolls sideways, and never shows the word "Armature" to a client
 - **Both Team pages' agency-staff lists logged a React "unique key" warning** when a row had no
   user id (the mocks send none). Fixed: the row key falls back to its position. (`screens.spec.ts`
   now fails on any console error.)
-- **A client who types the site's /team address** sees only "Only agency staff manage who has
-  access to a site." (no heading, no link). Harmless: the client sidebar never links there.
-  Worth a proper heading and a "Back to your dashboard" link in the next dashboard job.
-- **The not-found screen has no `h1`** (its title is an empty-state heading). Cosmetic; noted
-  for the next dashboard job.
+- **A client who opens an agency-only address** (the site's Users or Site settings, or
+  `/github/setup`) now gets a proper page: an `h1`, a line saying the agency looks after it,
+  and a "Back to your dashboard" link. Fixed (`sidebar.spec.ts` "clients"; `screens.spec.ts`
+  crawls `/github/setup` and `/fleet` as a client).
+- **The not-found screen has an `h1`** ("Page not found"). Fixed (`sidebar.spec.ts` "an
+  unknown site address keeps the site's menu").
 - **Sidebar "N sites connected" and the Settings "looks after N sites" read 0 in the mocked
-  crawl** while Fleet counts 1. The count is a `HEAD … count=exact` request the mocks answer
+  crawl** while Projects counts 1. The count is a `HEAD … count=exact` request the mocks answer
   without a body; the real Supabase answers it correctly. Not a product bug.
 - **"Add a site" shows "No mock for github-setup" in the crawl.** The mocks do not implement
   that function; the screen's own error handling is what you see, which is the point.

@@ -1,5 +1,5 @@
 /**
- * The site Dashboard, WordPress-style: a welcome line, "Edit your site" shortcuts, the newest
+ * The site Dashboard, WordPress-style: a welcome line, "Edit your site" shortcuts (Pages is the one way into the editor), the newest
  * messages with an unread count, recent publishes and open change requests, for a client and
  * for agency staff.
  */
@@ -20,9 +20,10 @@ test("a client sees a greeting, shortcuts, two unread messages, publishes and no
   await page.goto(`/sites/${SITE_ID}`);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Sam");
   await expect(page.getByText("Here is how Alder & Stone Custom Homes is doing.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Edit your site" })).toHaveAttribute("href", `/sites/${SITE_ID}/visual`);
+  // Pages is the one way into the editor: no "Edit your site" button, and "Edit a page" leads to Pages.
+  expect(await page.getByRole("link", { name: "Edit your site" }).count()).toBe(0);
   const shortcuts = page.getByTestId("shortcuts");
-  await expect(shortcuts.getByTestId("shortcut-edit")).toHaveAttribute("href", `/sites/${SITE_ID}/visual`);
+  await expect(shortcuts.getByTestId("shortcut-edit")).toHaveAttribute("href", `/sites/${SITE_ID}/pages`);
   await expect(shortcuts.getByTestId("shortcut-pages")).toHaveAttribute("href", `/sites/${SITE_ID}/pages`);
   // Request a change lives on the dashboard (and under Requests in the menu), not in the editor.
   const requestCard = page.getByTestId("request-card");

@@ -56,7 +56,7 @@ Deno.serve(
       if (!Number.isInteger(installationId) || installationId <= 0) {
         throw new ArmatureError(
           "invalid",
-          "GitHub did not send an installation id back. Start again from Fleet → Add a site → Install the GitHub App.",
+          "GitHub did not send an installation id back. Start again from Projects → Add a site → Install the GitHub App.",
         );
       }
 

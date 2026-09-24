@@ -34,12 +34,23 @@ export function normalizePath(path: string): string {
 
 /** A field of the hand-coded header or footer: the shared page, or a section named for the chrome. Its words still edit; its layout is the site's code. */
 export function isChromeField(schema: SiteSchema, path: string): boolean {
+  return chromePartOf(schema, path) !== null;
+}
+
+/**
+ * Which coded part a field belongs to: "header" for the shared page's header or
+ * navigation section, "footer" for its footer section, "chrome" for anything else on the
+ * shared page, null for a field on an ordinary page.
+ */
+export function chromePartOf(schema: SiteSchema, path: string): "header" | "footer" | "chrome" | null {
   const parsed = parseFieldPath(path);
-  if (!parsed) return false;
-  if (parsed.slug === SHARED_SLUG) return true;
+  if (!parsed) return null;
   const page = schema.pages.find((item) => item.slug === parsed.slug);
   const section = page?.sections.find((item) => item.key === parsed.section);
-  return !!section && /^(header|footer|nav|navigation|site-header|site-footer)$/.test(section.key);
+  const key = section?.key ?? parsed.section;
+  if (/^(header|nav|navigation|site-header)$/.test(key)) return "header";
+  if (/^(footer|site-footer)$/.test(key)) return "footer";
+  return parsed.slug === SHARED_SLUG ? "chrome" : null;
 }
 
 /** Pages that can be opened on the canvas: everything but the shared header/footer page. */
@@ -115,4 +126,26 @@ export function clearNewPageHandoff(siteId: string): void {
   } catch {
     // Nothing to clear.
   }
+}
+
+/** Which of the header and footer are built in the editor (content/layouts/_header.json, _footer.json). */
+export type BuiltParts = { header: boolean; footer: boolean };
+
+/**
+ * The note above a coded header or footer field: what the site really does with that
+ * part today. When the part has been built in the editor the coded one no longer shows,
+ * so the field is kept for the fallback and the person is pointed at Appearance.
+ */
+export function chromeNote(part: "header" | "footer" | "chrome", built: BuiltParts, isStaff: boolean): string {
+  const builtHere = part === "header" ? built.header : part === "footer" ? built.footer : false;
+  if (builtHere) {
+    return isStaff
+      ? `The ${part} is built in the editor now, so this coded ${part} no longer shows on the site; it stays as the fallback. Edit the live ${part} under Appearance › ${part === "header" ? "Header" : "Footer"}.`
+      : `The ${part} is built in the editor now, so this coded ${part} no longer shows on the site. Change the ${part} under Appearance › ${part === "header" ? "Header" : "Footer"}.`;
+  }
+  if (part !== "chrome" && (built.header || built.footer)) {
+    const other = part === "header" ? "footer" : "header";
+    return isStaff ? `The ${part} is still coded (the ${other} is built in the editor). It becomes fully editable once converted to a builder part.` : `The ${part} is part of the site's code (the ${other} is built in the editor). Your agency can make it editable.`;
+  }
+  return isStaff ? "The header and footer are still coded. They become fully editable once converted to builder parts." : "The header and footer are part of the site's code. Your agency can make them editable.";
 }

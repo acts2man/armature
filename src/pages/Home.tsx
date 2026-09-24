@@ -1,5 +1,5 @@
 /**
- * "/" — the landing screen inside the shell. Staff go to the fleet, a client
+ * "/" — the landing screen inside the shell. Staff go to Projects, a client
  * with one site goes straight to it, a client with several picks one here, and a
  * client with none is told exactly what to do next.
  */
@@ -27,7 +27,7 @@ export function Home() {
     // The shell already shows the error itself, with a retry; this keeps the screen honest.
     return <Notice kind="info">Your sites will be listed here once your account's access has loaded.</Notice>;
   }
-  if (isStaff) return <Navigate to="/fleet" replace />;
+  if (isStaff) return <Navigate to="/projects" replace />;
 
   const only = sites[0];
   if (sites.length === 1 && only) return <Navigate to={`/sites/${only.site.id}`} replace />;

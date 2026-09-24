@@ -81,8 +81,8 @@ export function SiteLayout() {
         kind="warning"
         title="This site is not available to your account"
         action={
-          <LinkButton to={staffAnywhere ? "/fleet" : "/"} variant="secondary">
-            {staffAnywhere ? "Back to Fleet" : "Go home"}
+          <LinkButton to={staffAnywhere ? "/projects" : "/"} variant="secondary">
+            {staffAnywhere ? "Back to Projects" : "Go home"}
           </LinkButton>
         }
       >
