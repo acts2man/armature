@@ -22,7 +22,7 @@ export type Profile = {
   email: string | null;
   full_name: string | null;
   created_at: string;
-  /** When the person last signed in (migration 20260923000200; null or missing before it is applied). */
+  /** When the person last signed in (migration 20260923000300; null or missing before it is applied). */
   last_sign_in_at?: string | null;
 };
 

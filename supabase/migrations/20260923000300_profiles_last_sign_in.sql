@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Armature — "Last login" on the Users screen.
 --
--- Apply after 20260923000100_forms.sql (docs/SETUP.md, part A).
+-- Apply after 20260923000200_page_builder.sql (docs/SETUP.md, part A).
 --
 -- profiles.last_sign_in_at mirrors auth.users.last_sign_in_at, kept in step by a trigger,
 -- so the dashboard (which reads profiles under RLS) can show when a person last signed in

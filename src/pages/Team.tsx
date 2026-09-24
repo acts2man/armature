@@ -539,7 +539,7 @@ export function Team() {
       <div className="rounded-card border border-line bg-panel">{body}</div>
       {isStaff && (
         <p className="text-[13px] text-muted">
-          Roles in plain words: an <strong>owner</strong> edits, publishes and manages the site's people; an <strong>editor</strong> edits and publishes. Agency staff always have access. Last login shows once the site's database has migration 20260923000200.
+          Roles in plain words: an <strong>owner</strong> edits, publishes and manages the site's people; an <strong>editor</strong> edits and publishes. Agency staff always have access. Last login shows once the site's database has migration 20260923000300.
         </p>
       )}
 

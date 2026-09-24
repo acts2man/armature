@@ -45,7 +45,7 @@ A migration is a text file of database instructions. You paste each one into the
 4. In Supabase, press **SQL Editor** in the left sidebar, then **New query** (or the **+** button).
 5. Paste, then press **Run** (bottom right, or Ctrl/Cmd+Enter).
 6. Wait for the message **Success. No rows returned**. If you see an error instead, read Part G below; the usual cause is running the same file twice.
-7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then `20260922000100_hosting_and_services.sql`, then `20260923000100_forms.sql`, then `20260923000200_page_builder.sql`.
+7. Repeat steps 2 to 6 for `20260921000200_armature_storage.sql`, then `20260922000100_hosting_and_services.sql`, then `20260923000100_forms.sql`, then `20260923000200_page_builder.sql`, then `20260923000300_profiles_last_sign_in.sql`.
 
 To confirm: press **Table Editor** in the left sidebar. You should see tables named `agencies`, `sites`, `publishes`, `change_requests` and a few more.
 

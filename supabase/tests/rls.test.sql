@@ -552,7 +552,7 @@ do $$ begin
 end $$;
 reset role;
 
--- Last login (migration 20260923000200): a sign-in on auth.users reaches the profile.
+-- Last login (migration 20260923000300): a sign-in on auth.users reaches the profile.
 update auth.users set last_sign_in_at = '2026-09-23T10:00:00Z' where id = (select id from public.profiles order by email limit 1);
 do $$ begin
   assert (select count(*) from public.profiles where last_sign_in_at = '2026-09-23T10:00:00Z') = 1, 'profiles.last_sign_in_at follows auth.users.last_sign_in_at';
