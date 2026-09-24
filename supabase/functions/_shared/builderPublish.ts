@@ -13,8 +13,10 @@
  */
 import type { BatchPageUpdate, BuilderPublishResponse, EditingLevel, MediaMeta, MediaUpload, PageCopy, TrashAction } from "../../../shared/publishTypes.ts";
 import { defaultSiteKit } from "../../../kit/defaults.ts";
-import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
+import type { LayoutDoc, PostDoc, PostIndex, PostIndexEntry, SiteKit } from "../../../kit/types.ts";
 import { robotsTxt, sitemapXml, type SitemapEntry } from "../../../kit/seo.ts";
+import { rssXml } from "../../../kit/rss.ts";
+import { checkPost } from "../../../kit/validate.ts";
 import { mergeLayouts, mergeValues, stableJson, type MergeConflict, type Resolution } from "../../../shared/builder/merge.ts";
 import { kitPermissionErrors, layoutPermissionErrors, type Permissions } from "../../../shared/builder/permissions.ts";
 import { checkLayout, checkSiteKit, describeProblem, isLayoutSlug, LAYOUT_LIMITS, MEDIA_META_PATH, PAGE_SLUG_PATTERN, SITE_KIT_PATH, layoutBytes, layoutPath, serializeBuilderFile, trashPath, type Problem } from "../../../shared/builder/schema.ts";
@@ -37,7 +39,43 @@ export type BuilderPublishInput = {
   copies?: Record<string, PageCopy>;
   uploads?: MediaUpload[];
   deleteAssets?: string[];
+  /** Post files to write, keyed by slug. A value of null deletes the post. */
+  posts?: Record<string, unknown | null>;
 };
+
+const POSTS_DIR = "content/posts";
+const POST_INDEX_PATH = `${POSTS_DIR}/index.json`;
+const postPath = (slug: string) => `${POSTS_DIR}/${slug}.json`;
+const POST_SLUG_PATTERN_LOCAL = /^[a-z0-9][a-z0-9-]{0,80}$/;
+
+/** Read every post file in the repo at `ref`, sorted newest first for the index. */
+async function readAllPostsAt(repo: ContentRepo, ref: string): Promise<PostDoc[]> {
+  const list = await repo.listTree(POSTS_DIR, ref);
+  const out: PostDoc[] = [];
+  for (const entry of list) {
+    const slug = entry.path.replace(/^content\/posts\//, "").replace(/\.json$/, "");
+    if (slug === "index" || !POST_SLUG_PATTERN_LOCAL.test(slug)) continue;
+    const raw = await readJson(repo, entry.path, ref);
+    const report = checkPost(raw);
+    if (report.value) out.push(report.value);
+  }
+  return out;
+}
+
+/** Turn a post into its index entry. */
+function toIndexEntry(post: PostDoc): PostIndexEntry {
+  return {
+    slug: post.slug,
+    path: post.path,
+    title: post.settings.title,
+    excerpt: post.settings.excerpt ?? "",
+    coverImage: post.settings.coverImage ?? null,
+    authorName: post.settings.authorName ?? "",
+    publishedAt: post.settings.publishedAt ?? "",
+    categories: post.settings.categories ?? [],
+    tags: post.settings.tags ?? [],
+  };
+}
 
 const UPLOADS = { dir: "public/assets/uploads", url: "/assets/uploads" };
 const DATA_IMAGE = /^data:image\/(png|jpeg|webp|gif);base64,([A-Za-z0-9+/=\s]+)$/i;
@@ -460,6 +498,68 @@ export async function runBuilderPublish(opts: {
     }
   }
 
+  // --- posts (the blog) ------------------------------------------------------
+  // A post is a layout file with kind: "post". `input.posts` is a slug → cleaned
+  // post document (or null to delete). Whenever any post changes we regenerate
+  // content/posts/index.json and public/rss.xml so the site's list, individual
+  // post pages and RSS feed stay in step. Scheduled posts (a future publishedAt)
+  // sit in the repo and the site filters them out at render time.
+  const writtenPosts: string[] = [];
+  const finalPosts = new Map<string, PostDoc | null>();
+  if (input.posts) {
+    for (const [slug, raw] of Object.entries(input.posts)) {
+      if (!POST_SLUG_PATTERN_LOCAL.test(slug)) {
+        errors.push(`"${slug.slice(0, 60)}" is not a valid post name`);
+        continue;
+      }
+      if (raw === null) {
+        finalPosts.set(slug, null);
+        continue;
+      }
+      const withUploads = await extractUploads(raw, `post:${slug}`, uploads, errors);
+      const report = checkPost(withUploads);
+      if (!report.value) {
+        errors.push(...report.problems.map((problem) => describeProblem(problem, `posts/${slug}.json`)));
+        continue;
+      }
+      if (report.value.slug !== slug) {
+        errors.push(`posts/${slug}.json: its slug says "${report.value.slug}"`);
+        continue;
+      }
+      finalPosts.set(slug, report.value);
+    }
+    // Write the changed post files.
+    for (const [slug, post] of finalPosts) {
+      if (post === null) {
+        files.push({ path: postPath(slug), content: "", encoding: "utf-8", delete: true });
+      } else {
+        files.push({ path: postPath(slug), content: serializeBuilderFile(post), encoding: "utf-8" });
+      }
+      writtenPosts.push(slug);
+      labels.push(post ? `post: ${post.settings.title}` : `post: ${slug} (deleted)`);
+    }
+  }
+  // If any post changed, regenerate the index and rss.xml. Both are computed from what
+  // the repo would look like after this commit (existing posts, minus deleted, plus new).
+  let kitForFeeds: SiteKit | null = null;
+  if (finalPosts.size > 0) {
+    kitForFeeds = kitWritten
+      ? (checkSiteKit(JSON.parse(files.find((file) => file.path === SITE_KIT_PATH)?.content ?? "null") ?? {}).value ?? null)
+      : (checkSiteKit(await readJson(repo, SITE_KIT_PATH, head)).value ?? null);
+    const existing = await readAllPostsAt(repo, head);
+    const bySlug = new Map<string, PostDoc>();
+    for (const post of existing) bySlug.set(post.slug, post);
+    for (const [slug, post] of finalPosts) {
+      if (post === null) bySlug.delete(slug);
+      else bySlug.set(slug, post);
+    }
+    const entries = Array.from(bySlug.values()).map(toIndexEntry).sort((a, b) => (b.publishedAt || "").localeCompare(a.publishedAt || ""));
+    const nextIndex: PostIndex = { version: 1, posts: entries };
+    files.push({ path: POST_INDEX_PATH, content: serializeBuilderFile(nextIndex), encoding: "utf-8" });
+    const nextRss = rssXml(kitForFeeds, entries);
+    files.push({ path: "public/rss.xml", content: nextRss, encoding: "utf-8" });
+  }
+
   if (errors.length > 0) throw new ArmatureError(errors.some((error) => /your account|managed by the agency|only the agency|is locked/i.test(error)) ? "forbidden" : "invalid", Array.from(new Set(errors)).join("\n"));
   if (conflicts.length > 0) {
     throw new ArmatureError(
@@ -495,10 +595,10 @@ export async function runBuilderPublish(opts: {
   const sitemapEntries: SitemapEntry[] = Array.from(sitemapPaths.values()).sort((a, b) => a.path.localeCompare(b.path));
   // Read the kit that will actually be committed (either the freshly written one, or the
   // committed one when nothing about the kit changed in this publish) so the sitemap URL
-  // comes from siteSeo.siteUrl.
-  const kitForSeo: SiteKit | null = kitWritten
+  // comes from siteSeo.siteUrl. Reuses kitForFeeds if it was already computed above.
+  const kitForSeo: SiteKit | null = kitForFeeds ?? (kitWritten
     ? (checkSiteKit(JSON.parse(files.find((file) => file.path === SITE_KIT_PATH)?.content ?? "null") ?? {}).value ?? null)
-    : (checkSiteKit(await readJson(repo, SITE_KIT_PATH, head)).value ?? null);
+    : (checkSiteKit(await readJson(repo, SITE_KIT_PATH, head)).value ?? null));
   const siteUrl = kitForSeo?.seo?.siteUrl ?? "";
   const nextSitemap = sitemapXml(siteUrl, sitemapEntries);
   const nextRobots = robotsTxt(siteUrl, kitForSeo?.seo?.robotsExtras);
@@ -524,6 +624,7 @@ export async function runBuilderPublish(opts: {
     kit: kitWritten,
     media: mediaWritten,
     merged: moved,
+    posts: writtenPosts,
   };
 }
 
@@ -546,6 +647,9 @@ export function parseBuilderPublishRequest(raw: Record<string, unknown>): Builde
   }
   const uploads: MediaUpload[] = (Array.isArray(raw["uploads"]) ? raw["uploads"] : []).slice(0, 50).map((entry) => ({ name: String((entry as Record<string, unknown>)?.["name"] ?? ""), data: String((entry as Record<string, unknown>)?.["data"] ?? "") }));
   const deleteAssets: string[] = (Array.isArray(raw["deleteAssets"]) ? raw["deleteAssets"] : []).slice(0, 100).map((entry) => String(entry));
+  const posts: Record<string, unknown | null> = {};
+  const postsRaw = raw["posts"] && typeof raw["posts"] === "object" && !Array.isArray(raw["posts"]) ? (raw["posts"] as Record<string, unknown>) : {};
+  for (const [slug, value] of Object.entries(postsRaw)) if (slug.length <= 100) posts[slug] = value;
   return {
     site_id: typeof raw["site_id"] === "string" ? raw["site_id"] : "",
     baseCommitSha: typeof raw["baseCommitSha"] === "string" ? raw["baseCommitSha"] : "",
@@ -558,6 +662,7 @@ export function parseBuilderPublishRequest(raw: Record<string, unknown>): Builde
     uploads,
     deleteAssets,
     resolutions,
+    posts,
   };
 }
 

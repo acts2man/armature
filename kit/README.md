@@ -231,6 +231,47 @@ function ArmatureCatchAll() {
 Register the router for the editor's page switcher from the root component in an effect
 (`registerArmatureNavigate((path) => router.navigate({ href: path }))`).
 
+## Blog posts (kit 2.7+)
+
+The kit ships a small blog: each post lives as its own JSON file at
+`content/posts/<slug>.json` (a layout with `kind: "post"` and post fields in
+`settings`), and `content/posts/index.json` is the site's list — the dashboard's
+publish function regenerates it on every post commit. `public/rss.xml` is written
+alongside so `/rss.xml` stays in step.
+
+Add the two globs to `createArmatureKit` so posts flow through the store:
+
+```ts
+export const armature = createArmatureKit({
+  /* … */
+  posts: import.meta.glob("../../content/posts/*.json", { eager: true }),
+  postIndex: postIndexJson,   // optional; from content/posts/index.json
+});
+```
+
+Then add two routes to your router:
+
+```tsx
+import { ArmaturePost, ArmaturePostList } from "@/lib/armature-kit";
+
+<Route path="/blog" element={<ArmaturePostList />} />
+<Route path="/blog/:slug" element={<PostRoute />} />
+```
+
+```tsx
+function PostRoute() {
+  const { slug = "" } = useParams();
+  return <ArmaturePost slug={slug} />;
+}
+```
+
+Scheduled posts (a `publishedAt` in the future) sit in the repo. The dashboard
+schedules a pg_cron job (see the migration
+`20260924000300_posts_and_stats.sql`) that fires an edge function every
+five minutes; when the moment arrives it re-commits the file (identical
+bytes), Netlify rebuilds, and the site starts showing it. The kit filters
+scheduled posts out of `ArmaturePost` and `ArmaturePostList` until then.
+
 ## SEO: head tags Google actually sees
 
 Every page has its own SEO fields in the editor's Page settings (search title,

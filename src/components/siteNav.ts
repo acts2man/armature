@@ -22,11 +22,11 @@ export type SiteNavEntry = {
   blurb: string;
 };
 
-/** Which items exist yet. Stats and Posts are planned in docs/BUILDER_SPEC.md and stay hidden until then. */
+/** Which items exist yet. */
 export const BUILT: Record<SiteNavKey, boolean> = {
   dashboard: true,
-  stats: false,
-  posts: false,
+  stats: true,
+  posts: true,
   media: true,
   pages: true,
   contact: true,

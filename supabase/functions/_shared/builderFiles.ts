@@ -9,10 +9,12 @@
  *
  * SERVER ONLY.
  */
-import { checkLayout, checkSiteKit, describeProblem, LAYOUT_LIMITS, LAYOUTS_DIR, MEDIA_META_PATH, SITE_KIT_PATH, TRASH_DIR } from "../../../shared/builder/schema.ts";
-import type { LayoutDoc, SiteKit } from "../../../kit/types.ts";
+import { checkLayout, checkPost, checkPostIndex, checkSiteKit, describeProblem, LAYOUT_LIMITS, LAYOUTS_DIR, MEDIA_META_PATH, SITE_KIT_PATH, TRASH_DIR } from "../../../shared/builder/schema.ts";
+import type { LayoutDoc, PostDoc, PostIndex, SiteKit } from "../../../kit/types.ts";
 import type { FileProblem, MediaFile, MediaMeta } from "../../../shared/publishTypes.ts";
 import type { ContentRepo } from "./githubRepo.ts";
+
+const POSTS_DIR = "content/posts";
 
 export type BuilderFiles = {
   layouts: Record<string, LayoutDoc>;
@@ -23,6 +25,10 @@ export type BuilderFiles = {
   trash: Record<string, LayoutDoc>;
   media: MediaFile[];
   mediaMeta: MediaMeta;
+  /** Every blog post the site ships. */
+  posts: Record<string, PostDoc>;
+  /** The regenerated posts index (content/posts/index.json). */
+  postIndex: PostIndex;
   /** File-level notes (a file skipped, a kit that could not be parsed). */
   warnings: string[];
   /** Every value the validator could not read, with where it is and what is allowed. */
@@ -126,5 +132,27 @@ export async function loadBuilderFiles(repo: ContentRepo, ref: string): Promise<
       alt: mediaMeta[`/${entry.path.replace(/^public\//, "")}`]?.alt ?? "",
     }));
 
-  return { layouts, layoutShas, siteKit, trash, media, mediaMeta, warnings, problems };
+  // Posts (content/posts/*.json) and the generated index (content/posts/index.json).
+  const posts: Record<string, PostDoc> = {};
+  let postIndex: PostIndex = { version: 1, posts: [] };
+  const postEntries = (await repo.listTree(POSTS_DIR, ref)).filter((entry) => entry.path.endsWith(".json"));
+  for (const entry of postEntries) {
+    const slug = entry.path.slice(POSTS_DIR.length + 1, -".json".length);
+    if (slug === "index") {
+      const raw = parseJson((await repo.readTextFile(entry.path, ref)).text);
+      const report = checkPostIndex(raw);
+      if (report.value) postIndex = report.value;
+      continue;
+    }
+    if (entry.size > LAYOUT_LIMITS.fileBytes) continue;
+    const raw = parseJson((await repo.readTextFile(entry.path, ref)).text);
+    const report = raw === undefined ? null : checkPost(raw);
+    if (!report?.value) {
+      warnings.push(`${entry.path}: not a readable post, so it stays out of the list`);
+      continue;
+    }
+    posts[slug] = { ...report.value, slug };
+  }
+
+  return { layouts, layoutShas, siteKit, trash, media, mediaMeta, warnings, problems, posts, postIndex };
 }

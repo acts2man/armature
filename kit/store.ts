@@ -4,8 +4,8 @@
  * produces a new snapshot object. No React, no DOM: unit-testable.
  */
 import { defaultSiteKit } from "./defaults.ts";
-import type { LayoutDoc, SiteKit, SiteSectionInfo } from "./types.ts";
-import { checkLayout, checkSiteKit } from "./validate.ts";
+import type { LayoutDoc, PostDoc, PostIndex, SiteKit, SiteSectionInfo } from "./types.ts";
+import { checkLayout, checkPost, checkPostIndex, checkSiteKit } from "./validate.ts";
 
 export type LinkValue = { label: string; href: string };
 export type ListValue = Record<string, string>[];
@@ -21,6 +21,10 @@ export type KitSnapshot = {
   editing: string | null;
   /** Bumped when an edit on the page ends, so the renderer remounts that element from the saved value. */
   editEpoch: Record<string, number>;
+  /** Every blog post the site ships. */
+  posts: Record<string, PostDoc>;
+  /** The generated posts index (regenerated on every post publish). */
+  postIndex: PostIndex;
 };
 
 export type SiteSectionRegistration = SiteSectionInfo & { component: unknown };
@@ -80,9 +84,23 @@ export function isLayoutLike(value: unknown): value is LayoutDoc {
   return layout.version === 1 && typeof layout.pageSlug === "string" && typeof layout.path === "string" && Array.isArray(layout.root);
 }
 
-export function createKitStore(config: { content?: ContentTree; layouts?: Record<string, unknown> | LayoutDoc[]; siteKit?: SiteKit | null }) {
+/** Unwrap post modules from `import.meta.glob(..., { eager: true })` or a plain array. */
+export function collectPosts(input: Record<string, unknown> | PostDoc[] | undefined): Record<string, PostDoc> {
+  const out: Record<string, PostDoc> = {};
+  const values = Array.isArray(input) ? input : Object.values(input ?? {});
+  for (const raw of values) {
+    const candidate = raw && typeof raw === "object" && "default" in (raw as object) ? (raw as { default: unknown }).default : raw;
+    const report = checkPost(candidate);
+    if (report.value) out[report.value.slug] = report.value;
+  }
+  return out;
+}
+
+export function createKitStore(config: { content?: ContentTree; layouts?: Record<string, unknown> | LayoutDoc[]; siteKit?: SiteKit | null; posts?: Record<string, unknown> | PostDoc[]; postIndex?: PostIndex | unknown }) {
   const baseContent: ContentTree = clone(config.content ?? {});
   const baseLayouts = collectLayouts(config.layouts);
+  const basePosts = collectPosts(config.posts);
+  const basePostIndex: PostIndex = config.postIndex ? (checkPostIndex(clone(config.postIndex)).value ?? { version: 1, posts: [] }) : { version: 1, posts: [] };
   // The kit always loads: anything unreadable in site-kit.json falls back to the default kit's value.
   const baseKit: SiteKit = config.siteKit ? (checkSiteKit(clone(config.siteKit)).value ?? defaultSiteKit()) : defaultSiteKit();
 
@@ -95,7 +113,7 @@ export function createKitStore(config: { content?: ContentTree; layouts?: Record
 
   const sections = new Map<string, SiteSectionRegistration>();
   const listeners = new Set<() => void>();
-  let snapshot: KitSnapshot = { content: baseContent, layouts: baseLayouts, kit: baseKit, editMode, editing, editEpoch };
+  let snapshot: KitSnapshot = { content: baseContent, layouts: baseLayouts, kit: baseKit, editMode, editing, editEpoch, posts: basePosts, postIndex: basePostIndex };
 
   const rebuild = () => {
     let content = baseContent;
@@ -117,7 +135,7 @@ export function createKitStore(config: { content?: ContentTree; layouts?: Record
         else layouts[slug] = layout;
       }
     }
-    snapshot = { content, layouts, kit: draftKit ?? baseKit, editMode, editing, editEpoch };
+    snapshot = { content, layouts, kit: draftKit ?? baseKit, editMode, editing, editEpoch, posts: basePosts, postIndex: basePostIndex };
     for (const listener of listeners) listener();
   };
 

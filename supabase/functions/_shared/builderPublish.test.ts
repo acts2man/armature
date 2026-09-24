@@ -282,6 +282,42 @@ Deno.test("every publish writes sitemap.xml and robots.txt with the site URL fro
   assertStringIncludes(robots!.content, "Sitemap: https://acmehomes.com/sitemap.xml");
 });
 
+Deno.test("posts: writing a post commits the file, regenerates content/posts/index.json and rewrites public/rss.xml", async () => {
+  const kit = { ...defaultSiteKit(), seo: { siteName: "Acme", siteUrl: "https://acme.example.com" } };
+  const { repo, commits } = fakeRepo({ [BASE]: { [SITE_KIT_PATH]: serializeBuilderFile(kit) } }, BASE);
+  const post = { version: 1, kind: "post", slug: "hello-world", path: "/blog/hello-world/", settings: { title: "Hello world", excerpt: "First post.", authorName: "Sam", publishedAt: "2026-05-01T09:00:00Z", categories: ["news"], tags: [] }, root: [{ id: "aaaaaaaa", type: "heading", props: { text: "Hi", tag: "h1" }, style: {}, advanced: {}, meta }] };
+  const outcome = await runBuilderPublish({ repo, input: input({ posts: { "hello-world": post } }), userEmail: "sam@x.com", permissions: staff });
+  assertEquals(outcome.posts, ["hello-world"]);
+  const commit = commits[0]!;
+  const postFile = commit.files.find((file) => file.path === "content/posts/hello-world.json");
+  const indexFile = commit.files.find((file) => file.path === "content/posts/index.json");
+  const rssFile = commit.files.find((file) => file.path === "public/rss.xml");
+  assert(postFile);
+  assert(indexFile);
+  assert(rssFile);
+  const index = JSON.parse(indexFile!.content);
+  assertEquals(index.posts.length, 1);
+  assertEquals(index.posts[0].slug, "hello-world");
+  assertEquals(index.posts[0].title, "Hello world");
+  assertStringIncludes(rssFile!.content, "<title>Hello world</title>");
+  assertStringIncludes(rssFile!.content, "<title>Acme</title>");
+  assertStringIncludes(commit.message, "post: Hello world");
+});
+
+Deno.test("posts: a scheduled post's file lands with its future publishedAt intact (the kit filters it at render)", async () => {
+  const kit = { ...defaultSiteKit(), seo: { siteName: "Acme", siteUrl: "https://acme.example.com" } };
+  const { repo, commits } = fakeRepo({ [BASE]: { [SITE_KIT_PATH]: serializeBuilderFile(kit) } }, BASE);
+  const post = { version: 1, kind: "post", slug: "future", path: "/blog/future/", settings: { title: "Later", publishedAt: "2099-01-01T00:00:00Z", categories: [], tags: [] }, root: [{ id: "aaaaaaaa", type: "heading", props: { text: "Later", tag: "h1" }, style: {}, advanced: {}, meta }] };
+  const outcome = await runBuilderPublish({ repo, input: input({ posts: { "future": post } }), userEmail: "x", permissions: staff });
+  assertEquals(outcome.posts, ["future"]);
+  const written = JSON.parse(commits[0]!.files.find((file) => file.path === "content/posts/future.json")!.content);
+  assertEquals(written.settings.publishedAt, "2099-01-01T00:00:00Z");
+  const rssFile = commits[0]!.files.find((file) => file.path === "public/rss.xml");
+  assert(rssFile);
+  // The scheduled post is in the index (it exists as a file), but is filtered out of the RSS at render time.
+  assertEquals(rssFile!.content.includes("<title>Later</title>"), false);
+});
+
 Deno.test("sitemap.xml and robots.txt are only rewritten when the file would change", async () => {
   // Two publishes with the same pages on the same day: the second commit should not carry
   // the SEO files. The lastmod is a calendar day (UTC), so a fixed `now` on both keeps

@@ -39,7 +39,7 @@ export function getKitRuntime(): KitRuntime {
 }
 
 const noop = () => () => undefined;
-const emptySnapshot: KitSnapshot = { content: {}, layouts: {}, kit: null as unknown as KitSnapshot["kit"], editMode: false, editing: null, editEpoch: {} };
+const emptySnapshot: KitSnapshot = { content: {}, layouts: {}, kit: null as unknown as KitSnapshot["kit"], editMode: false, editing: null, editEpoch: {}, posts: {}, postIndex: { version: 1, posts: [] } };
 
 export function useKitSnapshot(): KitSnapshot {
   const store = runtime?.store;

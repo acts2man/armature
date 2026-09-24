@@ -36,10 +36,10 @@ import { createBridge, PROTOCOL_VERSION, type SiteSchemaLike } from "./bridge.ts
 import { LIBRARY_WIDGETS, registerLibrary } from "./library/index.ts";
 import { setKitRuntime, type KitRuntime } from "./renderer.tsx";
 import { createKitStore, type ContentTree, type LinkValue, type ListValue } from "./store.ts";
-import type { LayoutDoc, SiteKit } from "./types.ts";
+import type { LayoutDoc, PostDoc, PostIndex, SiteKit } from "./types.ts";
 import { CORE_WIDGETS, registerWidgets, type WidgetRender } from "./widgets.tsx";
 
-export const KIT_VERSION = "2.6.0";
+export const KIT_VERSION = "2.7.0";
 export { PROTOCOL_VERSION };
 
 /** Every widget the kit ships, by type: the core widgets, then the library. */
@@ -69,6 +69,10 @@ export type ArmatureKitConfig = {
   siteKit?: SiteKit | null;
   /** `import.meta.glob("../../content/layouts/*.json", { eager: true })`, or an array of layouts. */
   layouts?: Record<string, unknown> | LayoutDoc[];
+  /** `import.meta.glob("../../content/posts/*.json", { eager: true })`, or an array of posts. */
+  posts?: Record<string, unknown> | PostDoc[];
+  /** content/posts/index.json (optional; the site generates it on every post publish). */
+  postIndex?: PostIndex | unknown;
   /** Client-side navigation for the editor's page switcher. Default: a full page load. */
   navigate?: (path: string) => void;
   /**
@@ -97,7 +101,7 @@ export type ArmatureKit = {
 export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
   // Explicit, so no bundler can drop the widgets, their CSS or their glyphs from a build.
   registerBuiltInWidgets();
-  const store = createKitStore({ content: config.content, layouts: config.layouts, siteKit: config.siteKit ?? null });
+  const store = createKitStore({ content: config.content, layouts: config.layouts, siteKit: config.siteKit ?? null, posts: config.posts, postIndex: config.postIndex });
   const runtime: KitRuntime = {
     store,
     codedSlugs: new Set((config.schema?.pages ?? []).map((page) => page.slug)),
@@ -164,7 +168,9 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
 }
 
 export { ArmaturePage, ArmatureRoute, ArmatureSlot, ArmatureChrome, ArmatureHead, applyHeadTags, useBuilderPages, useKitSnapshot } from "./renderer.tsx";
+export { ArmaturePost, ArmaturePostList, useBuilderPosts } from "./posts.tsx";
 export { computePageHead, renderHeadHtml, sitemapXml, robotsTxt, absoluteUrl, applyTitlePattern, structuredDataLd, type HeadTag, type PageHeadOpts, type SitemapEntry } from "./seo.ts";
+export { rssXml } from "./rss.ts";
 export { CHROME_SLUGS, isChromeSlug, chromeSlug } from "./types.ts";
 export { RichText, plainDoc, richTextToPlain } from "./richText.tsx";
 export { Icon } from "./icon.tsx";
@@ -173,6 +179,6 @@ export { registerWidget, registerWidgets, registeredWidgetTypes, type WidgetCont
 export { defaultSiteKit } from "./defaults.ts";
 export { resolve, own, setAt, isResponsive, hasOverride } from "./responsive.ts";
 export * from "./values.ts";
-export { checkLayout, checkSiteKit, checkElement, describeProblem, settingLabel, readPath, LAYOUT_LIMITS, isAllowedHref, isAllowedMediaSrc, isAllowedVideoUrl, CONTAINER_TYPES, AGENCY_ONLY_TYPES, isKnownElementType, registerPropsCheck, type Problem, type ProblemPath, type CheckReport } from "./validate.ts";
+export { checkLayout, checkSiteKit, checkElement, checkPost, checkPostIndex, checkTaxonomies, describeProblem, settingLabel, readPath, LAYOUT_LIMITS, isAllowedHref, isAllowedMediaSrc, isAllowedVideoUrl, CONTAINER_TYPES, AGENCY_ONLY_TYPES, isKnownElementType, registerPropsCheck, type Problem, type ProblemPath, type CheckReport } from "./validate.ts";
 export type * from "./types.ts";
 export type { ContentTree, LinkValue, ListValue } from "./store.ts";

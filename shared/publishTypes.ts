@@ -6,7 +6,7 @@
  * `Failure`. Nothing is ever signalled by a bare thrown error or an empty body: the
  * editor renders `message` verbatim, which is what keeps every failure visible.
  */
-import type { LayoutDoc, SiteKit } from "../kit/types.ts";
+import type { LayoutDoc, PostDoc, PostIndex, SiteKit } from "../kit/types.ts";
 import type { Problem } from "../kit/validate.ts";
 import type { ContentTree, ContentValue } from "./contentFile.ts";
 import type { SiteSchema } from "./schema.ts";
@@ -87,6 +87,10 @@ export type ContentGetResponse = {
   editingLevel: EditingLevel;
   /** Builder pages in the bin (content/trash/), by slug, ready to restore. */
   trash?: Record<string, LayoutDoc>;
+  /** Every blog post (content/posts/*.json), by slug. */
+  posts?: Record<string, PostDoc>;
+  /** The regenerated posts index (content/posts/index.json). */
+  postIndex?: PostIndex;
 };
 
 /** What the Pages screen asks of a builder page's file: into the bin, back out of it, or gone for good. */
@@ -346,6 +350,8 @@ export type BuilderPublishRequest = {
   uploads?: MediaUpload[];
   /** Pictures to remove from the site ("/assets/…" paths). */
   deleteAssets?: string[];
+  /** Blog posts to write, by slug (null deletes the post). The publish rewrites index.json and public/rss.xml. */
+  posts?: Record<string, PostDoc | null>;
 };
 
 export type MediaUpload = { name: string; data: string };
@@ -369,4 +375,6 @@ export type BuilderPublishResponse = {
   media: boolean;
   /** True when someone else had published in between and the draft was merged onto it. */
   merged: boolean;
+  /** Post slugs whose file was written or removed. */
+  posts?: string[];
 };
