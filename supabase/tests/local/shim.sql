@@ -56,6 +56,7 @@ create table if not exists storage.objects (
   bucket_id text references storage.buckets (id),
   name text not null,
   owner uuid,
+  metadata jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now()
 );
 alter table storage.objects enable row level security;

@@ -13,6 +13,7 @@ import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { RichTextEditor } from "@/builder/RichTextEditor.tsx";
+import { defaultSiteKit } from "@shared/builder/index.ts";
 import { useSite } from "@/components/SiteLayout.tsx";
 import { Button, Field, Input, Notice, PageHeader, Textarea, useToast } from "@/components/ui.tsx";
 import { contentQueryKey, useSiteContent } from "@/hooks/useSiteContent.ts";
@@ -173,7 +174,7 @@ export function PostEditor() {
         </Field>
         <Field label="Body" htmlFor="post-body">
           <div id="post-body" data-testid="post-body">
-            <RichTextEditor doc={doc} onChange={setDoc} kit={loaded?.siteKit ?? (undefined as unknown as never)} />
+            <RichTextEditor doc={doc} onChange={setDoc} kit={loaded?.siteKit ?? defaultSiteKit()} />
           </div>
         </Field>
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
