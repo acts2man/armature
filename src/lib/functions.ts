@@ -27,7 +27,8 @@ export type FunctionName =
   | "content-publish-batch"
   | "site-embed-check"
   | "builder-publish"
-  | "kit-status";
+  | "kit-status"
+  | "update-kit";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });
 

@@ -4,15 +4,17 @@
  * release; the verdict decides which action shows (Set up this site, Update
  * kit, or nothing). Agency staff only — a client never opens this screen.
  */
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { KIT_RELEASES } from "@kit/index.ts";
-import { IconCheck, IconAlert, IconChart, IconGithub } from "@/components/icons.tsx";
+import { IconCheck, IconAlert, IconChart, IconExternal, IconGithub } from "@/components/icons.tsx";
 import { Button, Modal, Notice, Panel, Pill } from "@/components/ui.tsx";
 import { callFunction, isFailure } from "@/lib/functions.ts";
 import { buildSetupPrompt } from "@/lib/kitSetupPrompt.ts";
 import { supabase } from "@/lib/supabase.ts";
 import type { Site } from "@/lib/types.ts";
+
+type UpdateKitResult = { ok: true; from: string | null; to: string; commit: { sha: string; url: string }; changed: { added: number; changed: number; removed: number } };
 
 type KitStatusVerdict = "not_installed" | "needs_setup" | "update_available" | "up_to_date";
 
@@ -56,7 +58,10 @@ export function KitStatusPanel({ site }: { site: Site }) {
   const status = useKitStatus(site.id, site.status !== "hosting_only");
   const [pathDraft, setPathDraft] = useState(site.kit_path ?? "src/lib/armature-kit");
   const [setupOpen, setSetupOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [overwrite, setOverwrite] = useState(false);
   const [copied, setCopied] = useState<"idle" | "copied">("idle");
+  const queryClient = useQueryClient();
 
   const savePath = useMutation({
     mutationFn: async () => {
@@ -64,6 +69,17 @@ export function KitStatusPanel({ site }: { site: Site }) {
       const { error } = await supabase.from("sites").update({ kit_path: next }).eq("id", site.id);
       if (error) throw new Error(error.message);
       return next;
+    },
+  });
+
+  const update = useMutation({
+    mutationFn: async () => {
+      const result = await callFunction<UpdateKitResult>("update-kit", { site_id: site.id, overwrite });
+      if (isFailure(result)) throw new Error(result.message);
+      return result;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["kit-status", site.id] });
     },
   });
 
@@ -152,16 +168,79 @@ export function KitStatusPanel({ site }: { site: Site }) {
               <span className="text-text">{status.data.reason}</span>
             </div>
 
-            {(status.data.verdict === "needs_setup" || status.data.verdict === "not_installed" || status.data.verdict === "update_available") && (
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => setSetupOpen(true)} data-testid="open-setup-prompt">
+            <div className="flex flex-wrap gap-2">
+              {status.data.verdict === "update_available" && (
+                <Button size="sm" onClick={() => { setOverwrite(false); setUpdateOpen(true); }} data-testid="update-kit">
+                  <IconGithub size={16} /> Update kit
+                </Button>
+              )}
+              {(status.data.verdict === "needs_setup" || status.data.verdict === "not_installed" || status.data.verdict === "update_available") && (
+                <Button size="sm" variant={status.data.verdict === "update_available" ? "secondary" : "primary"} onClick={() => setSetupOpen(true)} data-testid="open-setup-prompt">
                   <IconGithub size={16} /> Set up this site
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
+
+      {updateOpen && status.data && (
+        <Modal open={updateOpen} title={`Update ${site.name} kit ${status.data.inRepo ?? "?"} → ${status.data.current}`} onClose={() => { setUpdateOpen(false); update.reset(); }}>
+          <div className="flex flex-col gap-3 p-5" data-testid="update-kit-modal">
+            {!update.data && !update.isError && (
+              <>
+                <p className="text-[13px] text-text">
+                  This replaces every file under <span className="font-mono">{site.kit_path ?? "src/lib/armature-kit"}</span> on branch <span className="font-mono">{site.branch}</span> in ONE commit. It never touches anything outside that folder.
+                </p>
+                <div className="rounded-card border border-line bg-panel p-3 text-[13px]">
+                  <div className="font-semibold text-text mb-1">What changes since {status.data.inRepo ?? "your kit"}:</div>
+                  <ul className="ml-5 list-disc space-y-1 text-text">
+                    {KIT_RELEASES.filter((r) => status.data!.inRepo ? r.version > status.data!.inRepo && r.version <= status.data!.current : true).map((release) => (
+                      <li key={release.version}>
+                        <span className="font-mono">{release.version}</span>: {release.notes.join("; ")}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {status.data.pendingSteps.length > 0 && (
+                  <Notice kind="info" title="Some setup steps arrived between versions">
+                    Do these once the commit lands so the site can use the new features: {status.data.pendingSteps.map((s) => s.label).join(", ")}. Open Set up this site for the ready-to-paste prompt.
+                  </Notice>
+                )}
+                <label className="flex items-start gap-2 text-[13px] text-text">
+                  <input type="checkbox" checked={overwrite} onChange={(event) => setOverwrite(event.target.checked)} className="mt-0.5" data-testid="update-kit-overwrite" />
+                  <span>Overwrite any local edits inside the kit folder. Only tick this if the site's developer has NOT customised the kit's files (it is meant to be verbatim).</span>
+                </label>
+              </>
+            )}
+            {update.data && (
+              <div className="flex flex-col gap-2 text-[13px]" data-testid="update-kit-done">
+                <div className="text-green font-semibold">Committed to {site.branch}.</div>
+                <div>
+                  {update.data.changed.added} added, {update.data.changed.changed} changed, {update.data.changed.removed} removed.
+                </div>
+                <a href={update.data.commit.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary underline">
+                  View the commit <IconExternal size={12} />
+                </a>
+                <p className="text-muted">The site's next Netlify build picks up the new kit. Armature notices it as soon as the deploy is live (data-armature-kit on the site's HTML).</p>
+              </div>
+            )}
+            {update.isError && (
+              <Notice kind="danger" title="The update did not go through">
+                {update.error.message}
+              </Notice>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {!update.data && (
+                <Button size="sm" onClick={() => update.mutate()} loading={update.isPending} data-testid="update-kit-confirm">
+                  Update to {status.data.current}
+                </Button>
+              )}
+              <Button size="sm" variant="secondary" onClick={() => { setUpdateOpen(false); update.reset(); }}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {setupOpen && status.data && (
         <Modal open={setupOpen} title={`Set up ${site.name} for kit ${status.data.current}`} onClose={() => setSetupOpen(false)}>

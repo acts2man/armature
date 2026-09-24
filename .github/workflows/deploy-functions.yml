@@ -14,7 +14,8 @@ on:
       - "supabase/functions/**"
       - "supabase/config.toml"
       - "shared/**"
-      - "kit/*.ts"
+      - "kit/**"
+      - "scripts/pack-kit.mjs"
       - ".github/workflows/deploy-functions.yml"
 
 jobs:
@@ -25,9 +26,16 @@ jobs:
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Pack the kit for update-kit
+        # Regenerates supabase/functions/update-kit/kit-package.json so the bundled
+        # kit always matches what the current commit's kit/ folder ships.
+        run: node scripts/pack-kit.mjs
       - name: Check the secrets are present
         id: check
         run: |
