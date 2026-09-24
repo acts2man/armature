@@ -34,13 +34,7 @@ export const KIT_RELEASES: KitReleaseNote[] = [
       "Every rendered page carries data-armature-kit on <html>, so Armature can tell what version is actually live.",
       "One-click kit updates from the dashboard land in a single commit; old versions can be restored the same way.",
     ],
-    steps: [
-      {
-        key: "kit-version-attribute",
-        label: "No site step needed",
-        detail: "This version writes data-armature-kit on the root element automatically; the site just picks up the new kit code.",
-      },
-    ],
+    // No site step: the runtime picks up the new kit code with no change to the site.
   },
   {
     version: "2.7.0",

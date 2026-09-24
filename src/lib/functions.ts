@@ -26,7 +26,8 @@ export type FunctionName =
   | "client-password-reset"
   | "content-publish-batch"
   | "site-embed-check"
-  | "builder-publish";
+  | "builder-publish"
+  | "kit-status";
 
 const failure = (code: FailureCode, message: string): Failure => ({ ok: false, code, message });
 

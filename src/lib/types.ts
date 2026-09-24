@@ -54,6 +54,8 @@ export type Site = {
   created_at: string;
   /** What clients may do in the visual editor (agency staff always get the full builder). */
   editing_level?: "content" | "style" | "builder";
+  /** Where the Armature kit folder lives inside the site's repository. */
+  kit_path?: string;
 };
 
 /** What the agency charges a site for. Agency staff only; clients cannot read it. */

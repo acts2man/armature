@@ -9,6 +9,7 @@ import { NavLink, Outlet } from "react-router";
 import { CheckList } from "@/components/CheckList.tsx";
 import { EditingLevelPanel } from "@/components/EditingLevelPanel.tsx";
 import { IconAlert, IconCheck, IconExternal, IconGithub, IconHistory, IconStethoscope } from "@/components/icons.tsx";
+import { KitStatusPanel } from "@/components/KitStatusPanel.tsx";
 import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
 import { SiteServicesPanel } from "@/components/SiteServicesPanel.tsx";
 import { Button, LinkButton, Notice, PageHeader, Panel, Pill, SrOnly, TabBar, tabClass } from "@/components/ui.tsx";
@@ -162,6 +163,7 @@ export function SiteConnection() {
           )}
         </div>
       </Panel>
+      {!hostingOnly && <KitStatusPanel site={site} />}
     </div>
   );
 }
