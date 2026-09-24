@@ -2,15 +2,17 @@
  * invite-create — agency staff invite a person by email, either to one site (as a
  * client owner/editor) or to the agency itself (as staff/owner).
  *
- * Email delivery is a STUB in v0.1: the link is logged to the function's logs and
- * returned to the agency member, who can copy it to the client. `emailed` is false
- * so the dashboard says so plainly.
+ * Email delivery is optional. When the Supabase secret RESEND_API_KEY is present AND
+ * the agency has set an email_from_address under Settings › Email sending, the invite
+ * goes out as a branded email in the agency's name (`emailed: true`). Otherwise the
+ * link comes back for the agency to copy (`emailed: false`, `email_hint` explains why).
  *
  * Authorisation: agency membership under RLS; the invite row is inserted with the
  * caller's client. Only the SHA-256 hash of the token is stored. No service role.
  */
 import type { InviteCreateResponse, InviteRole } from "../../../shared/publishTypes.ts";
 import { requireAgencyMember, resolveCaller } from "../_shared/auth.ts";
+import { sendAgencyEmail } from "../_shared/email.ts";
 import { denoEnv } from "../_shared/env.ts";
 import { ArmatureError } from "../_shared/errors.ts";
 import { optionalString, readJsonBody, requireString, requireUuid, serveJson } from "../_shared/http.ts";
@@ -75,15 +77,30 @@ Deno.serve(
     const base = appBaseUrl(env, req);
     const inviteUrl = `${base}/invite/${token}`;
 
-    // Email stub. Replace this log line with a real send when an email provider is chosen.
-    console.log(`[invite-create] Invite for ${email} (${role}${siteId ? `, site ${siteId}` : ""}): ${inviteUrl}`);
+    const subject = role === "owner" || role === "staff" ? "You've been invited to Armature" : "You've been given access to your website";
+    const kindLabel = siteId ? "your website" : "the agency";
+    const text = [
+      `Hello,`,
+      ``,
+      `You've been invited to ${kindLabel}. Open the link below to set your password and sign in:`,
+      ``,
+      inviteUrl,
+      ``,
+      `This link works for ${INVITE_DAYS} days.`,
+    ].join("\n");
+
+    const delivery = await sendAgencyEmail(env, agencyId, { to: [email], subject, text });
+    if (!delivery.sent) {
+      console.log(`[invite-create] Not emailed (${delivery.reason}). Link for ${email}: ${inviteUrl}`);
+    }
 
     return {
       ok: true,
       invite_id: (data as { id: string }).id,
       invite_url: inviteUrl,
       expires_at: expiresAt,
-      emailed: false,
+      emailed: delivery.sent,
+      email_hint: delivery.sent ? null : delivery.hint,
     };
   }),
 );

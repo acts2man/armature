@@ -256,11 +256,13 @@ export type InviteCreateRequest = {
 export type InviteCreateResponse = {
   ok: true;
   invite_id: string;
-  /** The link the invited person must open. Email delivery is a stub in v0.1. */
+  /** The link the invited person must open. */
   invite_url: string;
   expires_at: string;
-  /** True when a real email was sent; false means the link was only logged. */
+  /** True when a real email was sent through Resend under the agency's from address. */
   emailed: boolean;
+  /** Plain-English hint when the email was not sent (missing key, missing address, or send failed). */
+  email_hint?: string | null;
 };
 
 export type InviteAcceptRequest = { token: string };
@@ -313,8 +315,10 @@ export type ClientPasswordResetResponse = {
   email: string;
   /** The recovery link the client opens; it lands on the sign-in page to choose a new password. */
   reset_url: string;
-  /** True when a real email was sent; false means the link was only returned, for the agency to pass on. */
+  /** True when a real email was sent through Resend under the agency's from address. */
   emailed: boolean;
+  /** Plain-English hint when the email was not sent. */
+  email_hint?: string | null;
 };
 
 // --- builder-publish (the page builder) -------------------------------------------

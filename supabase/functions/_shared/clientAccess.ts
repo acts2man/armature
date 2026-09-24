@@ -38,6 +38,12 @@ export type ResetAuthPort = {
   recoveryLink(email: string, redirectTo: string): Promise<string>;
 };
 
+/** Optional side channel for sending the reset link as an email (Resend, per agency). */
+export type ResetEmailPort = {
+  /** Try to email the person their reset link on behalf of `agencyId`. Never throws. */
+  send(agencyId: string, to: string, resetUrl: string): Promise<{ sent: boolean; hint?: string | null }>;
+};
+
 export type PasswordResetDeps = {
   caller: ResetCallerPort;
   auth: ResetAuthPort;
@@ -45,6 +51,8 @@ export type PasswordResetDeps = {
   appBaseUrl: string;
   /** Where one line about the outcome goes. Defaults to console.log. Never sees the link. */
   log?: (line: string) => void;
+  /** Optional email delivery through Resend, when the agency has it configured. */
+  email?: ResetEmailPort;
 };
 
 // --- the decision -------------------------------------------------------------------
@@ -82,10 +90,23 @@ export async function issuePasswordReset(input: { userId: string }, deps: Passwo
   }
   const resetUrl = await deps.auth.recoveryLink(user.email, `${deps.appBaseUrl}/signin`);
 
-  // Email stub, as for invites: the link goes back to the agency member to pass on.
-  log(`[client-password-reset] reset link issued for ${user.email} by ${deps.caller.userId}`);
+  // The first agency that both looks after this person AND has email set up gets the send.
+  let sent = false;
+  let hint: string | null = null;
+  if (deps.email) {
+    for (const agencyId of agencyIds) {
+      if (!(await deps.caller.agencyRole(agencyId))) continue;
+      const result = await deps.email.send(agencyId, user.email, resetUrl);
+      if (result.sent) {
+        sent = true;
+        break;
+      }
+      hint = result.hint ?? hint;
+    }
+  }
+  log(`[client-password-reset] reset link issued for ${user.email} by ${deps.caller.userId} (emailed: ${sent})`);
 
-  return { ok: true, email: user.email, reset_url: resetUrl, emailed: false };
+  return { ok: true, email: user.email, reset_url: resetUrl, emailed: sent, email_hint: sent ? null : hint };
 }
 
 // --- real ports on supabase-js -----------------------------------------------------

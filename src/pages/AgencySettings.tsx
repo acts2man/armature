@@ -209,6 +209,88 @@ function BrandingForm({ agency, isOwner }: { agency: Agency; isOwner: boolean })
   );
 }
 
+function EmailSendingPanel({ agency, isOwner }: { agency: Agency; isOwner: boolean }) {
+  const toast = useToast();
+  const [fromName, setFromName] = useState(agency.email_from_name ?? "");
+  const [fromAddress, setFromAddress] = useState(agency.email_from_address ?? "");
+  const [replyTo, setReplyTo] = useState(agency.email_reply_to ?? "");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [testOutcome, setTestOutcome] = useState<string | null>(null);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const patch = {
+        email_from_name: fromName.trim() || null,
+        email_from_address: fromAddress.trim() || null,
+        email_reply_to: replyTo.trim() || null,
+      };
+      const { error } = await supabase.from("agencies").update(patch).eq("id", agency.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => toast.show("Email settings saved"),
+    onError: (error: Error) => setSaveError(error.message),
+  });
+
+  const sendTest = useMutation({
+    mutationFn: async () => {
+      setTestError(null);
+      setTestOutcome(null);
+      const { data, error } = await supabase.functions.invoke("email-test", { body: { agency_id: agency.id } });
+      if (error) throw new Error(error.message);
+      const result = data as { sent: boolean; from: string | null; hint: string | null };
+      if (result.sent) setTestOutcome(`Sent from ${result.from ?? "your address"}. Check your inbox in a moment.`);
+      else setTestError(result.hint ?? "Not sent. Check your settings and try again.");
+    },
+    onError: (error: Error) => setTestError(error.message),
+  });
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaveError(null);
+    save.mutate();
+  }
+
+  return (
+    <Panel title="Email sending">
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] leading-relaxed text-muted">
+          Turn on branded email so invites and password resets go out under your agency's own name. Armature uses <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-primary underline">Resend</a> (free tier: 3,000 emails a month, 100 a day, one verified domain). Everything Armature does still works without it — the link is shown to copy when email is off or fails.
+        </p>
+        <ol className="ml-4 list-decimal space-y-1 text-[13px] text-muted">
+          <li>Create a free Resend account and verify a domain you own (Resend Domain settings).</li>
+          <li>Copy your Resend API key (Resend › API Keys).</li>
+          <li>Set <code className="rounded bg-ground px-1">RESEND_API_KEY</code> as a Supabase Edge Functions secret (Supabase dashboard › Edge Functions › Secrets).</li>
+          <li>Fill in the from-address and name below. Save. Send a test email to yourself to check.</li>
+        </ol>
+        <form onSubmit={submit} className="flex flex-col gap-3" data-testid="email-form">
+          {saveError && <Notice kind="danger" title="Could not save">{saveError}</Notice>}
+          <Field label="From name" htmlFor="email-from-name" hint="What clients see as the sender's name (usually your agency name).">
+            <Input id="email-from-name" value={fromName} maxLength={120} disabled={!isOwner} onChange={(event) => setFromName(event.target.value)} />
+          </Field>
+          <Field label="From address" htmlFor="email-from-address" hint="A mailbox on the domain you verified in Resend, e.g. hello@yourdomain.com.">
+            <Input id="email-from-address" value={fromAddress} type="email" disabled={!isOwner} onChange={(event) => setFromAddress(event.target.value)} />
+          </Field>
+          <Field label="Reply-to (optional)" htmlFor="email-reply-to" hint="Where a client's reply goes. Leave empty to reply to the from-address.">
+            <Input id="email-reply-to" value={replyTo} type="email" disabled={!isOwner} onChange={(event) => setReplyTo(event.target.value)} />
+          </Field>
+          {isOwner && (
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" loading={save.isPending} data-testid="email-save">Save</Button>
+              <Button type="button" variant="secondary" loading={sendTest.isPending} disabled={!agency.email_from_address} onClick={() => sendTest.mutate()} data-testid="email-test-send">Send test email to me</Button>
+            </div>
+          )}
+          {testOutcome && <Notice kind="success" title="Test email sent">{testOutcome}</Notice>}
+          {testError && <Notice kind="danger" title="Test email failed">{testError}</Notice>}
+          {agency.email_last_test_at && (
+            <p className="text-[12px] text-muted">Last successful test: {new Date(agency.email_last_test_at).toLocaleString()}.</p>
+          )}
+        </form>
+      </div>
+    </Panel>
+  );
+}
+
 function ClientsPanel({ agencyId }: { agencyId: string }) {
   const query = useQuery({ queryKey: ["agency-site-count", agencyId], queryFn: () => loadSiteCount(agencyId) });
   let body: ReactNode;
@@ -269,6 +351,7 @@ export function AgencySettings() {
         </Field>
       )}
       <BrandingForm key={agency.id} agency={agency} isOwner={isOwner} />
+      <EmailSendingPanel key={`${agency.id}-email`} agency={agency} isOwner={isOwner} />
       <ClientsPanel agencyId={agency.id} />
     </div>
   );

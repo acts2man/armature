@@ -11,6 +11,7 @@ import { useParams, useSearchParams } from "react-router";
 import { useAuth } from "@/auth/AuthProvider.tsx";
 import { useIsStaffFor, useSiteQuery } from "@/components/SiteLayout.tsx";
 import { LinkButton, Notice } from "@/components/ui.tsx";
+import { ViewAsBanner } from "@/components/ViewAsBanner.tsx";
 import { useSiteContent } from "@/hooks/useSiteContent.ts";
 import { isHostingOnly } from "@/lib/services.ts";
 import { applyAccent } from "@/lib/theme.ts";
@@ -148,20 +149,23 @@ export function VisualEditor() {
   }
 
   return (
-    <EditorWorkspace
-      key={`${site.id}:${content.commitSha ? "loaded" : "empty"}`}
-      site={site}
-      isStaff={isStaff}
-      agency={agency}
-      userId={user?.id ?? "anonymous"}
-      userName={(user?.user_metadata?.["full_name"] as string | undefined)?.trim() || user?.email?.split("@")[0] || "You"}
-      content={content}
-      refetchContent={contentQuery.refetch}
-      initialSlug={wantedSlug}
-      initialElementId={elementId && /^[a-z0-9]{8}$/.test(elementId) ? elementId : null}
-      initialPanel={panel}
-      initialNewPage={newPage?.pageSlug === wantedSlug || (newPage !== null && part !== null && newPage.pageSlug === part) ? newPage : null}
-      initialPart={part}
-    />
+    <div className="flex min-h-dvh flex-col">
+      <ViewAsBanner />
+      <EditorWorkspace
+        key={`${site.id}:${content.commitSha ? "loaded" : "empty"}`}
+        site={site}
+        isStaff={isStaff}
+        agency={agency}
+        userId={user?.id ?? "anonymous"}
+        userName={(user?.user_metadata?.["full_name"] as string | undefined)?.trim() || user?.email?.split("@")[0] || "You"}
+        content={content}
+        refetchContent={contentQuery.refetch}
+        initialSlug={wantedSlug}
+        initialElementId={elementId && /^[a-z0-9]{8}$/.test(elementId) ? elementId : null}
+        initialPanel={panel}
+        initialNewPage={newPage?.pageSlug === wantedSlug || (newPage !== null && part !== null && newPage.pageSlug === part) ? newPage : null}
+        initialPart={part}
+      />
+    </div>
   );
 }

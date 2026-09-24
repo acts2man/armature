@@ -15,6 +15,12 @@ export type Agency = {
   logo_url: string | null;
   accent_color: string;
   created_at: string;
+  /** From-name / from-address for outgoing email through Resend (migration 20260924000100; optional feature). */
+  email_from_name?: string | null;
+  email_from_address?: string | null;
+  email_reply_to?: string | null;
+  email_last_test_at?: string | null;
+  email_last_test_error?: string | null;
 };
 
 export type Profile = {

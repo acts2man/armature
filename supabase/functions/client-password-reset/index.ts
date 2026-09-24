@@ -16,6 +16,7 @@
 import type { ClientPasswordResetResponse } from "../../../shared/publishTypes.ts";
 import { adminClient, resolveCaller } from "../_shared/auth.ts";
 import { issuePasswordReset, resetAuthPort, resetCallerPort } from "../_shared/clientAccess.ts";
+import { sendAgencyEmail } from "../_shared/email.ts";
 import { denoEnv } from "../_shared/env.ts";
 import { readJsonBody, requireUuid, serveJson } from "../_shared/http.ts";
 import { appBaseUrl } from "../_shared/tokens.ts";
@@ -35,6 +36,24 @@ Deno.serve(
         caller: resetCallerPort(caller.supabase, caller.userId),
         auth: resetAuthPort(admin),
         appBaseUrl: appBaseUrl(env, req),
+        email: {
+          send: async (agencyId, to, resetUrl) => {
+            const result = await sendAgencyEmail(env, agencyId, {
+              to: [to],
+              subject: "Reset your password",
+              text: [
+                "Hello,",
+                "",
+                "You (or your website's agency) asked to reset your password. Open the link below to choose a new one:",
+                "",
+                resetUrl,
+                "",
+                "The link works for about an hour. If you didn't ask for a reset, ignore this message.",
+              ].join("\n"),
+            });
+            return { sent: result.sent, hint: result.sent ? null : result.hint };
+          },
+        },
       },
     );
   }),

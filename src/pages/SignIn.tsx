@@ -9,6 +9,7 @@ import { useAuth } from "@/auth/AuthProvider.tsx";
 import { AuthForm, AuthPageFrame, UnusableLinkNotice } from "@/components/AuthForm.tsx";
 import { Button, Field, Input, Notice, Spinner } from "@/components/ui.tsx";
 import { missingSupabaseConfig, supabase, supabaseConfigured } from "@/lib/supabase.ts";
+import { MIN_PASSWORD_LENGTH, passwordProblem } from "@shared/passwordRules.ts";
 
 const SUBTITLE = "Editing dashboard";
 
@@ -38,6 +39,7 @@ function safePath(value: unknown): string {
 
 function NewPasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const id = useId();
+  const { user } = useAuth();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,6 +47,11 @@ function NewPasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const problem = passwordProblem(password, user?.email ?? "");
+    if (problem) {
+      setError(problem);
+      return;
+    }
     if (password !== confirm) {
       setError("The two passwords do not match. Type the same password in both fields.");
       return;
@@ -74,13 +81,13 @@ function NewPasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
           {error}
         </Notice>
       )}
-      <Field label="New password" htmlFor={`${id}-password`} hint="At least 6 characters.">
+      <Field label="New password" htmlFor={`${id}-password`} hint={`At least ${MIN_PASSWORD_LENGTH} characters. Not the word "password", the email address, or one character repeated.`}>
         <Input
           id={`${id}-password`}
           type="password"
           autoComplete="new-password"
           required
-          minLength={6}
+          minLength={MIN_PASSWORD_LENGTH}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
@@ -91,7 +98,7 @@ function NewPasswordForm({ onDone, onCancel }: { onDone: () => void; onCancel: (
           type="password"
           autoComplete="new-password"
           required
-          minLength={6}
+          minLength={MIN_PASSWORD_LENGTH}
           value={confirm}
           onChange={(event) => setConfirm(event.target.value)}
         />

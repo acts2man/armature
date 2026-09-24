@@ -50,7 +50,7 @@ function fakeSupabase(options: { roles?: Record<string, "owner" | "staff" | null
 Deno.test("agency staff get a recovery link for their client, aimed at the sign-in page", async () => {
   const fake = fakeSupabase();
   const result = await issuePasswordReset({ userId: CLIENT_ID }, fake.deps);
-  assertEquals(result, { ok: true, email: "sam@bakery.example", reset_url: RESET_LINK, emailed: false });
+  assertEquals(result, { ok: true, email: "sam@bakery.example", reset_url: RESET_LINK, emailed: false, email_hint: null });
   assertEquals(fake.links, [{ email: "sam@bakery.example", redirectTo: "https://portal.example/signin" }]);
 });
 
