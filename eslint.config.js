@@ -7,7 +7,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
   // Edge functions are Deno code: `deno lint` and `deno check` cover them.
-  globalIgnores(["dist", "node_modules", "coverage", "supabase/functions", "supabase/.temp", "examples/demo-site/.production-build"]),
+  globalIgnores(["dist", "node_modules", "coverage", ".claude", "supabase/functions", "supabase/.temp", "examples/demo-site/.production-build"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
