@@ -1606,12 +1606,23 @@ test.describe("number steppers", () => {
     await settled(page);
     await expect(strip.getByTestId("font-size-value")).toHaveText("35px");
     await expect(heading).toHaveCSS("font-size", "35px");
-    // A hold on A− is one undo step.
-    const target = center(await strip.getByTestId("font-size-down").boundingBox());
+    // A hold on A− is one undo step. The strip follows the heading's box, which can still be
+    // settling after the device switch on a slow machine: press only once it has held still.
+    const down = strip.getByTestId("font-size-down");
+    await expect
+      .poll(async () => {
+        const first = await down.boundingBox();
+        await page.waitForTimeout(150);
+        const second = await down.boundingBox();
+        return first && second && first.x === second.x && first.y === second.y;
+      })
+      .toBe(true);
+    const target = center(await down.boundingBox());
     await page.mouse.move(target.x, target.y);
     await page.mouse.down();
     await page.waitForTimeout(800);
     await page.mouse.up();
+    await expect(strip).toBeVisible();
     const held = Number.parseFloat((await strip.getByTestId("font-size-value").textContent()) ?? "");
     expect(held).toBeLessThan(31);
     expect(await steps(page)).toBe(before + 4);
