@@ -1,15 +1,19 @@
 /**
  * The one list of what a site's menu holds, in the order WordPress people expect:
- * Dashboard, Stats, Posts, Media, Pages, Contact, Requests (change requests to the
+ * Dashboard, Posts, Media, Pages, Contact, Requests (change requests to the
  * agency), Appearance, Users, then Site settings (agency staff only). The sidebar draws
  * it, the first-run tour describes it, and the tests read it. Anything not built yet is
  * simply left out: never a dead link.
+ *
+ * Stats was removed on request in kit 2.9.0; the design in docs/BUILDER_SPEC.md is
+ * kept for a possible later reintroduction. If it comes back, add a 'stats' entry
+ * here and everywhere else works unchanged.
  */
 import type { IconProps } from "./icons.tsx";
 import type { ReactNode } from "react";
-import { IconBranch, IconChart, IconGrid, IconImage, IconInbox, IconPage, IconPalette, IconParagraph, IconSettings, IconTeam } from "./icons.tsx";
+import { IconBranch, IconGrid, IconImage, IconInbox, IconPage, IconPalette, IconParagraph, IconSettings, IconTeam } from "./icons.tsx";
 
-export type SiteNavKey = "dashboard" | "stats" | "posts" | "media" | "pages" | "contact" | "requests" | "appearance" | "users" | "settings";
+export type SiteNavKey = "dashboard" | "posts" | "media" | "pages" | "contact" | "requests" | "appearance" | "users" | "settings";
 
 export type SiteNavEntry = {
   key: SiteNavKey;
@@ -25,7 +29,6 @@ export type SiteNavEntry = {
 /** Which items exist yet. */
 export const BUILT: Record<SiteNavKey, boolean> = {
   dashboard: true,
-  stats: true,
   posts: true,
   media: true,
   pages: true,
@@ -48,7 +51,6 @@ export type SiteNavContext = {
 export function siteNavItems({ root, isStaff, hostingOnly }: SiteNavContext): SiteNavEntry[] {
   const all: (SiteNavEntry & { show: boolean })[] = [
     { key: "dashboard", to: root, label: "Dashboard", icon: IconGrid, end: true, blurb: "what needs you, and where to start", show: true },
-    { key: "stats", to: `${root}/stats`, label: "Stats", icon: IconChart, blurb: "who visits and what they read", show: true },
     { key: "posts", to: `${root}/posts`, label: "Posts", icon: IconParagraph, blurb: "news and articles", show: !hostingOnly },
     { key: "media", to: `${root}/media`, label: "Media", icon: IconImage, blurb: "every picture on the site", show: !hostingOnly },
     { key: "pages", to: `${root}/pages`, label: "Pages", icon: IconPage, blurb: "every page, ready to edit", show: !hostingOnly },

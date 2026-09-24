@@ -7,4 +7,4 @@
  * time, so Armature can tell what kit version is actually live on a site (not
  * only what is in the repo).
  */
-export const KIT_VERSION = "2.8.0";
+export const KIT_VERSION = "2.9.0";

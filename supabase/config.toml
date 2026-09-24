@@ -4,9 +4,6 @@
 # Every edge function requires a signed-in caller, so verify_jwt stays on except:
 #   - form-submit: website visitors send forms without signing in. It trusts nothing
 #     it is sent (fields come from the published page) and rate limits every visitor.
-#   - stats-ingest: website visitor beacons carry no JWT. The function checks the
-#     request Origin against the site's live_url, rate-limits each visitor and
-#     stores no personal data (only a day-rotating salted hash).
 #   - run-scheduled-posts: called by pg_cron via pg_net with a random Vault token
 #     in X-Armature-Token, not a JWT. The function verifies the token against
 #     Vault before doing anything and short-circuits otherwise.
@@ -47,9 +44,6 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.form-submit]
-verify_jwt = false
-
-[functions.stats-ingest]
 verify_jwt = false
 
 [functions.run-scheduled-posts]

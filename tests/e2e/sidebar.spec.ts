@@ -8,13 +8,13 @@ import { expect, test, type Page } from "@playwright/test";
 import { SITE_ID, installMocks } from "./mocks.ts";
 
 /**
- * The items a connected site shows today, in order. Stats and Posts land between
- * Dashboard and Media (WordPress order); Requests (change requests to the agency)
- * sits between Contact and Appearance.
+ * The items a connected site shows today, in order. Posts sits between Dashboard
+ * and Media (WordPress order); Requests (change requests to the agency) sits
+ * between Contact and Appearance. Stats was removed on request in kit 2.9.0.
  */
-const STAFF_ITEMS = ["Dashboard", "Stats", "Posts", "Media", "Pages", "Contact", "Requests", "Appearance", "Users", "Site settings"];
-const CLIENT_ITEMS = ["Dashboard", "Stats", "Posts", "Media", "Pages", "Contact", "Requests", "Appearance", "Users"];
-const HIDDEN: string[] = [];
+const STAFF_ITEMS = ["Dashboard", "Posts", "Media", "Pages", "Contact", "Requests", "Appearance", "Users", "Site settings"];
+const CLIENT_ITEMS = ["Dashboard", "Posts", "Media", "Pages", "Contact", "Requests", "Appearance", "Users"];
+const HIDDEN: string[] = ["nav-stats"];
 
 const sidebar = (page: Page) => page.getByTestId("sidebar");
 const itemLabels = (page: Page) => sidebar(page).getByTestId("site-sidebar").locator("ul a").evaluateAll((links) => links.map((link) => link.textContent?.trim()));

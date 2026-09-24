@@ -30,7 +30,6 @@ import { SiteMedia } from "@/pages/SiteMedia.tsx";
 import { SitePages } from "@/pages/SitePages.tsx";
 import { SitePosts } from "@/pages/SitePosts.tsx";
 import { PostEditor } from "@/pages/PostEditor.tsx";
-import { SiteStats } from "@/pages/SiteStats.tsx";
 import { SiteConnection, SiteEditingSettings, SiteHistorySettings, SiteServicesSettings, SiteSettings } from "@/pages/SiteSettings.tsx";
 import { Team } from "@/pages/Team.tsx";
 import { VisualEditor } from "@/visual/VisualEditor.tsx";
@@ -91,7 +90,6 @@ const router = createBrowserRouter([
                   { path: "posts", element: <SitePosts /> },
                   { path: "posts/new", element: <PostEditor /> },
                   { path: "posts/:slug", element: <PostEditor /> },
-                  { path: "stats", element: <SiteStats /> },
                   { path: "media", element: <SiteMedia /> },
                   { path: "contact", element: <SiteContact /> },
                   {

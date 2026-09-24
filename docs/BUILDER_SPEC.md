@@ -434,7 +434,11 @@ site, and screenshots at 1440x900 in `docs/screenshots/` (drag in progress, rich
 toolbar, image resize, spacing handles, Style tab, Navigator, Site settings, publish
 dialog) compared against the design.
 
-## 9. Posts and Stats: the plan (not built yet)
+## 9. Posts and Stats: the plan
+
+Posts shipped in kit 2.7. **Stats was removed on request in kit 2.9.0**; the
+design below is kept for a possible later reintroduction so we don't have to
+start from scratch when it comes back.
 
 The site menu (`src/components/siteNav.ts`) is laid out WordPress-style: Dashboard, Stats,
 Posts, Media, Pages, Contact, Appearance, Users, Site settings. Stats and Posts are marked

@@ -23,8 +23,12 @@ even if Armature is unreachable.
 - **Drafts** — the in-progress work per person per site.
 - **Templates** — saved sections and pages, per site or agency-wide.
 - **Form submissions** — every message someone sent through a form widget.
-- **Stats** — page views and referrers, rolled up nightly. **(Coming in a later job.)**
 - **Uploaded files** — the site-files bucket, one folder per client.
+
+Visitor stats were removed on request; the design in `docs/BUILDER_SPEC.md`
+stays for a possible later reintroduction. Sites that were wired for the old
+beacon keep building without a code change (the kit accepts the option and
+does nothing with it).
 
 ## Why it matters
 

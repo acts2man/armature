@@ -16,7 +16,6 @@ import { RequestStatusPill } from "@/components/RequestStatus.tsx";
 import { useRecentMessages } from "@/hooks/useMessages.ts";
 import { BUILT, siteNavItems } from "@/components/siteNav.ts";
 import { NeedsSetupCard } from "@/components/NeedsSetupCard.tsx";
-import { StatsSnapshotCard } from "@/components/StatsSnapshotCard.tsx";
 import { EmptyState, LinkButton, Notice, PageHeader, Panel, PanelRow, Pill, SkeletonRows, SrOnly } from "@/components/ui.tsx";
 import { formatDateTime, plural, relativeTime, shortSha } from "@/lib/format.ts";
 import { formLabel, isUnread, messagePreview, senderLabel } from "@/lib/messages.ts";
@@ -240,7 +239,6 @@ export function SiteHome() {
 
       <div className="grid items-start gap-5 xl:grid-cols-[1.65fr_1fr]">
         <div className="flex min-w-0 flex-col gap-5">
-          {BUILT.stats && <StatsSnapshotCard siteId={site.id} siteRoot={root} isStaff={isStaff} hostingOnly={hostingOnly} />}
           <Panel title="Needs your attention" aside={attention.length > 0 ? <Pill tone="amber">{attention.length}</Pill> : <Pill tone="green">All clear</Pill>}>
             {publishes.isPending || requests.isPending ? (
               <SkeletonRows rows={1} label="Checking what needs attention" />

@@ -44,10 +44,10 @@ describe("buildSetupPrompt", () => {
     expect(text).toContain("1. SEO head (added in 2.6.0) — Render <ArmatureHead />.");
   });
 
-  it("shows the stats endpoint and site id in the Netlify block, with the endpoint trimmed", () => {
+  it("shows the form-submit endpoint with the trailing slash trimmed from supabaseUrl", () => {
     const text = buildSetupPrompt(context({ supabaseUrl: "https://project.supabase.co/" }));
-    expect(text).toContain("VITE_ARMATURE_STATS_ENDPOINT = https://project.supabase.co/functions/v1/stats-ingest");
-    expect(text).toContain("VITE_ARMATURE_STATS_SITE_ID  = 11111111-1111-4111-8111-111111111111");
+    expect(text).toContain("form-submit endpoint:  https://project.supabase.co/functions/v1/form-submit");
+    expect(text).not.toContain("STATS_ENDPOINT");
   });
 
   it("handles a non-main connected branch by naming main as off-limits", () => {

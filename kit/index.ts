@@ -35,7 +35,6 @@
 import { createBridge, PROTOCOL_VERSION, type SiteSchemaLike } from "./bridge.ts";
 import { LIBRARY_WIDGETS, registerLibrary } from "./library/index.ts";
 import { setKitRuntime, type KitRuntime } from "./renderer.tsx";
-import { installStatsBeacon } from "./stats.ts";
 import { createKitStore, type ContentTree, type LinkValue, type ListValue } from "./store.ts";
 import type { LayoutDoc, PostDoc, PostIndex, SiteKit } from "./types.ts";
 import { CORE_WIDGETS, registerWidgets, type WidgetRender } from "./widgets.tsx";
@@ -84,9 +83,9 @@ export type ArmatureKitConfig = {
    */
   forms?: { endpoint: string; siteId: string };
   /**
-   * Turn on the cookie-free visitor beacon. Sends one payload per page load and per
-   * client-side navigation to the stats-ingest edge function. No cookies, no IP
-   * storage; respects Do Not Track and Global Privacy Control.
+   * Visitor stats were removed in kit 2.9.0. This option is kept so a site
+   * whose developer still passes it keeps building; nothing is sent, nothing
+   * is stored, no network call is made.
    */
   stats?: { endpoint: string; siteId: string };
 };
@@ -120,12 +119,10 @@ export function createArmatureKit(config: ArmatureKitConfig): ArmatureKit {
   };
   setKitRuntime(runtime);
   const bridge = createBridge({ allowedOrigins: config.allowedOrigins, schema: config.schema, store, kitVersion: KIT_VERSION, navigate: config.navigate, slots: runtime.slots, onSlotsChange: runtime.onSlotsChange });
-
-  // Cookie-free visitor beacon. Off unless the site opts in with a stats config, and
-  // never runs in edit mode (the bridge sets that once the editor connects).
-  if (config.stats && /^https:\/\/[^\s]+$/i.test(config.stats.endpoint) && /^[0-9a-f-]{36}$/i.test(config.stats.siteId)) {
-    installStatsBeacon(config.stats);
-  }
+  // The `stats` option is a documented no-op in this kit version (visitor stats
+  // were removed in 2.9.0). The type is kept so a site that still passes it
+  // keeps building without a code change.
+  void config.stats;
 
   const itemTypes = new Map<string, Record<string, string>>();
   for (const page of config.schema?.pages ?? []) {

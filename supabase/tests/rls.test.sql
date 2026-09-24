@@ -610,39 +610,14 @@ do $$ begin
 end $$;
 reset role;
 
--- The nightly rollup cannot be called by anon, authenticated, or a client.
-do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
-set local role anon;
+-- The rollup and its tables were removed in migration 20260924000700_remove_stats.sql.
+-- Confirm those objects no longer exist so the migration is rolled forward correctly.
 do $$ begin
-  begin
-    perform public.rollup_site_stats_daily();
-    raise exception 'anon was able to call rollup_site_stats_daily';
-  exception when insufficient_privilege then null;
-  end;
+  assert (select to_regclass('public.site_stats_events')) is null, 'site_stats_events should have been dropped';
+  assert (select to_regclass('public.site_stats_daily')) is null, 'site_stats_daily should have been dropped';
+  assert (select count(*) from pg_proc where proname = 'rollup_site_stats_daily' and pronamespace = 'public'::regnamespace) = 0,
+    'rollup_site_stats_daily should have been dropped';
 end $$;
-reset role;
-
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a003","role":"authenticated","email":"client-a@example.com"}', true); end $$;
-set local role authenticated;
-do $$ begin
-  begin
-    perform public.rollup_site_stats_daily();
-    raise exception 'a client was able to call rollup_site_stats_daily';
-  exception when insufficient_privilege then null;
-  end;
-end $$;
-reset role;
-
-do $$ begin perform set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000a002","role":"authenticated","email":"x-staff@example.com"}', true); end $$;
-set local role authenticated;
-do $$ begin
-  begin
-    perform public.rollup_site_stats_daily();
-    raise exception 'agency staff were able to call rollup_site_stats_daily';
-  exception when insufficient_privilege then null;
-  end;
-end $$;
-reset role;
 
 -- ---------------------------------------------------------------------------
 -- 10. armature_settings: RLS on, revoked from client roles; the pg_cron rollup

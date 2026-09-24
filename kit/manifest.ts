@@ -28,6 +28,14 @@ export type KitReleaseNote = {
 
 export const KIT_RELEASES: KitReleaseNote[] = [
   {
+    version: "2.9.0",
+    date: "2026-09-24",
+    notes: [
+      "Visitor stats removed on request; the `stats` option and installStatsBeacon / sendBeacon stay as no-ops so sites already wired for them keep building.",
+    ],
+    // No site step: sites keep building; nothing to do.
+  },
+  {
     version: "2.8.0",
     date: "2026-09-24",
     notes: [
