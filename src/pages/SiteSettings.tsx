@@ -5,10 +5,11 @@
  * Publish history.
  */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { NavLink, Outlet } from "react-router";
 import { CheckList } from "@/components/CheckList.tsx";
 import { EditingLevelPanel } from "@/components/EditingLevelPanel.tsx";
-import { IconAlert, IconCheck, IconExternal, IconGithub, IconHistory, IconStethoscope } from "@/components/icons.tsx";
+import { IconAlert, IconCheck, IconExternal, IconGithub, IconHistory, IconPencil, IconStethoscope } from "@/components/icons.tsx";
 import { KitStatusPanel } from "@/components/KitStatusPanel.tsx";
 import { siteQueryKey, useSite } from "@/components/SiteLayout.tsx";
 import { SiteServicesPanel } from "@/components/SiteServicesPanel.tsx";
@@ -17,6 +18,7 @@ import { Button, LinkButton, Notice, PageHeader, Panel, Pill, SrOnly, TabBar, ta
 import { formatDateTime, relativeTime } from "@/lib/format.ts";
 import { callFunction } from "@/lib/functions.ts";
 import { SITE_STATUS_TONES, isHostingOnly, siteStatusLabel } from "@/lib/services.ts";
+import { supabase } from "@/lib/supabase.ts";
 import type { DiagnoseResponse } from "@shared/publishTypes.ts";
 import { PublishHistory } from "./PublishHistory.tsx";
 
@@ -127,17 +129,9 @@ export function SiteConnection() {
           </dd>
           <dt className="text-muted">Branch</dt>
           <dd className="font-mono text-[13px]">{site.branch ?? "—"}</dd>
-          <dt className="text-muted">Live address</dt>
+          <dt className="text-muted" id="live-address">Live address</dt>
           <dd className="min-w-0">
-            {site.live_url ? (
-              <a href={site.live_url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 text-text underline-offset-2 hover:underline">
-                <span className="truncate">{site.live_url}</span>
-                <IconExternal size={12} />
-                <SrOnly>(opens in a new tab)</SrOnly>
-              </a>
-            ) : (
-              <span className="text-muted">Not recorded</span>
-            )}
+            <LiveAddressEditor site={site} />
           </dd>
           <dt className="text-muted">GitHub App</dt>
           <dd>{site.github_installation_id ? `Installed (installation ${site.github_installation_id})` : "Not installed"}</dd>
@@ -166,6 +160,92 @@ export function SiteConnection() {
       </Panel>
       {!hostingOnly && <KitStatusPanel site={site} />}
       {!hostingOnly && <UndoSetupCard site={site} />}
+    </div>
+  );
+}
+
+/**
+ * Inline editor for a site's live_url on the Connection tab. Shows the
+ * current address as a link with a small "Edit" pencil; the pencil expands
+ * an input + Save/Cancel. Save writes directly through the RLS-guarded
+ * sites table and re-fetches the site.
+ *
+ * A #live-address anchor sits above this field so the Kit card can link
+ * straight here when it can't see the kit on the recorded address.
+ */
+function LiveAddressEditor({ site }: { site: import("@/lib/types.ts").Site }) {
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const editing = draft !== null;
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const trimmed = (draft ?? "").trim();
+      if (trimmed.length > 0) {
+        try {
+          const parsed = new URL(trimmed);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("must be http or https");
+        } catch {
+          throw new Error("That address doesn't look like a URL. Include https:// (for example https://example.com).");
+        }
+      }
+      const next = trimmed.length > 0 ? trimmed : null;
+      const { error: dbError } = await supabase.from("sites").update({ live_url: next }).eq("id", site.id);
+      if (dbError) throw new Error(dbError.message);
+      return next;
+    },
+    onSuccess: () => {
+      setError(null);
+      setDraft(null);
+      void queryClient.invalidateQueries({ queryKey: siteQueryKey(site.id) });
+      void queryClient.invalidateQueries({ queryKey: ["kit-status", site.id] });
+    },
+    onError: (err: unknown) => {
+      setError(err instanceof Error ? err.message : "Could not save the address.");
+    },
+  });
+
+  if (editing) {
+    return (
+      <form
+        onSubmit={(event) => { event.preventDefault(); save.mutate(); }}
+        className="flex flex-col gap-2"
+        data-testid="live-address-editor"
+      >
+        <input
+          type="url"
+          className="h-8 rounded-control border border-line px-2 font-mono text-[12px]"
+          value={draft ?? ""}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder="https://your-site.netlify.app"
+          aria-label="Live address"
+          data-testid="live-address-input"
+          autoFocus
+        />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="submit" size="sm" loading={save.isPending} data-testid="live-address-save">Save</Button>
+          <Button type="button" size="sm" variant="secondary" onClick={() => { setDraft(null); setError(null); }} data-testid="live-address-cancel">Cancel</Button>
+        </div>
+        {error && <span className="text-[12px] text-danger" data-testid="live-address-error">{error}</span>}
+      </form>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {site.live_url ? (
+        <a href={site.live_url} target="_blank" rel="noreferrer" className="inline-flex max-w-full items-center gap-1 text-text underline-offset-2 hover:underline">
+          <span className="truncate">{site.live_url}</span>
+          <IconExternal size={12} />
+          <SrOnly>(opens in a new tab)</SrOnly>
+        </a>
+      ) : (
+        <span className="text-muted">Not recorded</span>
+      )}
+      <Button type="button" size="sm" variant="secondary" onClick={() => setDraft(site.live_url ?? "")} data-testid="edit-live-address">
+        <IconPencil size={12} /> Edit
+      </Button>
     </div>
   );
 }

@@ -36,6 +36,7 @@ export function NeedsSetupCard({ site, supabaseUrl }: { site: Site; supabaseUrl:
     fromVersion: null,
     releases: KIT_RELEASES,
     pendingSteps: [],
+    preSetupCommitSha: site.pre_setup_commit_sha ?? null,
   });
 
   const onCopy = async () => {

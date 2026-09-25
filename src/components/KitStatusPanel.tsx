@@ -169,6 +169,7 @@ export function KitStatusPanel({ site }: { site: Site }) {
         fromVersion: status.data.inRepo,
         releases: KIT_RELEASES.filter((r) => (status.data!.inRepo ? r.version > status.data!.inRepo && r.version <= status.data!.current : true)),
         pendingSteps: status.data.pendingSteps,
+        preSetupCommitSha: site.pre_setup_commit_sha ?? null,
       })
     : "";
 
@@ -206,7 +207,31 @@ export function KitStatusPanel({ site }: { site: Site }) {
               <dt className="text-muted">In the repo</dt>
               <dd className="font-mono text-text" data-testid="kit-status-in-repo">{status.data.inRepo ?? "not found"}</dd>
               <dt className="text-muted">Live on the site</dt>
-              <dd className="font-mono text-text" data-testid="kit-status-live">{status.data.live ?? "unknown (Armature could not read the live page)"}</dd>
+              <dd data-testid="kit-status-live">
+                {status.data.live ? (
+                  <span className="font-mono text-text">{status.data.live}</span>
+                ) : status.data.inRepo ? (
+                  <div className="flex flex-col gap-2 text-[13px] text-text" data-testid="kit-live-address-mismatch">
+                    <p>
+                      Armature can't see the kit on{" "}
+                      {site.live_url ? (
+                        <a href={site.live_url} target="_blank" rel="noreferrer" className="font-mono text-primary underline">
+                          {site.live_url}
+                        </a>
+                      ) : (
+                        <span className="italic text-muted">(no live address recorded)</span>
+                      )}
+                      . Is that the right address for this site?
+                    </p>
+                    <p className="text-muted">
+                      The live address should be where this repo is deployed (for example its Netlify address).{" "}
+                      <a href="#live-address" className="text-primary underline">Edit the address</a>
+                    </p>
+                  </div>
+                ) : (
+                  <span className="font-mono text-muted">unknown (Armature could not read the live page)</span>
+                )}
+              </dd>
               <dt className="text-muted">Current release</dt>
               <dd className="font-mono text-text" data-testid="kit-status-current">{status.data.current}</dd>
               <dt className="text-muted">Kit path</dt>
